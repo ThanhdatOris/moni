@@ -43,3 +43,106 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ================================
+# SENSITIVE FILES - DO NOT COMMIT
+# ================================
+
+# Firebase Configuration Files
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
+web/firebase-config.js
+
+# Environment Variables
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+
+# API Keys and Secrets
+**/api_keys.dart
+**/secrets.dart
+**/config/secrets/
+lib/config/api_keys.dart
+lib/services/api_config.dart
+
+# Local Configuration
+local.properties
+
+# Database Files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log Files
+logs/
+*.log.*
+crash_reports/
+
+# Temporary Files
+tmp/
+temp/
+*.tmp
+*.cache
+
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE Specific
+.vscode/settings.json
+.vscode/launch.json
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries/
+.idea/vcs.xml
+.idea/jsLibraryMappings.xml
+
+# Flutter/Dart Analysis
+.dart_tool/build/
+analysis_options_local.yaml
+
+# Generated Files
+lib/generated/
+lib/l10n/generated/
+*.g.dart
+*.freezed.dart
+*.gr.dart
+
+# Test Coverage
+coverage/
+test/.test_coverage.dart
+
+# Firebase Debug Files
+firebase-debug.log
+firestore-debug.log
+pubsub-debug.log
+functions-debug.log
+
+# Google Cloud
+.gcloudignore
+gcloud-key.json
+service-account-key.json
+
+# Certificates
+*.p12
+*.keystore
+*.jks
+key.properties
+
+# Release APK/IPA
+*.apk
+*.ipa
+*.aab
+
+# Backup Files
+*.bak
+*.backup
+*~
