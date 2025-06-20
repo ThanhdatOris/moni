@@ -61,7 +61,7 @@ class Menubar extends StatelessWidget {
           
           // Nút thêm ở giữa với thiết kế đồng bộ
           Positioned(
-            top: -5,
+            top: -15, // Nâng nút lên cao hơn để có hiệu ứng nổi bật
             child: GestureDetector(
               onTap: () => onItemTapped(2),
               child: Container(
@@ -110,7 +110,8 @@ class Menubar extends StatelessWidget {
     return GestureDetector(
       onTap: () => onItemTapped(index),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        // Giảm padding dọc để khắc phục lỗi tràn
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -118,44 +119,61 @@ class Menubar extends StatelessWidget {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isSelected 
-                  ? Colors.white.withValues(alpha: 0.3)
+                  ? Colors.white.withOpacity(0.3)
                   : Colors.transparent,
                 borderRadius: BorderRadius.circular(12), // Bo góc đồng bộ
                 border: isSelected 
-                  ? Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1)
+                  ? Border.all(color: Colors.white.withOpacity(0.4), width: 1)
                   : null,
               ),
               child: Icon(
                 icon,
-                color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.85),
+                color: isSelected ? Colors.white : Colors.white.withOpacity(0.85),
                 size: isSelected ? 26 : 24,
               ),
             ),
             const SizedBox(height: 3),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: isSelected 
-                  ? Colors.white.withValues(alpha: 0.2)
-                  : Colors.transparent,
-                borderRadius: BorderRadius.circular(8), // Bo góc đồng bộ
-              ),
-              child: Text(
+            // Chỉ hiển thị Container với padding khi được chọn
+            if (isSelected)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8), // Bo góc đồng bộ
+                ),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.3),
+                        offset: const Offset(0, 1),
+                        blurRadius: 2,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              // Text đơn giản không có padding khi không được chọn
+              Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.8),
+                  color: Colors.white.withOpacity(0.8),
                   fontSize: 10,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: FontWeight.w500,
                   shadows: [
                     Shadow(
-                      color: Colors.black.withValues(alpha: 0.3),
+                      color: Colors.black.withOpacity(0.3),
                       offset: const Offset(0, 1),
                       blurRadius: 2,
                     ),
                   ],
                 ),
               ),
-            ),
           ],
         ),
       ),

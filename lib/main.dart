@@ -3,15 +3,34 @@ import 'package:pie_chart/pie_chart.dart';
 
 import 'constants/app_colors.dart';
 import 'constants/app_strings.dart';
-import 'menubar.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/chatbot_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/transaction_input_screen.dart';
+import 'services/environment_service.dart';
+import 'services/firebase_service.dart';
+import 'services/service_locator.dart';
 import 'widgets/financial_overview.dart'; // Import the new widget
 import 'widgets/home_header.dart';
+import 'widgets/menubar.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Khởi tạo Environment Service trước
+  await EnvironmentService.initialize();
+
+  // Log configuration nếu ở development mode
+  if (EnvironmentService.isDevelopment) {
+    EnvironmentService.logConfiguration();
+  }
+
+  // Khởi tạo Firebase
+  await FirebaseService.initialize();
+
+  // Setup dependency injection
+  setupServiceLocator();
+
   runApp(const MyApp());
 }
 
@@ -59,7 +78,9 @@ class _HomeScreenState extends State<HomeScreen> {
   static final List<Widget> _widgetOptions = <Widget>[
     const HomeTabContent(), // Index 0: Trang chủ
     const TransactionListScreen(), // Index 1: Danh sách giao dịch
-    const Center(child: Text('Trang Thêm mới')), // Index 2 (Nút giữa, nội dung không hiển thị)
+    const Center(
+        child: Text(
+            'Trang Thêm mới')), // Index 2 (Nút giữa, nội dung không hiển thị)
     const ChatbotPage(), // Index 3: Trang Chatbot
     const ProfileScreen(), // Index 4: Trang cá nhân
   ];
@@ -68,7 +89,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // Xử lý sự kiện nhấn nút ở giữa (index 2) riêng
     if (index == 2) {
       // Ví dụ: hiển thị một dialog, hoặc điều hướng đến màn hình thêm mới
-      showModalBottomSheet(context: context, builder: (context) => const Center(child: Text("Chức năng thêm mới")));
+      showModalBottomSheet(
+          context: context,
+          builder: (context) =>
+              const Center(child: Text("Chức năng thêm mới")));
       return; // Không thay đổi tab đang chọn
     }
     setState(() {
@@ -178,7 +202,8 @@ class HomeTabContent extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 120), // Khoảng cách để tránh overlap với navigation
+          const SizedBox(
+              height: 120), // Khoảng cách để tránh overlap với navigation
         ],
       ),
     );
@@ -219,7 +244,8 @@ class _ExpenseChartSection extends StatelessWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFF6B35).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),

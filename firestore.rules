@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'displayName', 'createdAt']) &&
+             data.email is string &&
+             data.displayName is string &&
+             data.createdAt is timestamp;
+    }
+    
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['amount', 'description', 'type', 'categoryId', 'createdAt']) &&
+             data.amount is number &&
+             data.description is string &&
+             data.type in ['income', 'expense'] &&
+             data.categoryId is string &&
+             data.createdAt is timestamp;
+    }
+    
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name', 'icon', 'color', 'type', 'createdAt']) &&
+             data.name is string &&
+             data.icon is string &&
+             data.color is string &&
+             data.type in ['income', 'expense'] &&
+             data.createdAt is timestamp;
+    }
+    
+    function isValidBudgetAlert(data) {
+      return data.keys().hasAll(['categoryId', 'budgetLimit', 'currentAmount', 'threshold', 'createdAt']) &&
+             data.categoryId is string &&
+             data.budgetLimit is number &&
+             data.currentAmount is number &&
+             data.threshold is number &&
+             data.createdAt is timestamp;
+    }
+    
+    function isValidReport(data) {
+      return data.keys().hasAll(['type', 'period', 'data', 'createdAt']) &&
+             data.type in ['monthly', 'weekly', 'yearly', 'custom'] &&
+             data.period is map &&
+             data.data is map &&
+             data.createdAt is timestamp;
+    }
+    
+    function isValidChatLog(data) {
+      return data.keys().hasAll(['message', 'response', 'type', 'createdAt']) &&
+             data.message is string &&
+             data.response is string &&
+             data.type in ['text', 'image', 'voice'] &&
+             data.createdAt is timestamp;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+      allow create: if isAuthenticated() && 
+                       request.auth.uid == userId && 
+                       isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && 
+                       isValidUser(request.resource.data);
+      allow delete: if isOwner(userId);
+      
+      // Transactions subcollection
+      match /transactions/{transactionId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                         isValidTransaction(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         isValidTransaction(request.resource.data);
+        allow delete: if isOwner(userId);
+        
+        // Limit queries to prevent abuse
+        allow list: if isOwner(userId) && 
+                       request.query.limit <= 100;
+      }
+      
+      // Categories subcollection
+      match /categories/{categoryId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                         isValidCategory(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         isValidCategory(request.resource.data);
+        allow delete: if isOwner(userId);
+        
+        // Limit number of categories per user
+        allow create: if isOwner(userId) && 
+                         isValidCategory(request.resource.data) &&
+                         get(/databases/$(database)/documents/users/$(userId)).data.categoriesCount < 50;
+      }
+      
+      // Budget alerts subcollection
+      match /budget_alerts/{alertId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                         isValidBudgetAlert(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         isValidBudgetAlert(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+      
+      // Reports subcollection
+      match /reports/{reportId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                         isValidReport(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         isValidReport(request.resource.data);
+        allow delete: if isOwner(userId);
+        
+        // Limit number of reports per user
+        allow create: if isOwner(userId) && 
+                         isValidReport(request.resource.data) &&
+                         get(/databases/$(database)/documents/users/$(userId)).data.reportsCount < 100;
+      }
+      
+      // Chat logs subcollection
+      match /chat_logs/{interactionId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                         isValidChatLog(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         isValidChatLog(request.resource.data);
+        allow delete: if isOwner(userId);
+        
+        // Limit queries to prevent abuse
+        allow list: if isOwner(userId) && 
+                       request.query.limit <= 50;
+      }
+    }
+    
+    // Default deny for all other documents
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+} 
