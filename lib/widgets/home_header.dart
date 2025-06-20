@@ -1,7 +1,56 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
-class HomeHeaderSection extends StatelessWidget {
+class HomeHeaderSection extends StatefulWidget {
   const HomeHeaderSection({super.key});
+
+  @override
+  State<HomeHeaderSection> createState() => _HomeHeaderSectionState();
+}
+
+class _HomeHeaderSectionState extends State<HomeHeaderSection> {
+  String _userName = 'Khách';
+  String _greeting = 'Chào bạn!';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+    _setGreeting();
+  }
+
+  void _loadUserInfo() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      setState(() {
+        _userName =
+            user.displayName ?? user.email?.split('@')[0] ?? 'Người dùng';
+      });
+    }
+  }
+
+  void _setGreeting() {
+    final hour = DateTime.now().hour;
+    String greeting;
+
+    if (hour < 12) {
+      greeting = 'Chào buổi sáng!';
+    } else if (hour < 18) {
+      greeting = 'Chào buổi chiều!';
+    } else {
+      greeting = 'Chào buổi tối!';
+    }
+
+    setState(() {
+      _greeting = greeting;
+    });
+  }
+
+  String _getCurrentMonth() {
+    final now = DateTime.now();
+    return DateFormat('MMMM yyyy', 'vi_VN').format(now);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +100,7 @@ class HomeHeaderSection extends StatelessWidget {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'Chào buổi sáng!',
+                              _greeting,
                               style: TextStyle(
                                 fontSize: 13,
                                 color: Colors.white.withValues(alpha: 0.9),
@@ -61,9 +110,9 @@ class HomeHeaderSection extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 6),
-                        const Text(
-                          'Nguyễn Thành Đạt',
-                          style: TextStyle(
+                        Text(
+                          _userName,
+                          style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -129,15 +178,16 @@ class HomeHeaderSection extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 18),
-              
+
               // Thông tin thời gian
               Row(
                 children: [
                   // Badge tháng
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(20),
@@ -156,8 +206,8 @@ class HomeHeaderSection extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          'Tháng 6/2025',
-                          style: TextStyle(
+                          _getCurrentMonth(),
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -166,11 +216,11 @@ class HomeHeaderSection extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   const Spacer(),
                 ],
               ),
-              
+
               const SizedBox(height: 12),
             ],
           ),
@@ -178,8 +228,9 @@ class HomeHeaderSection extends StatelessWidget {
       ),
     );
   }
-  
-  Widget _buildQuickStat(String label, String value, IconData icon, Color color) {
+
+  Widget _buildQuickStat(
+      String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 3),
       decoration: BoxDecoration(

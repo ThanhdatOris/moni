@@ -349,6 +349,26 @@ class CategoryService {
     }
   }
 
+  /// Get all categories for user (alias method for frontend compatibility)
+  Future<List<CategoryModel>> getUserCategories(String userId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('categories')
+          .where('is_deleted', isEqualTo: false)
+          .orderBy('name')
+          .get();
+
+      return snapshot.docs.map((doc) {
+        return CategoryModel.fromMap(doc.data(), doc.id);
+      }).toList();
+    } catch (e) {
+      _logger.e('Lỗi lấy danh mục người dùng: $e');
+      return [];
+    }
+  }
+
   /// Kiểm tra xem danh mục có giao dịch không
   Future<bool> _hasTransactionsInCategory(String categoryId) async {
     try {

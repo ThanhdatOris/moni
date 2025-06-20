@@ -82,10 +82,11 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
     // Filter by search query
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((t) => 
-        t.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-        t.category.toLowerCase().contains(_searchQuery.toLowerCase())
-      ).toList();
+      filtered = filtered
+          .where((t) =>
+              t.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              t.category.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
     }
 
     return filtered;
@@ -130,9 +131,11 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                     controller: _searchController,
                     decoration: InputDecoration(
                       hintText: 'Tìm kiếm giao dịch...',
-                      prefixIcon: Icon(Icons.search, color: AppColors.textLight),
+                      prefixIcon:
+                          Icon(Icons.search, color: AppColors.textLight),
                       border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
                     onChanged: (value) {
                       setState(() {
@@ -141,9 +144,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                     },
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Filter chips
                 SizedBox(
                   height: 40,
@@ -163,7 +166,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               ],
             ),
           ),
-          
+
           // Summary section
           Container(
             margin: const EdgeInsets.all(16),
@@ -200,7 +203,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               ],
             ),
           ),
-          
+
           // Transactions list
           Expanded(
             child: _filteredTransactions.isEmpty
@@ -209,7 +212,8 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     itemCount: _filteredTransactions.length,
                     itemBuilder: (context, index) {
-                      return _buildTransactionItem(_filteredTransactions[index]);
+                      return _buildTransactionItem(
+                          _filteredTransactions[index]);
                     },
                   ),
           ),
@@ -292,9 +296,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               size: 24,
             ),
           ),
-          
+
           const SizedBox(width: 16),
-          
+
           // Transaction details
           Expanded(
             child: Column(
@@ -335,14 +339,14 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               ],
             ),
           ),
-          
+
           // Amount
           Text(
             '${transaction.amount > 0 ? '+' : ''}${_formatCurrency(transaction.amount)}',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: transaction.amount > 0 
+              color: transaction.amount > 0
                   ? const Color(0xFF4CAF50)
                   : const Color(0xFFE53E3E),
             ),
@@ -398,15 +402,15 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
   String _formatCurrency(double amount) {
     return '${amount.abs().toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
-    )}đ';
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        )}đ';
   }
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date).inDays;
-    
+
     if (difference == 0) {
       return 'Hôm nay';
     } else if (difference == 1) {
@@ -435,4 +439,4 @@ class TransactionItem {
     required this.icon,
     required this.color,
   });
-} 
+}

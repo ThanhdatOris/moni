@@ -1,13 +1,94 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../constants/app_colors.dart';
+import '../services/services.dart';
 
 /// A widget that displays financial overview cards with a glassmorphism effect.
-class FinancialOverviewCards extends StatelessWidget {
+class FinancialOverviewCards extends StatefulWidget {
   const FinancialOverviewCards({super.key});
 
   @override
+  State<FinancialOverviewCards> createState() => _FinancialOverviewCardsState();
+}
+
+class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
+  double totalIncome = 0.0;
+  double totalExpense = 0.0;
+  double balance = 0.0;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFinancialData();
+  }
+
+  Future<void> _loadFinancialData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final transactionService =
+          Provider.of<TransactionService>(context, listen: false);
+
+      // Lấy dữ liệu tháng hiện tại
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      final endOfMonth = DateTime(now.year, now.month + 1, 0);
+
+      final income = await transactionService.getTotalIncome(
+        startDate: startOfMonth,
+        endDate: endOfMonth,
+      );
+
+      final expense = await transactionService.getTotalExpense(
+        startDate: startOfMonth,
+        endDate: endOfMonth,
+      );
+
+      final currentBalance = await transactionService.getCurrentBalance();
+
+      if (mounted) {
+        setState(() {
+          totalIncome = income;
+          totalExpense = expense;
+          balance = currentBalance;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading financial data: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    }
+  }
+
+  String _formatCurrency(double amount) {
+    final formatter = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: 'đ',
+      decimalDigits: 0,
+    );
+    return formatter.format(amount);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return Container(
+        height: 200,
+        child: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Column(
       children: [
         Row(
@@ -15,7 +96,7 @@ class FinancialOverviewCards extends StatelessWidget {
             Expanded(
               child: _buildFinancialCard(
                 title: 'Tổng thu',
-                amount: '15.000.000đ',
+                amount: _formatCurrency(totalIncome),
                 icon: Icons.arrow_upward_rounded,
                 iconColor: AppColors.success,
               ),
@@ -24,7 +105,7 @@ class FinancialOverviewCards extends StatelessWidget {
             Expanded(
               child: _buildFinancialCard(
                 title: 'Tổng chi',
-                amount: '8.500.000đ',
+                amount: _formatCurrency(totalExpense),
                 icon: Icons.arrow_downward_rounded,
                 iconColor: AppColors.error,
               ),
@@ -34,7 +115,7 @@ class FinancialOverviewCards extends StatelessWidget {
         const SizedBox(height: 16),
         _buildFinancialCard(
           title: 'Số dư khả dụng',
-          amount: '6.500.000đ',
+          amount: _formatCurrency(balance),
           icon: Icons.account_balance_wallet_outlined,
           iconColor: AppColors.info,
           isFullWidth: true,
@@ -97,16 +178,15 @@ class FinancialOverviewCards extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.5),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          )
-        ]
-      ),
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.5),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            )
+          ]),
       child: Icon(icon, color: Colors.white, size: 24),
     );
   }

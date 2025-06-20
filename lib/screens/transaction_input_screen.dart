@@ -1,15 +1,19 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
+
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
-import '../models/transaction.dart';
-import '../models/category.dart';
+import '../models/models.dart';
+import '../services/services.dart';
 import 'category_selector_screen.dart';
 import 'image_input_screen.dart';
 
 class TransactionInputScreen extends StatefulWidget {
-  final Transaction? transaction;
+  final TransactionModel? transaction;
 
   const TransactionInputScreen({
     super.key,
@@ -51,7 +55,7 @@ class _TransactionInputScreenState extends State<TransactionInputScreen>
       _selectedDate = transaction.date;
       _selectedTime = TimeOfDay.fromDateTime(transaction.date);
       _selectedImagePath = transaction.imageUrl;
-      
+
       // Tìm category từ danh sách mặc định (trong thực tế sẽ load từ database)
       final categories = Category.getDefaultCategories();
       _selectedCategory = categories.firstWhere(
@@ -74,7 +78,9 @@ class _TransactionInputScreenState extends State<TransactionInputScreen>
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(_isEditing ? AppStrings.editTransaction : AppStrings.addTransaction),
+        title: Text(_isEditing
+            ? AppStrings.editTransaction
+            : AppStrings.addTransaction),
         backgroundColor: AppColors.backgroundLight,
         elevation: 0,
         centerTitle: true,
@@ -290,7 +296,8 @@ class _TransactionInputScreenState extends State<TransactionInputScreen>
           color: AppColors.backgroundLight,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: _selectedCategory == null ? AppColors.error : AppColors.grey200,
+            color:
+                _selectedCategory == null ? AppColors.error : AppColors.grey200,
           ),
           boxShadow: [
             BoxShadow(
@@ -306,7 +313,8 @@ class _TransactionInputScreenState extends State<TransactionInputScreen>
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: (_selectedCategory?.color ?? AppColors.grey300).withOpacity(0.2),
+                color: (_selectedCategory?.color ?? AppColors.grey300)
+                    .withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -509,7 +517,9 @@ class _TransactionInputScreenState extends State<TransactionInputScreen>
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: templates.map((template) => _buildTemplateChip(template)).toList(),
+          children: templates
+              .map((template) => _buildTemplateChip(template))
+              .toList(),
         ),
       ],
     );
@@ -575,15 +585,45 @@ class _TransactionInputScreenState extends State<TransactionInputScreen>
   List<Map<String, dynamic>> _getQuickTemplates() {
     if (_selectedType == TransactionType.expense) {
       return [
-        {'name': 'Ăn sáng', 'amount': 25000, 'category': 'expense_food', 'icon': Icons.breakfast_dining},
-        {'name': 'Cà phê', 'amount': 30000, 'category': 'expense_food', 'icon': Icons.coffee},
-        {'name': 'Xăng xe', 'amount': 100000, 'category': 'expense_transport', 'icon': Icons.local_gas_station},
-        {'name': 'Grab', 'amount': 50000, 'category': 'expense_transport', 'icon': Icons.car_rental},
+        {
+          'name': 'Ăn sáng',
+          'amount': 25000,
+          'category': 'expense_food',
+          'icon': Icons.breakfast_dining
+        },
+        {
+          'name': 'Cà phê',
+          'amount': 30000,
+          'category': 'expense_food',
+          'icon': Icons.coffee
+        },
+        {
+          'name': 'Xăng xe',
+          'amount': 100000,
+          'category': 'expense_transport',
+          'icon': Icons.local_gas_station
+        },
+        {
+          'name': 'Grab',
+          'amount': 50000,
+          'category': 'expense_transport',
+          'icon': Icons.car_rental
+        },
       ];
     } else {
       return [
-        {'name': 'Lương', 'amount': 10000000, 'category': 'income_salary', 'icon': Icons.work},
-        {'name': 'Thưởng', 'amount': 2000000, 'category': 'income_bonus', 'icon': Icons.card_giftcard},
+        {
+          'name': 'Lương',
+          'amount': 10000000,
+          'category': 'income_salary',
+          'icon': Icons.work
+        },
+        {
+          'name': 'Thưởng',
+          'amount': 2000000,
+          'category': 'income_bonus',
+          'icon': Icons.card_giftcard
+        },
       ];
     }
   }
@@ -680,9 +720,9 @@ class _TransactionInputScreenState extends State<TransactionInputScreen>
     // Show success message
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(_isEditing 
-          ? AppStrings.successEditTransaction 
-          : AppStrings.successAddTransaction),
+        content: Text(_isEditing
+            ? AppStrings.successEditTransaction
+            : AppStrings.successAddTransaction),
         backgroundColor: AppColors.success,
       ),
     );
