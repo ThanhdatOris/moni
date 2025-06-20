@@ -146,3 +146,7 @@ key.properties
 *.bak
 *.backup
 *~
+SETUP_COMPLETION_GUIDE.md
+SECURITY_GUIDE.md
+PACKAGE_UPDATE_GUIDE.md
+MoniAppDesign.txt
