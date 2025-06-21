@@ -63,41 +63,32 @@ service cloud.firestore {
     
     // Users collection
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
-      allow create: if isAuthenticated() && 
-                       request.auth.uid == userId && 
-                       isValidUser(request.resource.data);
-      allow update: if isOwner(userId) && 
-                       isValidUser(request.resource.data);
-      allow delete: if isOwner(userId);
+      allow read, write: if request.auth != null && request.auth.uid == userId;
       
       // Transactions subcollection
       match /transactions/{transactionId} {
-        allow read, write: if isOwner(userId);
-        allow create: if isOwner(userId) && 
-                         isValidTransaction(request.resource.data);
-        allow update: if isOwner(userId) && 
-                         isValidTransaction(request.resource.data);
-        allow delete: if isOwner(userId);
+        allow read, write: if request.auth != null && request.auth.uid == userId;
         
-        // Limit queries to prevent abuse
-        allow list: if isOwner(userId) && 
-                       request.query.limit <= 100;
+        allow create: if request.auth != null 
+          && request.auth.uid == userId
+          && validateTransactionData(request.resource.data);
+          
+        allow update: if request.auth != null 
+          && request.auth.uid == userId
+          && validateTransactionData(request.resource.data);
       }
       
       // Categories subcollection
       match /categories/{categoryId} {
-        allow read, write: if isOwner(userId);
-        allow create: if isOwner(userId) && 
-                         isValidCategory(request.resource.data);
-        allow update: if isOwner(userId) && 
-                         isValidCategory(request.resource.data);
-        allow delete: if isOwner(userId);
+        allow read, write: if request.auth != null && request.auth.uid == userId;
         
-        // Limit number of categories per user
-        allow create: if isOwner(userId) && 
-                         isValidCategory(request.resource.data) &&
-                         get(/databases/$(database)/documents/users/$(userId)).data.categoriesCount < 50;
+        allow create: if request.auth != null 
+          && request.auth.uid == userId
+          && validateCategoryData(request.resource.data);
+          
+        allow update: if request.auth != null 
+          && request.auth.uid == userId
+          && validateCategoryData(request.resource.data);
       }
       
       // Budget alerts subcollection
@@ -138,6 +129,25 @@ service cloud.firestore {
         allow list: if isOwner(userId) && 
                        request.query.limit <= 50;
       }
+    }
+    
+    // Hàm validation cho transaction data
+    function validateTransactionData(data) {
+      return data.keys().hasAll(['amount', 'type', 'date', 'is_deleted']) &&
+             data.amount is number &&
+             data.amount > 0 &&
+             data.type in ['INCOME', 'EXPENSE'] &&
+             data.date is timestamp &&
+             data.is_deleted is bool;
+    }
+    
+    // Hàm validation cho category data
+    function validateCategoryData(data) {
+      return data.keys().hasAll(['name', 'type', 'is_deleted']) &&
+             data.name is string &&
+             data.name.size() > 0 &&
+             data.type in ['INCOME', 'EXPENSE'] &&
+             data.is_deleted is bool;
     }
     
     // Default deny for all other documents

@@ -104,12 +104,16 @@ class TransactionService {
         return Stream.value([]);
       }
 
+      // Tạo query cơ bản
       Query query = _firestore
           .collection('users')
           .doc(user.uid)
           .collection('transactions')
-          .where('is_deleted', isEqualTo: false)
-          .orderBy('date', descending: true);
+          .where('is_deleted', isEqualTo: false);
+
+      // Kiểm tra xem có filters phức tạp không
+      bool hasComplexFilters =
+          (type != null) || (startDate != null) || (endDate != null);
 
       // Áp dụng các filter
       if (type != null) {
@@ -130,18 +134,101 @@ class TransactionService {
             isLessThanOrEqualTo: Timestamp.fromDate(endDate));
       }
 
+      // Thêm orderBy cuối cùng để tránh lỗi index
+      query = query.orderBy('date', descending: true);
+
       if (limit != null) {
         query = query.limit(limit);
       }
 
-      return query.snapshots().map((snapshot) {
-        return snapshot.docs.map((doc) {
+      return query.snapshots().handleError((error) {
+        _logger.e('Lỗi stream giao dịch: $error');
+        // Nếu lỗi index, fallback về query đơn giản
+        if (error.toString().contains('failed-precondition') ||
+            error.toString().contains('index')) {
+          _logger.w('Sử dụng fallback query do lỗi index');
+          return _getFallbackTransactions(
+              type, categoryId, startDate, endDate, limit);
+        }
+        return Stream.value(<TransactionModel>[]);
+      }).map((snapshot) {
+        var transactions = snapshot.docs.map((doc) {
           return TransactionModel.fromMap(
               doc.data() as Map<String, dynamic>, doc.id);
         }).toList();
+
+        return transactions;
       });
     } catch (e) {
       _logger.e('Lỗi lấy danh sách giao dịch: $e');
+      // Fallback khi có lỗi
+      return _getFallbackTransactions(
+          type, categoryId, startDate, endDate, limit);
+    }
+  }
+
+  /// Fallback method khi gặp lỗi index
+  Stream<List<TransactionModel>> _getFallbackTransactions(
+    TransactionType? type,
+    String? categoryId,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+  ) {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return Stream.value([]);
+      }
+
+      // Query đơn giản nhất có thể - chỉ filter is_deleted
+      Query query = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('transactions')
+          .where('is_deleted', isEqualTo: false);
+
+      return query.snapshots().map((snapshot) {
+        var transactions = snapshot.docs.map((doc) {
+          return TransactionModel.fromMap(
+              doc.data() as Map<String, dynamic>, doc.id);
+        }).toList();
+
+        // Filter và sắp xếp trong client
+        if (type != null) {
+          transactions = transactions.where((t) => t.type == type).toList();
+        }
+
+        if (categoryId != null) {
+          transactions =
+              transactions.where((t) => t.categoryId == categoryId).toList();
+        }
+
+        if (startDate != null) {
+          transactions = transactions
+              .where((t) =>
+                  t.date.isAfter(startDate.subtract(const Duration(days: 1))))
+              .toList();
+        }
+
+        if (endDate != null) {
+          transactions = transactions
+              .where(
+                  (t) => t.date.isBefore(endDate.add(const Duration(days: 1))))
+              .toList();
+        }
+
+        // Sắp xếp theo date descending
+        transactions.sort((a, b) => b.date.compareTo(a.date));
+
+        if (limit != null && transactions.length > limit) {
+          transactions = transactions.take(limit).toList();
+        }
+
+        return transactions;
+      });
+    } catch (e) {
+      _logger.e('Lỗi fallback query: $e');
       return Stream.value([]);
     }
   }
@@ -238,6 +325,63 @@ class TransactionService {
       return total;
     } catch (e) {
       _logger.e('Lỗi tính tổng thu nhập: $e');
+      // Fallback: lấy tất cả giao dịch và filter trong client
+      if (e.toString().contains('failed-precondition') ||
+          e.toString().contains('index')) {
+        return _getTotalIncomeFallback(startDate, endDate, categoryId);
+      }
+      return 0.0;
+    }
+  }
+
+  /// Fallback method cho getTotalIncome
+  Future<double> _getTotalIncomeFallback(
+    DateTime? startDate,
+    DateTime? endDate,
+    String? categoryId,
+  ) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 0.0;
+
+      // Query đơn giản chỉ với is_deleted và type
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('transactions')
+          .where('is_deleted', isEqualTo: false)
+          .where('type', isEqualTo: TransactionType.income.value)
+          .get();
+
+      double total = 0.0;
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final transaction = TransactionModel.fromMap(data, doc.id);
+
+        // Filter trong client
+        bool shouldInclude = true;
+
+        if (startDate != null && transaction.date.isBefore(startDate)) {
+          shouldInclude = false;
+        }
+
+        if (endDate != null && transaction.date.isAfter(endDate)) {
+          shouldInclude = false;
+        }
+
+        if (categoryId != null && transaction.categoryId != categoryId) {
+          shouldInclude = false;
+        }
+
+        if (shouldInclude) {
+          total += transaction.amount;
+        }
+      }
+
+      return total;
+    } catch (e) {
+      _logger.e('Lỗi fallback tính tổng thu nhập: $e');
       return 0.0;
     }
   }
@@ -284,6 +428,63 @@ class TransactionService {
       return total;
     } catch (e) {
       _logger.e('Lỗi tính tổng chi tiêu: $e');
+      // Fallback: lấy tất cả giao dịch và filter trong client
+      if (e.toString().contains('failed-precondition') ||
+          e.toString().contains('index')) {
+        return _getTotalExpenseFallback(startDate, endDate, categoryId);
+      }
+      return 0.0;
+    }
+  }
+
+  /// Fallback method cho getTotalExpense
+  Future<double> _getTotalExpenseFallback(
+    DateTime? startDate,
+    DateTime? endDate,
+    String? categoryId,
+  ) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return 0.0;
+
+      // Query đơn giản chỉ với is_deleted và type
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('transactions')
+          .where('is_deleted', isEqualTo: false)
+          .where('type', isEqualTo: TransactionType.expense.value)
+          .get();
+
+      double total = 0.0;
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
+        final transaction = TransactionModel.fromMap(data, doc.id);
+
+        // Filter trong client
+        bool shouldInclude = true;
+
+        if (startDate != null && transaction.date.isBefore(startDate)) {
+          shouldInclude = false;
+        }
+
+        if (endDate != null && transaction.date.isAfter(endDate)) {
+          shouldInclude = false;
+        }
+
+        if (categoryId != null && transaction.categoryId != categoryId) {
+          shouldInclude = false;
+        }
+
+        if (shouldInclude) {
+          total += transaction.amount;
+        }
+      }
+
+      return total;
+    } catch (e) {
+      _logger.e('Lỗi fallback tính tổng chi tiêu: $e');
       return 0.0;
     }
   }

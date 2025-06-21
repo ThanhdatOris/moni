@@ -275,77 +275,230 @@ class CategoryService {
         throw Exception('Người dùng chưa đăng nhập');
       }
 
+      // Kiểm tra xem đã có danh mục chưa
+      final existingCategories = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('categories')
+          .limit(1)
+          .get();
+
+      if (existingCategories.docs.isNotEmpty) {
+        _logger.i('Danh mục đã tồn tại, bỏ qua tạo mặc định');
+        return;
+      }
+
       final now = DateTime.now();
       final batch = _firestore.batch();
 
-      // Danh mục thu nhập mặc định
-      final incomeCategories = [
-        'Lương',
-        'Thưởng',
-        'Thu nhập phụ',
-        'Đầu tư',
-        'Khác'
-      ];
-
-      // Danh mục chi tiêu mặc định
+      // Danh mục chi tiêu
       final expenseCategories = [
-        'Ăn uống',
-        'Mua sắm',
-        'Đi lại',
-        'Giải trí',
-        'Y tế',
-        'Học tập',
-        'Tiện ích',
-        'Khác'
+        {'name': 'Ăn uống', 'icon': 'restaurant', 'color': 0xFFFF6B35},
+        {'name': 'Di chuyển', 'icon': 'directions_car', 'color': 0xFF2196F3},
+        {'name': 'Mua sắm', 'icon': 'shopping_cart', 'color': 0xFF9C27B0},
+        {'name': 'Giải trí', 'icon': 'movie', 'color': 0xFFFF9800},
+        {'name': 'Hóa đơn', 'icon': 'receipt', 'color': 0xFFF44336},
+        {'name': 'Y tế', 'icon': 'local_hospital', 'color': 0xFF4CAF50},
       ];
 
-      // Tạo danh mục thu nhập
-      for (final categoryName in incomeCategories) {
-        final categoryRef = _firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('categories')
-            .doc();
-
-        final category = CategoryModel(
-          categoryId: categoryRef.id,
-          userId: user.uid,
-          name: categoryName,
-          type: TransactionType.income,
-          createdAt: now,
-          updatedAt: now,
-          isDefault: true,
-        );
-
-        batch.set(categoryRef, category.toMap());
-      }
+      // Danh mục thu nhập
+      final incomeCategories = [
+        {'name': 'Lương', 'icon': 'work', 'color': 0xFF4CAF50},
+        {'name': 'Thưởng', 'icon': 'card_giftcard', 'color': 0xFFFFD700},
+        {'name': 'Đầu tư', 'icon': 'trending_up', 'color': 0xFF00BCD4},
+        {'name': 'Khác', 'icon': 'more_horiz', 'color': 0xFF607D8B},
+      ];
 
       // Tạo danh mục chi tiêu
-      for (final categoryName in expenseCategories) {
-        final categoryRef = _firestore
+      for (final categoryData in expenseCategories) {
+        final docRef = _firestore
             .collection('users')
             .doc(user.uid)
             .collection('categories')
             .doc();
 
         final category = CategoryModel(
-          categoryId: categoryRef.id,
+          categoryId: docRef.id,
           userId: user.uid,
-          name: categoryName,
+          name: categoryData['name'] as String,
           type: TransactionType.expense,
+          icon: categoryData['icon'] as String,
+          color: categoryData['color'] as int,
+          isDefault: true,
+          parentId: null,
           createdAt: now,
           updatedAt: now,
-          isDefault: true,
+          isDeleted: false,
         );
 
-        batch.set(categoryRef, category.toMap());
+        batch.set(docRef, category.toMap());
+      }
+
+      // Tạo danh mục thu nhập
+      for (final categoryData in incomeCategories) {
+        final docRef = _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('categories')
+            .doc();
+
+        final category = CategoryModel(
+          categoryId: docRef.id,
+          userId: user.uid,
+          name: categoryData['name'] as String,
+          type: TransactionType.income,
+          icon: categoryData['icon'] as String,
+          color: categoryData['color'] as int,
+          isDefault: true,
+          parentId: null,
+          createdAt: now,
+          updatedAt: now,
+          isDeleted: false,
+        );
+
+        batch.set(docRef, category.toMap());
       }
 
       await batch.commit();
-      _logger.i('Tạo danh mục mặc định thành công cho user: ${user.uid}');
+      _logger.i('Tạo danh mục mặc định thành công');
     } catch (e) {
       _logger.e('Lỗi tạo danh mục mặc định: $e');
       throw Exception('Không thể tạo danh mục mặc định: $e');
+    }
+  }
+
+  /// Tạo giao dịch mẫu để test
+  Future<void> createSampleTransactions() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('Người dùng chưa đăng nhập');
+      }
+
+      // Kiểm tra xem đã có giao dịch chưa
+      final existingTransactions = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('transactions')
+          .limit(1)
+          .get();
+
+      if (existingTransactions.docs.isNotEmpty) {
+        _logger.i('Giao dịch đã tồn tại, bỏ qua tạo mẫu');
+        return;
+      }
+
+      // Lấy danh mục
+      final categoriesSnapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('categories')
+          .get();
+
+      if (categoriesSnapshot.docs.isEmpty) {
+        _logger.w('Không có danh mục để tạo giao dịch mẫu');
+        return;
+      }
+
+      final categories = categoriesSnapshot.docs.map((doc) {
+        return CategoryModel.fromMap(doc.data(), doc.id);
+      }).toList();
+
+      final expenseCategories =
+          categories.where((c) => c.type == TransactionType.expense).toList();
+      final incomeCategories =
+          categories.where((c) => c.type == TransactionType.income).toList();
+
+      final now = DateTime.now();
+      final batch = _firestore.batch();
+
+      // Tạo giao dịch mẫu
+      final sampleTransactions = [
+        // Thu nhập
+        {
+          'amount': 15000000.0,
+          'type': TransactionType.income,
+          'note': 'Lương tháng ${now.month}',
+          'date': DateTime(now.year, now.month, 1),
+          'categoryId':
+              incomeCategories.isNotEmpty ? incomeCategories[0].categoryId : '',
+        },
+        {
+          'amount': 2000000.0,
+          'type': TransactionType.income,
+          'note': 'Thưởng dự án',
+          'date': DateTime(now.year, now.month, 5),
+          'categoryId': incomeCategories.length > 1
+              ? incomeCategories[1].categoryId
+              : incomeCategories[0].categoryId,
+        },
+
+        // Chi tiêu
+        {
+          'amount': 150000.0,
+          'type': TransactionType.expense,
+          'note': 'Ăn trưa',
+          'date': DateTime(now.year, now.month, now.day),
+          'categoryId': expenseCategories.isNotEmpty
+              ? expenseCategories[0].categoryId
+              : '',
+        },
+        {
+          'amount': 50000.0,
+          'type': TransactionType.expense,
+          'note': 'Xăng xe',
+          'date': DateTime(now.year, now.month, now.day - 1),
+          'categoryId': expenseCategories.length > 1
+              ? expenseCategories[1].categoryId
+              : expenseCategories[0].categoryId,
+        },
+        {
+          'amount': 300000.0,
+          'type': TransactionType.expense,
+          'note': 'Mua quần áo',
+          'date': DateTime(now.year, now.month, now.day - 2),
+          'categoryId': expenseCategories.length > 2
+              ? expenseCategories[2].categoryId
+              : expenseCategories[0].categoryId,
+        },
+        {
+          'amount': 1200000.0,
+          'type': TransactionType.expense,
+          'note': 'Tiền điện nước',
+          'date': DateTime(now.year, now.month, 10),
+          'categoryId': expenseCategories.length > 4
+              ? expenseCategories[4].categoryId
+              : expenseCategories[0].categoryId,
+        },
+      ];
+
+      for (final transactionData in sampleTransactions) {
+        final docRef = _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('transactions')
+            .doc();
+
+        final transaction = TransactionModel(
+          transactionId: docRef.id,
+          userId: user.uid,
+          categoryId: transactionData['categoryId'] as String,
+          amount: transactionData['amount'] as double,
+          type: transactionData['type'] as TransactionType,
+          date: transactionData['date'] as DateTime,
+          note: transactionData['note'] as String,
+          createdAt: now,
+          updatedAt: now,
+          isDeleted: false,
+        );
+
+        batch.set(docRef, transaction.toMap());
+      }
+
+      await batch.commit();
+      _logger.i('Tạo giao dịch mẫu thành công');
+    } catch (e) {
+      _logger.e('Lỗi tạo giao dịch mẫu: $e');
     }
   }
 

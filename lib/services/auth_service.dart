@@ -216,3 +216,100 @@ class AuthService {
     return Exception('Đã xảy ra lỗi: $e');
   }
 }
+
+/// Service quản lý authentication và tạo tài khoản test
+class AuthServiceTest {
+  static final Logger _logger = Logger();
+  static final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  /// Tạo tài khoản test với email và password
+  static Future<void> createTestAccount() async {
+    try {
+      const testEmail = '9588666@gmail.com';
+      const testPassword = '123456';
+
+      // Kiểm tra xem tài khoản đã tồn tại chưa
+      final methods = await _auth.fetchSignInMethodsForEmail(testEmail);
+
+      if (methods.isEmpty) {
+        // Tài khoản chưa tồn tại, tạo mới
+        await _auth.createUserWithEmailAndPassword(
+          email: testEmail,
+          password: testPassword,
+        );
+
+        _logger.i('Đã tạo tài khoản test: $testEmail');
+      } else {
+        _logger.i('Tài khoản test đã tồn tại: $testEmail ✅');
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        _logger.i('Tài khoản test đã tồn tại: 9588666@gmail.com ✅');
+      } else {
+        _logger.w('Lỗi kiểm tra tài khoản test: ${e.code} - ${e.message}');
+      }
+    } catch (e) {
+      _logger.w('Lỗi tạo tài khoản test: $e');
+    }
+  }
+
+  /// Tạo tài khoản với email test@example.com (backup)
+  static Future<void> createBackupTestAccount() async {
+    try {
+      const testEmail = 'test@example.com';
+      const testPassword = '123456';
+
+      // Kiểm tra xem tài khoản đã tồn tại chưa
+      final methods = await _auth.fetchSignInMethodsForEmail(testEmail);
+
+      if (methods.isEmpty) {
+        // Tài khoản chưa tồn tại, tạo mới
+        await _auth.createUserWithEmailAndPassword(
+          email: testEmail,
+          password: testPassword,
+        );
+
+        _logger.i('Đã tạo tài khoản backup: $testEmail');
+      } else {
+        _logger.i('Tài khoản backup đã tồn tại: $testEmail ✅');
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        _logger.i('Tài khoản backup đã tồn tại: test@example.com ✅');
+      } else {
+        _logger.w('Lỗi kiểm tra tài khoản backup: ${e.code} - ${e.message}');
+      }
+    } catch (e) {
+      _logger.w('Lỗi tạo tài khoản backup: $e');
+    }
+  }
+
+  /// Đăng nhập với tài khoản test
+  static Future<UserCredential?> signInWithTestAccount() async {
+    try {
+      const testEmail = '9588666@gmail.com';
+      const testPassword = '123456';
+
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: testEmail,
+        password: testPassword,
+      );
+
+      _logger.i('Đăng nhập thành công với tài khoản test');
+      return credential;
+    } catch (e) {
+      _logger.e('Lỗi đăng nhập với tài khoản test: $e');
+      return null;
+    }
+  }
+
+  /// Đăng xuất
+  static Future<void> signOut() async {
+    try {
+      await _auth.signOut();
+      _logger.i('Đăng xuất thành công');
+    } catch (e) {
+      _logger.e('Lỗi đăng xuất: $e');
+    }
+  }
+}

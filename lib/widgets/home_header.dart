@@ -1,23 +1,28 @@
+import 'dart:ui';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
-class HomeHeaderSection extends StatefulWidget {
-  const HomeHeaderSection({super.key});
+import '../services/transaction_service.dart';
+
+class ModernHomeHeader extends StatefulWidget {
+  const ModernHomeHeader({super.key});
 
   @override
-  State<HomeHeaderSection> createState() => _HomeHeaderSectionState();
+  State<ModernHomeHeader> createState() => _ModernHomeHeaderState();
 }
 
-class _HomeHeaderSectionState extends State<HomeHeaderSection> {
+class _ModernHomeHeaderState extends State<ModernHomeHeader> {
   String _userName = 'Khách';
   String _greeting = 'Chào bạn!';
+  int _daysSinceFirstTransaction = 0;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
     _setGreeting();
+    _calculateDaysSinceFirstTransaction();
   }
 
   void _loadUserInfo() {
@@ -26,6 +31,10 @@ class _HomeHeaderSectionState extends State<HomeHeaderSection> {
       setState(() {
         _userName =
             user.displayName ?? user.email?.split('@')[0] ?? 'Người dùng';
+      });
+    } else {
+      setState(() {
+        _userName = 'Moner';
       });
     }
   }
@@ -47,16 +56,69 @@ class _HomeHeaderSectionState extends State<HomeHeaderSection> {
     });
   }
 
-  String _getCurrentMonth() {
-    final now = DateTime.now();
-    return DateFormat('MMMM yyyy', 'vi_VN').format(now);
+  String _getUserInitials() {
+    print('🎯 Generating initials for: "$_userName"');
+
+    if (_userName.isNotEmpty) {
+      final words = _userName.split(' ');
+      print('- Words: $words');
+
+      if (words.length >= 2) {
+        final initials = '${words[0][0]}${words[1][0]}'.toUpperCase();
+        print('- Generated initials (2+ words): $initials');
+        return initials;
+      }
+      final initial = _userName.substring(0, 1).toUpperCase();
+      print('- Generated initial (1 word): $initial');
+      return initial;
+    }
+    print('- Using fallback: U');
+    return 'U';
+  }
+
+  Future<void> _calculateDaysSinceFirstTransaction() async {
+    try {
+      final transactionService = TransactionService();
+      
+      // Lấy tất cả giao dịch và tìm giao dịch cũ nhất
+      final transactionsStream = transactionService.getTransactions();
+      final transactions = await transactionsStream.first;
+      
+      if (transactions.isNotEmpty) {
+        // Sắp xếp theo thời gian tạo để tìm giao dịch đầu tiên
+        transactions.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        final firstTransactionDate = transactions.first.createdAt;
+        final now = DateTime.now();
+        final difference = now.difference(firstTransactionDate).inDays + 1; // +1 để tính cả ngày hiện tại
+        
+        if (mounted) {
+          setState(() {
+            _daysSinceFirstTransaction = difference;
+          });
+        }
+      } else {
+        // Nếu chưa có giao dịch nào, hiển thị ngày 1
+        if (mounted) {
+          setState(() {
+            _daysSinceFirstTransaction = 1;
+          });
+        }
+      }
+    } catch (e) {
+      // Nếu có lỗi, sử dụng số ngày mặc định
+      if (mounted) {
+        setState(() {
+          _daysSinceFirstTransaction = 1;
+        });
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      // height: 200,
-      // margin: const EdgeInsets.only(bottom: 1), // Cách content phía dưới 1 khoảng
+      constraints: BoxConstraints(minHeight: 160),
+      // padding: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -69,215 +131,207 @@ class _HomeHeaderSectionState extends State<HomeHeaderSection> {
           ],
           stops: [0.0, 0.3, 0.7, 1.0],
         ),
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF6B35).withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(30),
+        ),
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top row với thông tin người dùng
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.wb_sunny_rounded,
-                              color: Colors.white.withValues(alpha: 0.9),
-                              size: 16,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _greeting,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontWeight: FontWeight.w500,
+      child: Stack(
+        children: [
+          // Background pattern overlay
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(30),
+                ),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withOpacity(0.1),
+                    Colors.transparent,
+                    const Color.fromARGB(255, 255, 0, 85).withOpacity(0.05),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Content
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+                24,
+                MediaQuery.of(context).padding.top + 10, // Giảm padding top
+                24,
+                20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top row với greeting và avatar
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Greeting với icon
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  _getGreetingIcon(),
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _userName,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Quản lý tài chính thông minh',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.8),
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Avatar với thiết kế đẹp hơn
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        width: 3,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                        BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, -2),
-                        ),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: 26,
-                      backgroundColor: Colors.white.withValues(alpha: 0.25),
-                      child: CircleAvatar(
-                        radius: 22,
-                        backgroundColor: const Color(0xFFFF9800),
-                        child: const Text(
-                          'ND',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black26,
-                                offset: Offset(1, 1),
-                                blurRadius: 2,
+                              const SizedBox(width: 8),
+                              Text(
+                                _greeting,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
 
-              const SizedBox(height: 18),
+                          const SizedBox(height: 8),
 
-              // Thông tin thời gian
-              Row(
-                children: [
-                  // Badge tháng
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.35),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.calendar_today_rounded,
-                          size: 12,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _getCurrentMonth(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                          // User name
+                          Text(
+                            _userName,
+                            style: const TextStyle(
+                              fontSize: 26, // Giảm size
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              letterSpacing: 0.5,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black26,
+                                  offset: Offset(1, 1),
+                                  blurRadius: 3,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+
+                          const SizedBox(height: 4),
+
+                          // Subtitle
+                          Text(
+                            'Tiết kiệm chi tiêu ngày thứ: $_daysSinceFirstTransaction',
+                            style: TextStyle(
+                              fontSize: 13, // Giảm size
+                              color: Colors.white.withOpacity(0.8),
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
 
-                  const Spacer(),
-                ],
+                    // Modern Avatar
+                    _buildModernAvatar(),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernAvatar() {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withOpacity(0.3),
+            Colors.white.withOpacity(0.1),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Colors.white.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Container(
+        width: 55, // Giảm size
+        height: 55,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white.withOpacity(0.4),
+            width: 2,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(27.5),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFFFF9800).withOpacity(0.8),
+                    const Color(0xFFFF5722).withOpacity(0.9),
+                  ],
+                ),
               ),
-
-              const SizedBox(height: 12),
-            ],
+              child: Center(
+                child: Text(
+                  _getUserInitials(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black26,
+                        offset: Offset(1, 1),
+                        blurRadius: 2,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildQuickStat(
-      String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 3),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.25),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.4),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: Icon(icon, color: Colors.white, size: 10),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 7,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
+  IconData _getGreetingIcon() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return Icons.wb_sunny_rounded;
+    } else if (hour < 18) {
+      return Icons.wb_cloudy_rounded;
+    } else {
+      return Icons.nightlight_round;
+    }
   }
 }

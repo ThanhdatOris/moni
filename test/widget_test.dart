@@ -11,7 +11,7 @@ import 'package:moni/main.dart';
 void main() {
   testWidgets('Moni app smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const FigmaToCodeApp());
+    await tester.pumpWidget(const MyApp());
 
     // Verify that the app loads correctly
     expect(find.text('Chào buổi sáng! 👋'), findsOneWidget);

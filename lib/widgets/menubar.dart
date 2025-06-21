@@ -13,7 +13,7 @@ class Menubar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 85,
+      height: 80,
       margin: const EdgeInsets.all(16),
       child: Stack(
         alignment: Alignment.center,
@@ -21,7 +21,7 @@ class Menubar extends StatelessWidget {
         children: [
           // Thanh nền với thiết kế đồng bộ
           Container(
-            height: 70,
+            height: 65,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [
@@ -32,16 +32,16 @@ class Menubar extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(35), // Bo góc đồng bộ
+              borderRadius: BorderRadius.circular(32),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFF6B35).withValues(alpha: 0.4),
+                  color: const Color(0xFFFF6B35).withOpacity(0.4),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                   spreadRadius: 0,
                 ),
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: Colors.black.withOpacity(0.1),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -58,15 +58,15 @@ class Menubar extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Nút thêm ở giữa với thiết kế đồng bộ
           Positioned(
-            top: -15, // Nâng nút lên cao hơn để có hiệu ứng nổi bật
+            top: -12,
             child: GestureDetector(
               onTap: () => onItemTapped(2),
               child: Container(
-                height: 65,
-                width: 65,
+                height: 60,
+                width: 60,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: const LinearGradient(
@@ -78,15 +78,15 @@ class Menubar extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
-                  border: Border.all(color: Colors.white, width: 4),
+                  border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF9800).withValues(alpha: 0.4),
+                      color: const Color(0xFFFF9800).withOpacity(0.4),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
+                      color: Colors.black.withOpacity(0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -95,7 +95,7 @@ class Menubar extends StatelessWidget {
                 child: const Icon(
                   Icons.add_rounded,
                   color: Colors.white,
-                  size: 32,
+                  size: 28,
                 ),
               ),
             ),
@@ -110,42 +110,41 @@ class Menubar extends StatelessWidget {
     return GestureDetector(
       onTap: () => onItemTapped(index),
       child: Container(
-        // Giảm padding dọc để khắc phục lỗi tràn
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: isSelected 
-                  ? Colors.white.withOpacity(0.3)
-                  : Colors.transparent,
-                borderRadius: BorderRadius.circular(12), // Bo góc đồng bộ
-                border: isSelected 
-                  ? Border.all(color: Colors.white.withOpacity(0.4), width: 1)
-                  : null,
+                color: isSelected
+                    ? Colors.white.withOpacity(0.3)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+                border: isSelected
+                    ? Border.all(color: Colors.white.withOpacity(0.4), width: 1)
+                    : null,
               ),
               child: Icon(
                 icon,
-                color: isSelected ? Colors.white : Colors.white.withOpacity(0.85),
-                size: isSelected ? 26 : 24,
+                color:
+                    isSelected ? Colors.white : Colors.white.withOpacity(0.85),
+                size: isSelected ? 22 : 20,
               ),
             ),
-            const SizedBox(height: 3),
-            // Chỉ hiển thị Container với padding khi được chọn
+            const SizedBox(height: 2),
             if (isSelected)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(8), // Bo góc đồng bộ
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   label,
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.w700,
                     shadows: [
                       Shadow(
@@ -158,12 +157,11 @@ class Menubar extends StatelessWidget {
                 ),
               )
             else
-              // Text đơn giản không có padding khi không được chọn
               Text(
                 label,
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.8),
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w500,
                   shadows: [
                     Shadow(

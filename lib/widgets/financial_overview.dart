@@ -1,12 +1,13 @@
+import 'dart:ui';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
 
-import '../constants/app_colors.dart';
 import '../services/services.dart';
 
-/// A widget that displays financial overview cards with a glassmorphism effect.
+/// A widget that displays financial overview as modern bank cards with glassmorphism effect.
 class FinancialOverviewCards extends StatefulWidget {
   const FinancialOverviewCards({super.key});
 
@@ -20,6 +21,8 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
   double balance = 0.0;
   bool isLoading = true;
 
+  final GetIt _getIt = GetIt.instance;
+
   @override
   void initState() {
     super.initState();
@@ -31,8 +34,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return;
 
-      final transactionService =
-          Provider.of<TransactionService>(context, listen: false);
+      final transactionService = _getIt<TransactionService>();
 
       // Lấy dữ liệu tháng hiện tại
       final now = DateTime.now();
@@ -70,12 +72,35 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
   }
 
   String _formatCurrency(double amount) {
-    final formatter = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: 'đ',
-      decimalDigits: 0,
-    );
-    return formatter.format(amount);
+    final formatter = NumberFormat('#,###', 'vi_VN');
+    return '${formatter.format(amount)}đ';
+  }
+
+  String _getUserName() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user?.displayName != null && user!.displayName!.isNotEmpty) {
+      return user.displayName!;
+    }
+    if (user?.email != null) {
+      return user!.email!.split('@')[0];
+    }
+    return 'Người dùng';
+  }
+
+  String _getCardNumber() {
+    final now = DateTime.now();
+    return '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+    
+  }
+
+  String _getValidFromDate() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user?.metadata.creationTime != null) {
+      final creationDate = user!.metadata.creationTime!;
+      return DateFormat('MM/yy').format(creationDate);
+    }
+    // Fallback nếu không có thông tin
+    return '06/25';
   }
 
   @override
@@ -83,136 +108,403 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
     if (isLoading) {
       return Container(
         height: 200,
+        margin: const EdgeInsets.symmetric(horizontal: 20),
         child: const Center(
           child: CircularProgressIndicator(),
         ),
       );
     }
 
-    return Column(
-      children: [
-        Row(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          // Main Bank Card
+          _buildMainBankCard(),
+
+          const SizedBox(height: 20),
+
+          // Income & Expense Cards
+          Row(
+            children: [
+              Expanded(
+                child: _buildSmallCard(
+                  title: 'Thu nhập',
+                  amount: _formatCurrency(totalIncome),
+                  icon: Icons.trending_up,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFF4CAF50),
+                      Color(0xFF66BB6A),
+                      Color(0xFF81C784),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: _buildSmallCard(
+                  title: 'Chi tiêu',
+                  amount: _formatCurrency(totalExpense),
+                  icon: Icons.trending_down,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color(0xFFf44336),
+                      Color(0xFFef5350),
+                      Color(0xFFe57373),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainBankCard() {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
           children: [
-            Expanded(
-              child: _buildFinancialCard(
-                title: 'Tổng thu',
-                amount: _formatCurrency(totalIncome),
-                icon: Icons.arrow_upward_rounded,
-                iconColor: AppColors.success,
+            // Background Image
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/Background.png',
+                fit: BoxFit.cover,
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildFinancialCard(
-                title: 'Tổng chi',
-                amount: _formatCurrency(totalExpense),
-                icon: Icons.arrow_downward_rounded,
-                iconColor: AppColors.error,
+
+            // Glassmorphism Overlay
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withOpacity(0.2),
+                        Colors.white.withOpacity(0.1),
+                        Colors.black.withOpacity(0.1),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // Card Content
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with logo and card type
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          'MONI CARD',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.3),
+                                offset: const Offset(1, 1),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(),
+
+                  // Balance Amount
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Số dư khả dụng',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.3),
+                              offset: const Offset(1, 1),
+                              blurRadius: 2,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _formatCurrency(balance),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black.withOpacity(0.4),
+                              offset: const Offset(2, 2),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(),
+
+                  // Card Number and Name
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _getCardNumber(),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 2,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  offset: const Offset(1, 1),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _getUserName().toUpperCase(),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  offset: const Offset(1, 1),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'VALID FROM',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 8,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          Text(
+                            _getValidFromDate(),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 1,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  offset: const Offset(1, 1),
+                                  blurRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        _buildFinancialCard(
-          title: 'Số dư khả dụng',
-          amount: _formatCurrency(balance),
-          icon: Icons.account_balance_wallet_outlined,
-          iconColor: AppColors.info,
-          isFullWidth: true,
-        ),
-      ],
+      ),
     );
   }
 
-  /// Builds a single card with a transparent, glass-like design.
-  Widget _buildFinancialCard({
+  Widget _buildSmallCard({
     required String title,
     required String amount,
     required IconData icon,
-    required Color iconColor,
-    bool isFullWidth = false,
+    required Gradient gradient,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      height: 80, // Giảm height xuống 80 để tránh overflow
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.4), // Semi-transparent background
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.6),
-          width: 1.5,
-        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      child: isFullWidth
-          ? Row(
-              children: [
-                _buildIcon(icon, iconColor),
-                const SizedBox(width: 16),
-                _buildText(title, amount, iconColor),
-                const Spacer(),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: AppColors.textSecondary.withOpacity(0.7),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            // Gradient Background
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: gradient,
                 ),
-              ],
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildIcon(icon, iconColor),
-                const SizedBox(height: 12),
-                _buildText(title, amount, iconColor),
-              ],
+              ),
             ),
-    );
-  }
 
-  Widget _buildIcon(IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.5),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            )
-          ]),
-      child: Icon(icon, color: Colors.white, size: 24),
-    );
-  }
+            // Glassmorphism Overlay
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                  ),
+                ),
+              ),
+            ),
 
-  Widget _buildText(String title, String amount, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
+            // Content
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14), // Padding đồng nhất
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.3),
+                                offset: const Offset(1, 1),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 4), // Giảm khoảng cách
+                        Text(
+                          amount,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 15, // Giảm size một chút
+                            fontWeight: FontWeight.bold,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.4),
+                                offset: const Offset(1, 1),
+                                blurRadius: 3,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: Colors.white,
+                      size: 18, // Giảm size icon một chút
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 5),
-        Text(
-          amount,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: color.withOpacity(0.9),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

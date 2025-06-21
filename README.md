@@ -24,7 +24,6 @@
 ## 🎨 Giao diện
 
 App được thiết kế với:
-- Material Design 3
 - Màu sắc hiện đại và thân thiện
 - Animations mượt mà
 - Dark/Light mode support (sẽ có trong tương lai)
@@ -43,13 +42,6 @@ lib/
 └── main.dart          # Entry point
 ```
 
-## 📱 Màn hình chính
-
-1. **Trang chủ**: Tổng quan tài chính, biểu đồ chi tiêu
-2. **Giao dịch**: Nhập/quản lý giao dịch với nhiều cách thức
-3. **Phân tích**: Báo cáo chi tiết với biểu đồ đa dạng
-4. **Trợ lý**: AI chatbot hỗ trợ quản lý tài chính
-
 ## 🚀 Cài đặt và chạy
 
 ### Yêu cầu
@@ -60,18 +52,12 @@ lib/
 
 ### Bước cài đặt
 
-1. **Clone repository**
-```bash
-git clone https://github.com/your-username/moni-app.git
-cd moni-app
-```
-
-2. **Cài đặt dependencies**
+1. **Cài đặt dependencies**
 ```bash
 flutter pub get
 ```
 
-3. **Chạy app**
+1. **Chạy app**
 ```bash
 flutter run
 ```
@@ -87,7 +73,7 @@ flutter run
 
 ## 🔮 Tính năng sắp tới
 
-- [ ] **Backend Integration**: API server với PostgreSQL
+- [ ] **Backend Integration**: API server với Firebase
 - [ ] **Sync đa thiết bị**: Đồng bộ dữ liệu qua cloud
 - [ ] **Báo cáo nâng cao**: Xuất PDF, Excel
 - [ ] **Mục tiêu tiết kiệm**: Lập kế hoạch và theo dõi mục tiêu
@@ -120,16 +106,6 @@ flutter run
 - **Error Handling**: Try-catch và user-friendly messages
 - **Performance**: Lazy loading và caching
 - **Testing**: Unit tests cho business logic
-
-## 🤝 Đóng góp
-
-Chúng tôi hoan nghênh mọi đóng góp! Hãy:
-
-1. Fork repository
-2. Tạo feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Mở Pull Request
 
 ## 📄 License
 

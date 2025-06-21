@@ -1,20 +1,43 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 import 'constants/app_colors.dart';
 import 'constants/app_strings.dart';
+import 'screens/add_transaction_screen.dart';
+import 'screens/auth_screen.dart';
 import 'screens/chatbot_screen.dart';
 import 'screens/profile_screen.dart';
-import 'screens/transaction_screen.dart';
+import 'screens/transaction_calendar_screen.dart';
+import 'services/auth_service.dart';
+import 'services/category_service.dart';
 import 'services/environment_service.dart';
 import 'services/firebase_service.dart';
 import 'services/service_locator.dart';
+import 'widgets/expense_chart.dart';
 import 'widgets/financial_overview.dart';
 import 'widgets/home_header.dart';
 import 'widgets/menubar.dart';
+import 'widgets/recent_transactions.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Cấu hình màu thanh trạng thái
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
+
+  // Khởi tạo locale data cho date formatting
+  await initializeDateFormatting('vi_VN', null);
+  await initializeDateFormatting('en_US', null);
 
   // Khởi tạo Environment Service trước
   await EnvironmentService.initialize();
@@ -26,6 +49,14 @@ void main() async {
 
   // Khởi tạo Firebase
   await FirebaseService.initialize();
+
+  // Tạo tài khoản test nếu cần
+  try {
+    await AuthServiceTest.createTestAccount();
+    await AuthServiceTest.createBackupTestAccount();
+  } catch (e) {
+    //print('Lỗi tạo tài khoản test: $e');
+  }
 
   // Setup dependency injection
   setupServiceLocator();
@@ -41,12 +72,15 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: AppStrings.appName,
       theme: ThemeData.light().copyWith(
-        scaffoldBackgroundColor: AppColors.background,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         primaryColor: AppColors.primary,
-        appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.backgroundLight,
-          foregroundColor: AppColors.textPrimary,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
           elevation: 0,
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.light,
+          ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -80,6 +114,8 @@ class AuthWrapper extends StatelessWidget {
         }
 
         if (snapshot.hasData) {
+          // Tạo dữ liệu mẫu khi user đăng nhập
+          _createSampleData();
           return const HomeScreen();
         } else {
           return const AuthScreen();
@@ -87,43 +123,22 @@ class AuthWrapper extends StatelessWidget {
       },
     );
   }
-}
 
-class AuthScreen extends StatelessWidget {
-  const AuthScreen({super.key});
+  Future<void> _createSampleData() async {
+    try {
+      final categoryService = serviceLocator<CategoryService>();
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Chào mừng đến với Moni',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  await FirebaseAuth.instance.signInAnonymously();
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Lỗi đăng nhập: $e')),
-                  );
-                }
-              },
-              child: const Text('Đăng nhập khách'),
-            ),
-          ],
-        ),
-      ),
-    );
+      // Tạo danh mục mặc định
+      await categoryService.createDefaultCategories();
+
+      // Đợi một chút để danh mục được tạo xong
+      await Future.delayed(const Duration(seconds: 1));
+
+      // Tạo giao dịch mẫu
+      await categoryService.createSampleTransactions();
+    } catch (e) {
+      //print('Lỗi tạo dữ liệu mẫu: $e');
+    }
   }
 }
 
@@ -139,18 +154,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static final List<Widget> _widgetOptions = <Widget>[
     const HomeTabContent(),
-    const TransactionScreen(),
-    const Center(child: Text('Trang Thêm mới')),
+    const TransactionCalendarScreen(),
+    const Center(),
     const ChatbotPage(),
     const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
     if (index == 2) {
-      showModalBottomSheet(
-          context: context,
-          builder: (context) =>
-              const Center(child: Text("Chức năng thêm mới")));
+      // Điều hướng đến màn hình thêm giao dịch mới
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
+      );
       return;
     }
     setState(() {
@@ -182,50 +198,29 @@ class HomeTabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-            const HomeHeaderSection(),
-            const FinancialOverviewCards(),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Giao dịch gần đây',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          // Navigate to transaction list
-                        },
-                        child: Text(
-                          'Xem tất cả',
-                          style: TextStyle(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 100),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Header Section với gradient background
+          const ModernHomeHeader(),
+
+          const SizedBox(height: 20),
+
+          // Financial Overview Cards
+          const FinancialOverviewCards(),
+
+          const SizedBox(height: 20),
+
+          // Expense Chart
+          const ExpenseChart(),
+
+          const SizedBox(height: 20),
+
+          // Recent Transactions
+          const RecentTransactions(),
+
+          const SizedBox(height: 100), // Space for bottom menu
+        ],
       ),
     );
   }
