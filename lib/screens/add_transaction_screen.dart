@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -44,26 +45,104 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   late final TransactionService _transactionService;
   late final CategoryService _categoryService;
 
+  // Stream subscription để dispose properly
+  StreamSubscription<List<CategoryModel>>? _categoriesSubscription;
+  StreamSubscription<User?>? _authSubscription;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _transactionService = _getIt<TransactionService>();
     _categoryService = _getIt<CategoryService>();
+
+    // Add listener for auth state changes to handle account switching
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (mounted) {
+        if (user == null) {
+          // User logged out, close the screen
+          Navigator.of(context).pop();
+        } else {
+          // User changed, reload categories
+          _loadCategories();
+        }
+      }
+    });
+
     _loadCategories();
   }
 
   Future<void> _loadCategories() async {
     try {
-      _categoryService.getCategories(type: _selectedType).listen((categories) {
+      // Validate user is still logged in
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        print('User not logged in, cannot load categories');
         if (mounted) {
           setState(() {
-            _categories = categories;
+            _categories = [];
+            _isLoading = false;
           });
         }
+        return;
+      }
+
+      // Cancel previous subscription
+      await _categoriesSubscription?.cancel();
+
+      // Reset categories list
+      setState(() {
+        _categories = [];
+        _isLoading = true;
       });
+
+      // Create new subscription with timeout protection
+      _categoriesSubscription =
+          _categoryService.getCategories(type: _selectedType).timeout(
+        const Duration(seconds: 15),
+        onTimeout: (sink) {
+          print('Categories loading timeout for type ${_selectedType.value}');
+          sink.add([]); // Return empty list on timeout
+        },
+      ).listen(
+        (categories) {
+          if (mounted) {
+            print(
+                'Loaded ${categories.length} categories for type ${_selectedType.value}');
+            setState(() {
+              _categories = categories;
+              _isLoading = false;
+            });
+          }
+        },
+        onError: (error) {
+          print('Error loading categories: $error');
+          if (mounted) {
+            setState(() {
+              _isLoading = false;
+            });
+
+            // Show error message for network issues
+            if (error.toString().contains('network') ||
+                error.toString().contains('timeout')) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content:
+                      Text('Lỗi tải danh mục. Vui lòng kiểm tra kết nối mạng.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+          }
+        },
+      );
     } catch (e) {
-      print('Error loading categories: $e');
+      print('Error setting up categories stream: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -138,7 +217,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
             ],
           ),
           const SizedBox(height: 20),
-          
+
           // Modern Tab Bar
           Container(
             padding: const EdgeInsets.all(4),
@@ -332,7 +411,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
               child: Column(
                 children: [
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(20)),
                     child: Container(
                       width: double.infinity,
                       height: 200,
@@ -344,7 +424,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                       ),
                     ),
                   ),
-                  
                   Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -420,7 +499,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     );
   }
 
-  Widget _buildTypeButton(String title, TransactionType type, IconData icon, Color color) {
+  Widget _buildTypeButton(
+      String title, TransactionType type, IconData icon, Color color) {
     final isSelected = _selectedType == type;
     return GestureDetector(
       onTap: () {
@@ -437,7 +517,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           color: isSelected ? color.withOpacity(0.1) : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? color.withOpacity(0.3) : const Color(0xFFE2E8F0),
+            color:
+                isSelected ? color.withOpacity(0.3) : const Color(0xFFE2E8F0),
             width: 2,
           ),
         ),
@@ -590,54 +671,132 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                   color: AppColors.textPrimary,
                 ),
               ),
+              const Spacer(),
+              if (!_isLoading)
+                Text(
+                  '(${_categories.length} danh mục)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<CategoryModel>(
-            value: _selectedCategory,
-            decoration: InputDecoration(
-              hintText: 'Chọn danh mục',
-              border: OutlineInputBorder(
+          if (_isLoading)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: const Color(0xFFE2E8F0),
-                ),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              enabledBorder: OutlineInputBorder(
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Đang tải danh mục...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (_categories.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: const Color(0xFFE2E8F0),
-                ),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: AppColors.primary,
-                  width: 2,
-                ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    color: AppColors.textSecondary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Chưa có danh mục ${_selectedType == TransactionType.expense ? "chi tiêu" : "thu nhập"}',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              filled: true,
-              fillColor: const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.all(20),
+            )
+          else
+            DropdownButtonFormField<CategoryModel>(
+              value: _selectedCategory,
+              decoration: InputDecoration(
+                hintText: 'Chọn danh mục',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: const Color(0xFFE2E8F0),
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: const Color(0xFFE2E8F0),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: AppColors.primary,
+                    width: 2,
+                  ),
+                ),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                contentPadding: const EdgeInsets.all(20),
+              ),
+              items: _categories.map((category) {
+                return DropdownMenuItem(
+                  value: category,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.circle,
+                        size: 12,
+                        color: Color(category.color),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Text(category.name)),
+                    ],
+                  ),
+                );
+              }).toList(),
+              onChanged: (value) {
+                setState(() {
+                  _selectedCategory = value;
+                });
+              },
+              validator: (value) {
+                if (value == null) {
+                  return 'Vui lòng chọn danh mục';
+                }
+                return null;
+              },
             ),
-            items: _categories.map((category) {
-              return DropdownMenuItem(
-                value: category,
-                child: Text(category.name),
-              );
-            }).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedCategory = value;
-              });
-            },
-            validator: (value) {
-              if (value == null) {
-                return 'Vui lòng chọn danh mục';
-              }
-              return null;
-            },
-          ),
         ],
       ),
     );
@@ -792,14 +951,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   Widget _buildQuickTemplates() {
     final templates = _selectedType == TransactionType.expense
         ? [
-            {'name': 'Ăn sáng', 'amount': '30000', 'icon': Icons.free_breakfast},
+            {
+              'name': 'Ăn sáng',
+              'amount': '30000',
+              'icon': Icons.free_breakfast
+            },
             {'name': 'Cà phê', 'amount': '25000', 'icon': Icons.local_cafe},
-            {'name': 'Xăng xe', 'amount': '100000', 'icon': Icons.local_gas_station},
+            {
+              'name': 'Xăng xe',
+              'amount': '100000',
+              'icon': Icons.local_gas_station
+            },
             {'name': 'Grab', 'amount': '50000', 'icon': Icons.directions_car},
           ]
         : [
             {'name': 'Lương', 'amount': '15000000', 'icon': Icons.work},
-            {'name': 'Thưởng', 'amount': '2000000', 'icon': Icons.card_giftcard},
+            {
+              'name': 'Thưởng',
+              'amount': '2000000',
+              'icon': Icons.card_giftcard
+            },
           ];
 
     return Container(
@@ -840,7 +1011,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           Wrap(
             spacing: 12,
             runSpacing: 12,
-            children: templates.map((template) => _buildTemplateChip(template)).toList(),
+            children: templates
+                .map((template) => _buildTemplateChip(template))
+                .toList(),
           ),
         ],
       ),
@@ -1036,7 +1209,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           _buildExtractedInfo('Loại:', 'Chi tiêu'),
           _buildExtractedInfo('Danh mục:', 'Ăn uống'),
           _buildExtractedInfo('Ghi chú:', 'Cơm tấm Sài Gòn'),
-          _buildExtractedInfo('Ngày:', DateFormat('dd/MM/yyyy').format(DateTime.now())),
+          _buildExtractedInfo(
+              'Ngày:', DateFormat('dd/MM/yyyy').format(DateTime.now())),
         ],
       ),
     );
@@ -1131,10 +1305,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           _selectedImagePath = image.path;
           _isProcessingImage = true;
         });
-        
+
         // Simulate AI processing
         await Future.delayed(const Duration(seconds: 3));
-        
+
         setState(() {
           _isProcessingImage = false;
         });
@@ -1152,16 +1326,37 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   }
 
   Future<void> _saveScannedTransaction() async {
+    // Validate user is still logged in before proceeding
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
+      // Validate categories exist
+      if (_categories.isEmpty) {
+        throw Exception(
+            'Không có danh mục khả dụng. Vui lòng tạo danh mục trước.');
+      }
+
       // Mock data từ AI scan
       final transaction = TransactionModel(
         transactionId: '',
-        userId: '',
-        categoryId: _categories.isNotEmpty ? _categories.first.categoryId : '',
+        userId: currentUser.uid, // Use verified current user ID
+        categoryId: _categories.first.categoryId,
         amount: 125000,
         type: TransactionType.expense,
         date: DateTime.now(),
@@ -1171,7 +1366,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         isDeleted: false,
       );
 
-      await _transactionService.createTransaction(transaction);
+      // Add timeout protection for save operation
+      await Future.any([
+        _transactionService.createTransaction(transaction),
+        Future.delayed(const Duration(seconds: 30), () {
+          throw Exception(
+              'Timeout: Lưu giao dịch mất quá nhiều thời gian. Vui lòng thử lại.');
+        }),
+      ]);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1180,14 +1382,31 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        // Trả về transaction để báo hiệu đã lưu thành công
+        Navigator.pop(context, transaction);
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Lỗi lưu giao dịch: $e';
+
+        // Handle specific error cases
+        if (e.toString().contains('Timeout')) {
+          errorMessage =
+              'Kết nối bị timeout. Vui lòng kiểm tra mạng và thử lại.';
+        } else if (e.toString().contains('Người dùng chưa đăng nhập')) {
+          errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        } else if (e.toString().contains('permission-denied')) {
+          errorMessage =
+              'Không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.';
+        } else if (e.toString().contains('network')) {
+          errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra internet.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi lưu giao dịch: $e'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -1226,15 +1445,35 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       return;
     }
 
+    // Validate user is still logged in before proceeding
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     try {
+      // Validate category still exists and belongs to current user
+      if (_selectedCategory == null) {
+        throw Exception('Vui lòng chọn danh mục');
+      }
+
       final amount = double.parse(_amountController.text);
       final transaction = TransactionModel(
         transactionId: '',
-        userId: '',
+        userId: currentUser.uid, // Use verified current user ID
         categoryId: _selectedCategory!.categoryId,
         amount: amount,
         type: _selectedType,
@@ -1247,7 +1486,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         isDeleted: false,
       );
 
-      await _transactionService.createTransaction(transaction);
+      // Add timeout protection for save operation
+      await Future.any([
+        _transactionService.createTransaction(transaction),
+        Future.delayed(const Duration(seconds: 30), () {
+          throw Exception(
+              'Timeout: Lưu giao dịch mất quá nhiều thời gian. Vui lòng thử lại.');
+        }),
+      ]);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1256,14 +1502,31 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+        // Trả về transaction để báo hiệu đã lưu thành công
+        Navigator.pop(context, transaction);
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Lỗi lưu giao dịch: $e';
+
+        // Handle specific error cases
+        if (e.toString().contains('Timeout')) {
+          errorMessage =
+              'Kết nối bị timeout. Vui lòng kiểm tra mạng và thử lại.';
+        } else if (e.toString().contains('Người dùng chưa đăng nhập')) {
+          errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        } else if (e.toString().contains('permission-denied')) {
+          errorMessage =
+              'Không có quyền thực hiện thao tác này. Vui lòng đăng nhập lại.';
+        } else if (e.toString().contains('network')) {
+          errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra internet.';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi lưu giao dịch: $e'),
+            content: Text(errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -1278,6 +1541,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
   @override
   void dispose() {
+    _categoriesSubscription?.cancel();
+    _authSubscription?.cancel();
     _tabController.dispose();
     _amountController.dispose();
     _noteController.dispose();

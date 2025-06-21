@@ -112,10 +112,9 @@ class AuthWrapper extends StatelessWidget {
             ),
           );
         }
-
         if (snapshot.hasData) {
-          // Tạo dữ liệu mẫu khi user đăng nhập
-          _createSampleData();
+          // Tạo danh mục mặc định khi user đăng nhập
+          _createDefaultCategories();
           return const HomeScreen();
         } else {
           return const AuthScreen();
@@ -124,20 +123,14 @@ class AuthWrapper extends StatelessWidget {
     );
   }
 
-  Future<void> _createSampleData() async {
+  Future<void> _createDefaultCategories() async {
     try {
       final categoryService = serviceLocator<CategoryService>();
 
-      // Tạo danh mục mặc định
+      // Chỉ tạo danh mục mặc định, không tạo giao dịch mẫu
       await categoryService.createDefaultCategories();
-
-      // Đợi một chút để danh mục được tạo xong
-      await Future.delayed(const Duration(seconds: 1));
-
-      // Tạo giao dịch mẫu
-      await categoryService.createSampleTransactions();
     } catch (e) {
-      //print('Lỗi tạo dữ liệu mẫu: $e');
+      //print('Lỗi tạo danh mục mặc định: $e');
     }
   }
 }
@@ -151,22 +144,31 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  Key _homeTabKey = UniqueKey();
 
-  static final List<Widget> _widgetOptions = <Widget>[
-    const HomeTabContent(),
-    const TransactionCalendarScreen(),
-    const Center(),
-    const ChatbotPage(),
-    const ProfileScreen(),
-  ];
+  List<Widget> get _widgetOptions => [
+        HomeTabContent(key: _homeTabKey),
+        const TransactionCalendarScreen(),
+        const Center(),
+        const ChatbotPage(),
+        const ProfileScreen(),
+      ];
 
-  void _onItemTapped(int index) {
+  void _onItemTapped(int index) async {
     if (index == 2) {
       // Điều hướng đến màn hình thêm giao dịch mới
-      Navigator.push(
+      final result = await Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const AddTransactionScreen()),
       );
+
+      // Nếu có giao dịch được thêm, refresh màn hình
+      if (result != null) {
+        setState(() {
+          // Tạo key mới để force rebuild HomeTabContent
+          _homeTabKey = UniqueKey();
+        });
+      }
       return;
     }
     setState(() {
@@ -193,8 +195,26 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class HomeTabContent extends StatelessWidget {
-  const HomeTabContent({super.key});
+class HomeTabContent extends StatefulWidget {
+  const HomeTabContent({Key? key}) : super(key: key);
+
+  @override
+  State<HomeTabContent> createState() => _HomeTabContentState();
+}
+
+class _HomeTabContentState extends State<HomeTabContent> {
+  Key _financialOverviewKey = UniqueKey();
+  Key _expenseChartKey = UniqueKey();
+  Key _recentTransactionsKey = UniqueKey();
+
+  @override
+  void didUpdateWidget(HomeTabContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Khi widget được rebuild, tạo key mới để refresh các widget con
+    _financialOverviewKey = UniqueKey();
+    _expenseChartKey = UniqueKey();
+    _recentTransactionsKey = UniqueKey();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -207,17 +227,17 @@ class HomeTabContent extends StatelessWidget {
           const SizedBox(height: 20),
 
           // Financial Overview Cards
-          const FinancialOverviewCards(),
+          FinancialOverviewCards(key: _financialOverviewKey),
 
           const SizedBox(height: 20),
 
           // Expense Chart
-          const ExpenseChart(),
+          ExpenseChart(key: _expenseChartKey),
 
           const SizedBox(height: 20),
 
           // Recent Transactions
-          const RecentTransactions(),
+          RecentTransactions(key: _recentTransactionsKey),
 
           const SizedBox(height: 100), // Space for bottom menu
         ],

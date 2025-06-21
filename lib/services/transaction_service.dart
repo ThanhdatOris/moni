@@ -104,38 +104,44 @@ class TransactionService {
         return Stream.value([]);
       }
 
-      // Tạo query cơ bản
+      // Đếm số lượng filter để quyết định strategy
+      int filterCount = 0;
+      if (type != null) filterCount++;
+      if (categoryId != null) filterCount++;
+      if (startDate != null) filterCount++;
+      if (endDate != null) filterCount++;
+
+      // Nếu có nhiều filter, sử dụng fallback để tránh composite index
+      if (filterCount > 1) {
+        _logger.i('Sử dụng fallback query do có nhiều filter: $filterCount');
+        return _getFallbackTransactions(
+            type, categoryId, startDate, endDate, limit);
+      }
+
+      // Query đơn giản với ít filter
       Query query = _firestore
           .collection('users')
           .doc(user.uid)
           .collection('transactions')
           .where('is_deleted', isEqualTo: false);
 
-      // Kiểm tra xem có filters phức tạp không
-      bool hasComplexFilters =
-          (type != null) || (startDate != null) || (endDate != null);
-
-      // Áp dụng các filter
+      // Áp dụng filter đơn lẻ
       if (type != null) {
         query = query.where('type', isEqualTo: type.value);
-      }
-
-      if (categoryId != null) {
+      } else if (categoryId != null) {
         query = query.where('category_id', isEqualTo: categoryId);
-      }
-
-      if (startDate != null) {
+      } else if (startDate != null) {
         query = query.where('date',
             isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
-      }
-
-      if (endDate != null) {
+      } else if (endDate != null) {
         query = query.where('date',
             isLessThanOrEqualTo: Timestamp.fromDate(endDate));
       }
 
-      // Thêm orderBy cuối cùng để tránh lỗi index
-      query = query.orderBy('date', descending: true);
+      // Chỉ orderBy khi không có date filter để tránh composite index
+      if (startDate == null && endDate == null) {
+        query = query.orderBy('date', descending: true);
+      }
 
       if (limit != null) {
         query = query.limit(limit);
@@ -156,6 +162,11 @@ class TransactionService {
           return TransactionModel.fromMap(
               doc.data() as Map<String, dynamic>, doc.id);
         }).toList();
+
+        // Sắp xếp trong client nếu cần
+        if (startDate != null || endDate != null) {
+          transactions.sort((a, b) => b.date.compareTo(a.date));
+        }
 
         return transactions;
       });

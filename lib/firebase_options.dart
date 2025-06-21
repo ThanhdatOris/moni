@@ -4,6 +4,8 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
+import 'services/environment_service.dart';
+
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
 /// Example:
@@ -40,49 +42,49 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'your-web-api-key',
-    appId: 'your-web-app-id',
-    messagingSenderId: 'your-messaging-sender-id',
-    projectId: 'your-project-id',
-    authDomain: 'your-project-id.firebaseapp.com',
-    storageBucket: 'your-project-id.appspot.com',
-  );
+  static FirebaseOptions get web => FirebaseOptions(
+        apiKey: EnvironmentService.firebaseApiKey,
+        appId: EnvironmentService.firebaseAppId,
+        messagingSenderId: EnvironmentService.firebaseMessagingSenderId,
+        projectId: EnvironmentService.firebaseProjectId,
+        authDomain: EnvironmentService.firebaseAuthDomain,
+        storageBucket: EnvironmentService.firebaseStorageBucket,
+      );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'your-android-api-key',
-    appId: 'your-android-app-id',
-    messagingSenderId: 'your-messaging-sender-id',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
-  );
+  static FirebaseOptions get android => FirebaseOptions(
+        apiKey: EnvironmentService.firebaseApiKey,
+        appId: EnvironmentService.firebaseAppId,
+        messagingSenderId: EnvironmentService.firebaseMessagingSenderId,
+        projectId: EnvironmentService.firebaseProjectId,
+        storageBucket: EnvironmentService.firebaseStorageBucket,
+      );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'your-ios-api-key',
-    appId: 'your-ios-app-id',
-    messagingSenderId: 'your-messaging-sender-id',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
-    iosClientId: 'your-ios-client-id',
-    iosBundleId: 'com.oris.moni',
-  );
+  static FirebaseOptions get ios => FirebaseOptions(
+        apiKey: EnvironmentService.firebaseApiKey,
+        appId: EnvironmentService.firebaseAppId,
+        messagingSenderId: EnvironmentService.firebaseMessagingSenderId,
+        projectId: EnvironmentService.firebaseProjectId,
+        storageBucket: EnvironmentService.firebaseStorageBucket,
+        iosClientId: EnvironmentService.getEnv('FIREBASE_IOS_CLIENT_ID'),
+        iosBundleId: EnvironmentService.packageName,
+      );
 
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'your-macos-api-key',
-    appId: 'your-macos-app-id',
-    messagingSenderId: 'your-messaging-sender-id',
-    projectId: 'your-project-id',
-    storageBucket: 'your-project-id.appspot.com',
-    iosClientId: 'your-macos-client-id',
-    iosBundleId: 'com.oris.moni',
-  );
+  static FirebaseOptions get macos => FirebaseOptions(
+        apiKey: EnvironmentService.firebaseApiKey,
+        appId: EnvironmentService.firebaseAppId,
+        messagingSenderId: EnvironmentService.firebaseMessagingSenderId,
+        projectId: EnvironmentService.firebaseProjectId,
+        storageBucket: EnvironmentService.firebaseStorageBucket,
+        iosClientId: EnvironmentService.getEnv('FIREBASE_MACOS_CLIENT_ID'),
+        iosBundleId: EnvironmentService.packageName,
+      );
 
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'your-windows-api-key',
-    appId: 'your-windows-app-id',
-    messagingSenderId: 'your-messaging-sender-id',
-    projectId: 'your-project-id',
-    authDomain: 'your-project-id.firebaseapp.com',
-    storageBucket: 'your-project-id.appspot.com',
-  );
+  static FirebaseOptions get windows => FirebaseOptions(
+        apiKey: EnvironmentService.firebaseApiKey,
+        appId: EnvironmentService.firebaseAppId,
+        messagingSenderId: EnvironmentService.firebaseMessagingSenderId,
+        projectId: EnvironmentService.firebaseProjectId,
+        authDomain: EnvironmentService.firebaseAuthDomain,
+        storageBucket: EnvironmentService.firebaseStorageBucket,
+      );
 }

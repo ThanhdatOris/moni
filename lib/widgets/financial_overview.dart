@@ -90,7 +90,6 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
   String _getCardNumber() {
     final now = DateTime.now();
     return '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
-    
   }
 
   String _getValidFromDate() {
@@ -168,6 +167,10 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
   }
 
   Widget _buildMainBankCard() {
+    // Kiểm tra nếu người dùng chưa có giao dịch nào
+    final hasNoTransactions =
+        totalIncome == 0.0 && totalExpense == 0.0 && balance == 0.0;
+
     return Container(
       height: 200,
       decoration: BoxDecoration(
@@ -312,6 +315,25 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                           ],
                         ),
                       ),
+                      // Hiển thị thông báo khuyến khích khi chưa có giao dịch
+                      if (hasNoTransactions) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Bắt đầu ghi lại giao dịch đầu tiên! 💰',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black.withOpacity(0.3),
+                                offset: const Offset(1, 1),
+                                blurRadius: 2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
 
@@ -445,7 +467,8 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
 
             // Content
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14), // Padding đồng nhất
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 14), // Padding đồng nhất
               child: Row(
                 children: [
                   Expanded(

@@ -123,8 +123,10 @@ class CategoryService {
     }
   }
 
-  /// Lấy danh sách tất cả danh mục của người dùng
-  Stream<List<CategoryModel>> getCategories({TransactionType? type}) {
+  /// Lấy danh sách danh mục của người dùng
+  Stream<List<CategoryModel>> getCategories({
+    TransactionType? type,
+  }) {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -135,17 +137,31 @@ class CategoryService {
           .collection('users')
           .doc(user.uid)
           .collection('categories')
-          .orderBy('name');
+          .where('is_deleted', isEqualTo: false);
 
+      // Áp dụng filter type nếu có
       if (type != null) {
         query = query.where('type', isEqualTo: type.value);
+        // Không thêm orderBy khi có where clause để tránh cần composite index
+      } else {
+        // Chỉ orderBy khi không có where clause phức tạp
+        query = query.orderBy('name');
       }
 
       return query.snapshots().map((snapshot) {
-        return snapshot.docs.map((doc) {
+        var categories = snapshot.docs.map((doc) {
           return CategoryModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          );
         }).toList();
+
+        // Sắp xếp trong client nếu cần
+        if (type != null) {
+          categories.sort((a, b) => a.name.compareTo(b.name));
+        }
+
+        return categories;
       });
     } catch (e) {
       _logger.e('Lỗi lấy danh sách danh mục: $e');
@@ -364,141 +380,6 @@ class CategoryService {
     } catch (e) {
       _logger.e('Lỗi tạo danh mục mặc định: $e');
       throw Exception('Không thể tạo danh mục mặc định: $e');
-    }
-  }
-
-  /// Tạo giao dịch mẫu để test
-  Future<void> createSampleTransactions() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('Người dùng chưa đăng nhập');
-      }
-
-      // Kiểm tra xem đã có giao dịch chưa
-      final existingTransactions = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('transactions')
-          .limit(1)
-          .get();
-
-      if (existingTransactions.docs.isNotEmpty) {
-        _logger.i('Giao dịch đã tồn tại, bỏ qua tạo mẫu');
-        return;
-      }
-
-      // Lấy danh mục
-      final categoriesSnapshot = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('categories')
-          .get();
-
-      if (categoriesSnapshot.docs.isEmpty) {
-        _logger.w('Không có danh mục để tạo giao dịch mẫu');
-        return;
-      }
-
-      final categories = categoriesSnapshot.docs.map((doc) {
-        return CategoryModel.fromMap(doc.data(), doc.id);
-      }).toList();
-
-      final expenseCategories =
-          categories.where((c) => c.type == TransactionType.expense).toList();
-      final incomeCategories =
-          categories.where((c) => c.type == TransactionType.income).toList();
-
-      final now = DateTime.now();
-      final batch = _firestore.batch();
-
-      // Tạo giao dịch mẫu
-      final sampleTransactions = [
-        // Thu nhập
-        {
-          'amount': 15000000.0,
-          'type': TransactionType.income,
-          'note': 'Lương tháng ${now.month}',
-          'date': DateTime(now.year, now.month, 1),
-          'categoryId':
-              incomeCategories.isNotEmpty ? incomeCategories[0].categoryId : '',
-        },
-        {
-          'amount': 2000000.0,
-          'type': TransactionType.income,
-          'note': 'Thưởng dự án',
-          'date': DateTime(now.year, now.month, 5),
-          'categoryId': incomeCategories.length > 1
-              ? incomeCategories[1].categoryId
-              : incomeCategories[0].categoryId,
-        },
-
-        // Chi tiêu
-        {
-          'amount': 150000.0,
-          'type': TransactionType.expense,
-          'note': 'Ăn trưa',
-          'date': DateTime(now.year, now.month, now.day),
-          'categoryId': expenseCategories.isNotEmpty
-              ? expenseCategories[0].categoryId
-              : '',
-        },
-        {
-          'amount': 50000.0,
-          'type': TransactionType.expense,
-          'note': 'Xăng xe',
-          'date': DateTime(now.year, now.month, now.day - 1),
-          'categoryId': expenseCategories.length > 1
-              ? expenseCategories[1].categoryId
-              : expenseCategories[0].categoryId,
-        },
-        {
-          'amount': 300000.0,
-          'type': TransactionType.expense,
-          'note': 'Mua quần áo',
-          'date': DateTime(now.year, now.month, now.day - 2),
-          'categoryId': expenseCategories.length > 2
-              ? expenseCategories[2].categoryId
-              : expenseCategories[0].categoryId,
-        },
-        {
-          'amount': 1200000.0,
-          'type': TransactionType.expense,
-          'note': 'Tiền điện nước',
-          'date': DateTime(now.year, now.month, 10),
-          'categoryId': expenseCategories.length > 4
-              ? expenseCategories[4].categoryId
-              : expenseCategories[0].categoryId,
-        },
-      ];
-
-      for (final transactionData in sampleTransactions) {
-        final docRef = _firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('transactions')
-            .doc();
-
-        final transaction = TransactionModel(
-          transactionId: docRef.id,
-          userId: user.uid,
-          categoryId: transactionData['categoryId'] as String,
-          amount: transactionData['amount'] as double,
-          type: transactionData['type'] as TransactionType,
-          date: transactionData['date'] as DateTime,
-          note: transactionData['note'] as String,
-          createdAt: now,
-          updatedAt: now,
-          isDeleted: false,
-        );
-
-        batch.set(docRef, transaction.toMap());
-      }
-
-      await batch.commit();
-      _logger.i('Tạo giao dịch mẫu thành công');
-    } catch (e) {
-      _logger.e('Lỗi tạo giao dịch mẫu: $e');
     }
   }
 

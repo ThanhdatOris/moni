@@ -220,17 +220,36 @@ class _ExpenseChartState extends State<ExpenseChart> {
                 padding: EdgeInsets.all(40),
                 child: CircularProgressIndicator(),
               ),
-            )
-          else if (_chartData.isEmpty)
-            const Center(
+            )          else if (_chartData.isEmpty)
+            Center(
               child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Text(
-                  'Chưa có dữ liệu chi tiêu',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
-                  ),
+                padding: const EdgeInsets.all(30),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.pie_chart_outline_rounded,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Chưa có dữ liệu chi tiêu',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Thêm giao dịch để xem phân tích chi tiêu',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 13,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
               ),
             )

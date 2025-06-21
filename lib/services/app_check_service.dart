@@ -18,7 +18,8 @@ class AppCheckService {
       await FirebaseAppCheck.instance.activate(
         androidProvider: AndroidProvider.debug,
         appleProvider: AppleProvider.debug,
-        webProvider: ReCaptchaV3Provider('recaptcha-v3-site-key'),
+        webProvider:
+            ReCaptchaV3Provider('6LcXXXXXXXXXXXXXXXXXXXXX'), // Placeholder key
       );
 
       _isInitialized = true;
@@ -26,16 +27,18 @@ class AppCheckService {
     } on Exception catch (e) {
       // Xử lý lỗi đặc biệt cho Firebase App Check API chưa được kích hoạt
       final errorMessage = e.toString().toLowerCase();
-      
+
       if (errorMessage.contains('firebaseappcheck.googleapis.com') ||
           errorMessage.contains('api has not been used') ||
           errorMessage.contains('disabled')) {
-        _logger.w('Firebase App Check API chưa được kích hoạt. Ứng dụng sẽ chạy mà không có App Check.');
-        _logger.w('Để kích hoạt, truy cập: https://console.developers.google.com/apis/api/firebaseappcheck.googleapis.com/overview?project=YOUR_PROJECT_ID');
+        _logger.w(
+            'Firebase App Check API chưa được kích hoạt. Ứng dụng sẽ chạy mà không có App Check.');
+        _logger.w(
+            'Để kích hoạt, truy cập: https://console.developers.google.com/apis/api/firebaseappcheck.googleapis.com/overview?project=YOUR_PROJECT_ID');
       } else {
         _logger.e('Lỗi khởi tạo App Check: $e');
       }
-      
+
       // Không throw exception để app vẫn có thể chạy
       _logger.w('App sẽ chạy mà không có App Check');
     } catch (e) {

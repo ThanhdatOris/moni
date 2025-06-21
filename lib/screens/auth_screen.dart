@@ -40,59 +40,45 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      if (_isSignUp) {
-        // Đăng ký tài khoản mới
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
-      } else {
-        // Đăng nhập
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
-      }
+      // Thêm timeout để tránh treo vô thời hạn
+      await Future.any([
+        _performAuthentication(),
+        Future.delayed(const Duration(seconds: 15), () {
+          throw Exception(
+              'Timeout: Kết nối đến Firebase bị treo. Vui lòng kiểm tra cấu hình Firebase và kết nối mạng.');
+        }),
+      ]);
     } on FirebaseAuthException catch (e) {
-      String message = 'Đã xảy ra lỗi';
-      switch (e.code) {
-        case 'user-not-found':
-          message = 'Không tìm thấy tài khoản với email này';
-          break;
-        case 'wrong-password':
-          message = 'Mật khẩu không đúng';
-          break;
-        case 'email-already-in-use':
-          message = 'Email đã được sử dụng';
-          break;
-        case 'weak-password':
-          message = 'Mật khẩu quá yếu';
-          break;
-        case 'invalid-email':
-          message = 'Email không hợp lệ';
-          break;
-        case 'too-many-requests':
-          message = 'Quá nhiều lần thử. Vui lòng thử lại sau vài phút';
-          break;
-        case 'network-request-failed':
-          message = 'Lỗi kết nối mạng. Vui lòng kiểm tra internet';
-          break;
-        case 'invalid-credential':
-          message = 'Thông tin đăng nhập không đúng. Vui lòng kiểm tra lại';
-          break;
-        default:
-          message = e.message ?? 'Đã xảy ra lỗi';
-      }
-
+      String message = _getFirebaseErrorMessage(e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     } catch (e) {
+      String message = _getErrorMessage(e);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 8),
+            action: e.toString().contains('configuration') ||
+                    e.toString().contains('.env')
+                ? SnackBarAction(
+                    label: 'Hướng dẫn',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      _showConfigurationDialog();
+                    },
+                  )
+                : null,
+          ),
         );
       }
     }
@@ -102,6 +88,118 @@ class _AuthScreenState extends State<AuthScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _performAuthentication() async {
+    if (_isSignUp) {
+      // Đăng ký tài khoản mới
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+    } else {
+      // Đăng nhập
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+    }
+  }
+
+  String _getFirebaseErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'Không tìm thấy tài khoản với email này';
+      case 'wrong-password':
+        return 'Mật khẩu không đúng';
+      case 'email-already-in-use':
+        return 'Email đã được sử dụng';
+      case 'weak-password':
+        return 'Mật khẩu quá yếu';
+      case 'invalid-email':
+        return 'Email không hợp lệ';
+      case 'too-many-requests':
+        return 'Quá nhiều lần thử. Vui lòng thử lại sau vài phút';
+      case 'network-request-failed':
+        return 'Lỗi kết nối mạng. Vui lòng kiểm tra internet';
+      case 'invalid-credential':
+        return 'Thông tin đăng nhập không đúng. Vui lòng kiểm tra lại';
+      case 'configuration-not-found':
+        return 'Lỗi cấu hình Firebase. Vui lòng kiểm tra file .env';
+      default:
+        return e.message ?? 'Đã xảy ra lỗi xác thực';
+    }
+  }
+
+  String _getErrorMessage(dynamic e) {
+    final errorString = e.toString().toLowerCase();
+
+    if (errorString.contains('configuration') ||
+        errorString.contains('your-project-id') ||
+        errorString.contains('.env')) {
+      return 'Chưa có file .env hoặc cấu hình Firebase không đúng. Nhấn "Hướng dẫn" để xem cách thiết lập.';
+    }
+
+    if (errorString.contains('timeout')) {
+      return 'Kết nối bị timeout. Kiểm tra mạng và cấu hình Firebase.';
+    }
+
+    if (errorString.contains('network')) {
+      return 'Lỗi kết nối mạng. Vui lòng kiểm tra internet.';
+    }
+
+    return 'Lỗi: $e';
+  }
+
+  void _showConfigurationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Thiết lập Firebase'),
+          content: const SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Để sử dụng ứng dụng, bạn cần tạo file .env với thông tin Firebase:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 16),
+                Text('1. Copy file "env_template.txt" thành ".env"'),
+                SizedBox(height: 8),
+                Text('2. Truy cập Firebase Console'),
+                SizedBox(height: 8),
+                Text('3. Vào Project Settings > General'),
+                SizedBox(height: 8),
+                Text('4. Copy các thông tin:'),
+                SizedBox(height: 4),
+                Text('   - Project ID'),
+                Text('   - API Key'),
+                Text('   - App ID'),
+                Text('   - Messaging Sender ID'),
+                SizedBox(height: 8),
+                Text('5. Thay thế các giá trị "your-*" trong file .env'),
+                SizedBox(height: 16),
+                Text(
+                  'Lưu ý: File .env sẽ không được commit vào git.',
+                  style: TextStyle(fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Đã hiểu'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -304,32 +402,37 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                           ),
                           ElevatedButton(
-                            onPressed: _isLoading ? null : () async {
-                              setState(() {
-                                _isLoading = true;
-                              });
-                              
-                              try {
-                                await FirebaseAuth.instance.signInWithEmailAndPassword(
-                                  email: '9588666@gmail.com',
-                                  password: '123456',
-                                );
-                              } catch (e) {
-                                if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Lỗi: $e')),
-                                  );
-                                }
-                              }
-                              
-                              if (mounted) {
-                                setState(() {
-                                  _isLoading = false;
-                                });
-                              }
-                            },
+                            onPressed: _isLoading
+                                ? null
+                                : () async {
+                                    setState(() {
+                                      _isLoading = true;
+                                    });
+
+                                    try {
+                                      await FirebaseAuth.instance
+                                          .signInWithEmailAndPassword(
+                                        email: '9588666@gmail.com',
+                                        password: '123456',
+                                      );
+                                    } catch (e) {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(content: Text('Lỗi: $e')),
+                                        );
+                                      }
+                                    }
+
+                                    if (mounted) {
+                                      setState(() {
+                                        _isLoading = false;
+                                      });
+                                    }
+                                  },
                             style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
                               minimumSize: const Size(0, 0),
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
