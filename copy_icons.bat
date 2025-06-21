@@ -2,7 +2,7 @@
 echo Copying Moni app icons...
 
 REM Thay đổi đường dẫn nguồn tại đây nếu cần
-set SOURCE_DIR=D:\da3-flutter-doc\logo\moni-icon
+set SOURCE_DIR=D:\da3-flutter-doc\logo\moni-logo
 set TARGET_DIR=%~dp0android\app\src\main\res
 
 REM Copy icons với kích thước phù hợp
