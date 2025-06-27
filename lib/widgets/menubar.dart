@@ -35,13 +35,13 @@ class Menubar extends StatelessWidget {
               borderRadius: BorderRadius.circular(32),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFFF6B35).withOpacity(0.4),
+                  color: const Color(0xFFFF6B35).withValues(alpha: 0.4),
                   blurRadius: 20,
                   offset: const Offset(0, 8),
                   spreadRadius: 0,
                 ),
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -81,12 +81,12 @@ class Menubar extends StatelessWidget {
                   border: Border.all(color: Colors.white, width: 3),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFFFF9800).withOpacity(0.4),
+                      color: const Color(0xFFFF9800).withValues(alpha: 0.4),
                       blurRadius: 15,
                       offset: const Offset(0, 5),
                     ),
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -118,17 +118,19 @@ class Menubar extends StatelessWidget {
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? Colors.white.withOpacity(0.3)
+                    ? Colors.white.withValues(alpha: 0.3)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(10),
                 border: isSelected
-                    ? Border.all(color: Colors.white.withOpacity(0.4), width: 1)
+                    ? Border.all(
+                        color: Colors.white.withValues(alpha: 0.4), width: 1)
                     : null,
               ),
               child: Icon(
                 icon,
-                color:
-                    isSelected ? Colors.white : Colors.white.withOpacity(0.85),
+                color: isSelected
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: 0.85),
                 size: isSelected ? 22 : 20,
               ),
             ),
@@ -137,7 +139,7 @@ class Menubar extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -148,7 +150,7 @@ class Menubar extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     shadows: [
                       Shadow(
-                        color: Colors.black.withOpacity(0.3),
+                        color: Colors.black.withValues(alpha: 0.3),
                         offset: const Offset(0, 1),
                         blurRadius: 2,
                       ),
@@ -160,12 +162,12 @@ class Menubar extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 9,
                   fontWeight: FontWeight.w500,
                   shadows: [
                     Shadow(
-                      color: Colors.black.withOpacity(0.3),
+                      color: Colors.black.withValues(alpha: 0.3),
                       offset: const Offset(0, 1),
                       blurRadius: 2,
                     ),

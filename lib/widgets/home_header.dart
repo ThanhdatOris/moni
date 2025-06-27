@@ -57,40 +57,35 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
   }
 
   String _getUserInitials() {
-    print('🎯 Generating initials for: "$_userName"');
-
     if (_userName.isNotEmpty) {
       final words = _userName.split(' ');
-      print('- Words: $words');
 
       if (words.length >= 2) {
         final initials = '${words[0][0]}${words[1][0]}'.toUpperCase();
-        print('- Generated initials (2+ words): $initials');
         return initials;
       }
       final initial = _userName.substring(0, 1).toUpperCase();
-      print('- Generated initial (1 word): $initial');
       return initial;
     }
-    print('- Using fallback: U');
     return 'U';
   }
 
   Future<void> _calculateDaysSinceFirstTransaction() async {
     try {
       final transactionService = TransactionService();
-      
+
       // Lấy tất cả giao dịch và tìm giao dịch cũ nhất
       final transactionsStream = transactionService.getTransactions();
       final transactions = await transactionsStream.first;
-      
+
       if (transactions.isNotEmpty) {
         // Sắp xếp theo thời gian tạo để tìm giao dịch đầu tiên
         transactions.sort((a, b) => a.createdAt.compareTo(b.createdAt));
         final firstTransactionDate = transactions.first.createdAt;
         final now = DateTime.now();
-        final difference = now.difference(firstTransactionDate).inDays + 1; // +1 để tính cả ngày hiện tại
-        
+        final difference = now.difference(firstTransactionDate).inDays +
+            1; // +1 để tính cả ngày hiện tại
+
         if (mounted) {
           setState(() {
             _daysSinceFirstTransaction = difference;
@@ -148,9 +143,10 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Colors.white.withOpacity(0.1),
+                    Colors.white.withValues(alpha: 0.1),
                     Colors.transparent,
-                    const Color.fromARGB(255, 255, 0, 85).withOpacity(0.05),
+                    const Color.fromARGB(255, 255, 0, 85)
+                        .withValues(alpha: 0.05),
                   ],
                 ),
               ),
@@ -181,12 +177,12 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
+                                  color: Colors.white.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
                                   _getGreetingIcon(),
-                                  color: Colors.white,
+                                  color: Colors.white.withValues(alpha: 0.9),
                                   size: 16,
                                 ),
                               ),
@@ -195,7 +191,7 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
                                 _greeting,
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -207,15 +203,15 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
                           // User name
                           Text(
                             _userName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 26, // Giảm size
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: Colors.white.withValues(alpha: 0.9),
                               letterSpacing: 0.5,
                               shadows: [
                                 Shadow(
                                   color: Colors.black26,
-                                  offset: Offset(1, 1),
+                                  offset: const Offset(1, 1),
                                   blurRadius: 3,
                                 ),
                               ],
@@ -229,7 +225,7 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
                             'Tiết kiệm chi tiêu ngày thứ: $_daysSinceFirstTransaction',
                             style: TextStyle(
                               fontSize: 13, // Giảm size
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               fontWeight: FontWeight.w400,
                             ),
                           ),
@@ -257,18 +253,18 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Colors.white.withOpacity(0.3),
-            Colors.white.withOpacity(0.1),
+            Colors.white.withValues(alpha: 0.3),
+            Colors.white.withValues(alpha: 0.1),
           ],
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
           BoxShadow(
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -280,7 +276,7 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: Colors.white.withOpacity(0.4),
+            color: Colors.white.withValues(alpha: 0.4),
             width: 2,
           ),
         ),
@@ -295,22 +291,22 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    const Color(0xFFFF9800).withOpacity(0.8),
-                    const Color(0xFFFF5722).withOpacity(0.9),
+                    const Color(0xFFFF9800).withValues(alpha: 0.8),
+                    const Color(0xFFFF5722).withValues(alpha: 0.9),
                   ],
                 ),
               ),
               child: Center(
                 child: Text(
                   _getUserInitials(),
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     shadows: [
                       Shadow(
                         color: Colors.black26,
-                        offset: Offset(1, 1),
+                        offset: const Offset(1, 1),
                         blurRadius: 2,
                       ),
                     ],

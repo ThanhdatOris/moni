@@ -184,7 +184,7 @@ class BudgetAlertService {
           .map((snapshot) {
         return snapshot.docs.map((doc) {
           return BudgetAlertModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+              doc.data(), doc.id);
         }).toList();
       });
     } catch (e) {
@@ -210,7 +210,7 @@ class BudgetAlertService {
           .map((snapshot) {
         return snapshot.docs
             .map((doc) => BudgetAlertModel.fromMap(
-                doc.data() as Map<String, dynamic>, doc.id))
+                doc.data(), doc.id))
             .where((alert) => alert.isActive)
             .toList();
       });

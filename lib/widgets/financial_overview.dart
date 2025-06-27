@@ -62,7 +62,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
         });
       }
     } catch (e) {
-      print('Error loading financial data: $e');
+      // Error loading financial data: $e
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -177,7 +177,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -205,9 +205,9 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.white.withOpacity(0.2),
-                        Colors.white.withOpacity(0.1),
-                        Colors.black.withOpacity(0.1),
+                        Colors.black.withValues(alpha: 0.1),
+                        Colors.white.withValues(alpha: 0.1),
+                        Colors.black.withValues(alpha: 0.1),
                       ],
                     ),
                   ),
@@ -231,10 +231,10 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.black.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                             width: 1,
                           ),
                         ),
@@ -247,7 +247,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                             letterSpacing: 1.2,
                             shadows: [
                               Shadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withValues(alpha: 0.3),
                                 offset: const Offset(1, 1),
                                 blurRadius: 2,
                               ),
@@ -259,10 +259,10 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                             width: 1,
                           ),
                         ),
@@ -286,12 +286,12 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                       Text(
                         'Số dư khả dụng',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           shadows: [
                             Shadow(
-                              color: Colors.black.withOpacity(0.3),
+                              color: Colors.black.withValues(alpha: 0.3),
                               offset: const Offset(1, 1),
                               blurRadius: 2,
                             ),
@@ -308,7 +308,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                           letterSpacing: 1,
                           shadows: [
                             Shadow(
-                              color: Colors.black.withOpacity(0.4),
+                              color: Colors.black.withValues(alpha: 0.4),
                               offset: const Offset(2, 2),
                               blurRadius: 4,
                             ),
@@ -321,12 +321,12 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                         Text(
                           'Bắt đầu ghi lại giao dịch đầu tiên! 💰',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                             shadows: [
                               Shadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withValues(alpha: 0.3),
                                 offset: const Offset(1, 1),
                                 blurRadius: 2,
                               ),
@@ -349,13 +349,13 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                           Text(
                             _getCardNumber(),
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 2,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   offset: const Offset(1, 1),
                                   blurRadius: 2,
                                 ),
@@ -366,13 +366,13 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                           Text(
                             _getUserName().toUpperCase(),
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                               letterSpacing: 1,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   offset: const Offset(1, 1),
                                   blurRadius: 2,
                                 ),
@@ -387,7 +387,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                           Text(
                             'VALID FROM',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontSize: 8,
                               fontWeight: FontWeight.w500,
                               letterSpacing: 1,
@@ -396,13 +396,13 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                           Text(
                             _getValidFromDate(),
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               letterSpacing: 1,
                               shadows: [
                                 Shadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   offset: const Offset(1, 1),
                                   blurRadius: 2,
                                 ),
@@ -434,7 +434,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -459,7 +459,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                 filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                   ),
                 ),
               ),
@@ -479,12 +479,12 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                         Text(
                           title,
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                             shadows: [
                               Shadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withValues(alpha: 0.3),
                                 offset: const Offset(1, 1),
                                 blurRadius: 2,
                               ),
@@ -500,7 +500,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                             fontWeight: FontWeight.bold,
                             shadows: [
                               Shadow(
-                                color: Colors.black.withOpacity(0.4),
+                                color: Colors.black.withValues(alpha: 0.4),
                                 offset: const Offset(1, 1),
                                 blurRadius: 3,
                               ),
@@ -513,7 +513,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(

@@ -160,7 +160,7 @@ class AIProcessorService {
       final jsonEnd = response.lastIndexOf('}');
 
       if (jsonStart != -1 && jsonEnd != -1) {
-        final jsonString = response.substring(jsonStart, jsonEnd + 1);
+        // final jsonString = response.substring(jsonStart, jsonEnd + 1);
         // Có thể cần parse JSON ở đây, nhưng để đơn giản tạm thời return map rỗng
         return {};
       }

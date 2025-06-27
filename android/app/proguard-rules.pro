@@ -28,6 +28,28 @@
 -keep class io.flutter.**  { *; }
 -keep class io.flutter.plugins.**  { *; }
 
+# FIX R8 ERRORS - Google Play Core
+-keep class com.google.android.play.core.** { *; }
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.splitcompat.** { *; }
+-keep class com.google.android.play.core.splitinstall.** { *; }
+-keep class com.google.android.play.core.tasks.** { *; }
+
+# FIX R8 ERRORS - OkHttp / Retrofit
+-keep class com.squareup.okhttp.** { *; }
+-dontwarn com.squareup.okhttp.**
+-keep class okhttp3.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# FIX R8 ERRORS - Reflection classes
+-keep class java.lang.reflect.** { *; }
+-dontwarn java.lang.reflect.AnnotatedType
+
+# FIX R8 ERRORS - gRPC
+-keep class io.grpc.** { *; }
+-dontwarn io.grpc.**
+
 # Firebase rules
 -keep class com.google.firebase.** { *; }
 -keep class com.google.android.gms.** { *; }

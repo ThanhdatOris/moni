@@ -159,7 +159,7 @@ class _ExpenseChartState extends State<ExpenseChart> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -183,7 +183,7 @@ class _ExpenseChartState extends State<ExpenseChart> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: DropdownButton<String>(
@@ -220,7 +220,8 @@ class _ExpenseChartState extends State<ExpenseChart> {
                 padding: EdgeInsets.all(40),
                 child: CircularProgressIndicator(),
               ),
-            )          else if (_chartData.isEmpty)
+            )
+          else if (_chartData.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(30),
@@ -259,7 +260,7 @@ class _ExpenseChartState extends State<ExpenseChart> {
                 // Biểu đồ tròn
                 Expanded(
                   flex: 3,
-                  child: Container(
+                  child: SizedBox(
                     height: 200,
                     child: Stack(
                       children: [

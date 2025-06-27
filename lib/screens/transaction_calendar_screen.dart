@@ -58,7 +58,7 @@ class _TransactionCalendarScreenState extends State<TransactionCalendarScreen> {
         }
       });
     } catch (e) {
-      print('Error loading transactions: $e');
+      // Error loading transactions
       setState(() {
         _isLoading = false;
       });
@@ -144,7 +144,7 @@ class _TransactionCalendarScreenState extends State<TransactionCalendarScreen> {
                   Container(
                     width: 1,
                     height: 40,
-                    color: Colors.white.withOpacity(0.3),
+                    color: Colors.white.withValues(alpha: 0.3),
                   ),
                   Expanded(
                     child: _buildSummaryItem(
@@ -192,7 +192,7 @@ class _TransactionCalendarScreenState extends State<TransactionCalendarScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -286,13 +286,13 @@ class _TransactionCalendarScreenState extends State<TransactionCalendarScreen> {
           color: isSelected
               ? AppColors.primary
               : isToday
-                  ? AppColors.primary.withOpacity(0.3)
+                  ? AppColors.primary.withValues(alpha: 0.3)
                   : hasTransactions
-                      ? AppColors.primary.withOpacity(0.1)
+                      ? AppColors.primary.withValues(alpha: 0.1)
                       : null,
           borderRadius: BorderRadius.circular(8),
           border: hasTransactions
-              ? Border.all(color: AppColors.primary.withOpacity(0.3))
+              ? Border.all(color: AppColors.primary.withValues(alpha: 0.3))
               : null,
         ),
         child: Column(
@@ -383,7 +383,7 @@ class _TransactionCalendarScreenState extends State<TransactionCalendarScreen> {
               color: (transaction.type == TransactionType.income
                       ? AppColors.success
                       : AppColors.error)
-                  .withOpacity(0.1),
+                  .withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(

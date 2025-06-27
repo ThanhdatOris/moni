@@ -61,7 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
-      print('Error loading financial data: $e');
+      // Error loading financial data
       if (mounted) {
         setState(() {
           _totalAssets = 25750000;

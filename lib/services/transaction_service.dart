@@ -330,7 +330,7 @@ class TransactionService {
 
       for (final doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        total += (data['amount'] as num).toDouble();
+        total += data['amount'] as double;
       }
 
       return total;
@@ -433,7 +433,7 @@ class TransactionService {
 
       for (final doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        total += (data['amount'] as num).toDouble();
+        total += data['amount'] as double;
       }
 
       return total;
