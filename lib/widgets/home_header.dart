@@ -20,13 +20,17 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
   @override
   void initState() {
     super.initState();
-    _loadUserInfo();
     _setGreeting();
     _calculateDaysSinceFirstTransaction();
+    // Lắng nghe sự thay đổi auth state để cập nhật tên người dùng
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (mounted) {
+        _loadUserInfo(user);
+      }
+    });
   }
 
-  void _loadUserInfo() {
-    final user = FirebaseAuth.instance.currentUser;
+  void _loadUserInfo(User? user) {
     if (user != null) {
       setState(() {
         _userName =

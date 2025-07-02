@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import '../constants/app_colors.dart';
+import '../services/ai_processor_service.dart';
+import '../services/chat_log_service.dart';
 
 // A model for a single chat message
 class ChatMessage {
   final String text;
-  final bool isUser; // True if the message is from the user, false if from the bot
+  final bool
+      isUser; // True if the message is from the user, false if from the bot
   final DateTime timestamp;
 
-  ChatMessage({required this.text, required this.isUser, required this.timestamp});
+  ChatMessage(
+      {required this.text, required this.isUser, required this.timestamp});
 }
 
 // Chat overview screen - hiển thị trong main navigation
@@ -43,12 +48,13 @@ class ChatbotPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-              
+
               // AI Assistant Card
               GestureDetector(
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const FullChatScreen()),
+                  MaterialPageRoute(
+                      builder: (context) => const FullChatScreen()),
                 ),
                 child: Container(
                   width: double.infinity,
@@ -107,7 +113,8 @@ class ChatbotPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(25),
@@ -143,9 +150,9 @@ class ChatbotPage extends StatelessWidget {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               // Features List
               const Text(
                 'Tính năng nổi bật',
@@ -156,7 +163,7 @@ class ChatbotPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              
+
               Expanded(
                 child: ListView(
                   children: [
@@ -193,8 +200,9 @@ class ChatbotPage extends StatelessWidget {
       ),
     );
   }
-  
-  Widget _buildFeatureItem(IconData icon, String title, String description, Color color) {
+
+  Widget _buildFeatureItem(
+      IconData icon, String title, String description, Color color) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -261,15 +269,65 @@ class _FullChatScreenState extends State<FullChatScreen> {
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
 
+  // Services
+  final GetIt _getIt = GetIt.instance;
+  late final AIProcessorService _aiService;
+  late final ChatLogService _chatLogService;
+
   @override
   void initState() {
     super.initState();
-    // Thêm tin nhắn chào mừng
-    _messages.add(ChatMessage(
-      text: "Xin chào! Tôi là Moni AI - trợ lý tài chính thông minh của bạn! 👋\n\nTôi có thể giúp bạn:\n\n📊 Phân tích chi tiêu và thu nhập\n💰 Lập kế hoạch tiết kiệm\n💡 Tư vấn tài chính cá nhân\n🎯 Đặt và theo dõi mục tiêu tài chính\n❓ Trả lời câu hỏi về ứng dụng\n\nHãy cho tôi biết bạn cần hỗ trợ gì nhé! 😊",
-      isUser: false,
-      timestamp: DateTime.now(),
-    ));
+
+    // Initialize services
+    _aiService = _getIt<AIProcessorService>();
+    _chatLogService = _getIt<ChatLogService>();
+
+    // Load chat history
+    _loadChatHistory();
+  }
+
+  void _loadChatHistory() async {
+    try {
+      final logs = await _chatLogService.getLogs().first;
+
+      if (logs.isNotEmpty) {
+        // Load recent chat messages (limit to last 10 for performance)
+        final recentLogs = logs.take(10).toList();
+
+        for (final log in recentLogs.reversed) {
+          _messages.add(ChatMessage(
+            text: log.question,
+            isUser: true,
+            timestamp: log.createdAt,
+          ));
+          _messages.add(ChatMessage(
+            text: log.response,
+            isUser: false,
+            timestamp: log.createdAt,
+          ));
+        }
+      } else {
+        // Thêm tin nhắn chào mừng nếu chưa có lịch sử
+        _messages.add(ChatMessage(
+          text:
+              "Xin chào! Tôi là Moni AI - trợ lý tài chính thông minh của bạn! 👋\n\nTôi có thể giúp bạn:\n\n📊 Phân tích chi tiêu và thu nhập\n💰 Lập kế hoạch tiết kiệm\n💡 Tư vấn tài chính cá nhân\n🎯 Đặt và theo dõi mục tiêu tài chính\n❓ Trả lời câu hỏi về ứng dụng\n\nHãy cho tôi biết bạn cần hỗ trợ gì nhé! 😊",
+          isUser: false,
+          timestamp: DateTime.now(),
+        ));
+      }
+
+      setState(() {});
+      _scrollToBottom();
+    } catch (e) {
+      // Fallback to welcome message if loading fails
+      _messages.add(ChatMessage(
+        text:
+            "Xin chào! Tôi là Moni AI - trợ lý tài chính thông minh của bạn! 👋\n\nTôi có thể giúp bạn:\n\n📊 Phân tích chi tiêu và thu nhập\n💰 Lập kế hoạch tiết kiệm\n💡 Tư vấn tài chính cá nhân\n🎯 Đặt và theo dõi mục tiêu tài chính\n❓ Trả lời câu hỏi về ứng dụng\n\nHãy cho tôi biết bạn cần hỗ trợ gì nhé! 😊",
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+      setState(() {});
+    }
   }
 
   @override
@@ -327,7 +385,8 @@ class _FullChatScreenState extends State<FullChatScreen> {
         actions: [
           IconButton(
             onPressed: _clearChat,
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
+            icon: const Icon(Icons.refresh_rounded,
+                color: AppColors.textSecondary),
             tooltip: 'Làm mới cuộc trò chuyện',
           ),
           const SizedBox(width: 8),
@@ -346,10 +405,10 @@ class _FullChatScreenState extends State<FullChatScreen> {
               },
             ),
           ),
-          
+
           // Typing indicator
           if (_isTyping) _buildTypingIndicator(),
-          
+
           // Input area
           _buildInputArea(),
         ],
@@ -362,7 +421,8 @@ class _FullChatScreenState extends State<FullChatScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!message.isUser) ...[
             Container(
@@ -385,19 +445,23 @@ class _FullChatScreenState extends State<FullChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: message.isUser 
-                  ? const Color(0xFFFF6B35)
-                  : Colors.white,
+                color: message.isUser ? const Color(0xFFFF6B35) : Colors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(20),
                   topRight: const Radius.circular(20),
-                  bottomLeft: message.isUser ? const Radius.circular(20) : const Radius.circular(4),
-                  bottomRight: message.isUser ? const Radius.circular(4) : const Radius.circular(20),
+                  bottomLeft: message.isUser
+                      ? const Radius.circular(20)
+                      : const Radius.circular(4),
+                  bottomRight: message.isUser
+                      ? const Radius.circular(4)
+                      : const Radius.circular(20),
                 ),
-                border: message.isUser ? null : Border.all(
-                  color: AppColors.grey200,
-                  width: 1,
-                ),
+                border: message.isUser
+                    ? null
+                    : Border.all(
+                        color: AppColors.grey200,
+                        width: 1,
+                      ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.05),
@@ -409,29 +473,52 @@ class _FullChatScreenState extends State<FullChatScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    message.text,
-                    style: TextStyle(
-                      color: message.isUser ? Colors.white : AppColors.textPrimary,
-                      fontSize: 15,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
+                  // Render content with markdown support
+                  if (message.isUser)
+                    Text(
+                      message.text,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        height: 1.4,
+                      ),
+                    )
+                  else
+                    _buildAIMessage(message.text),
+
+                  const SizedBox(height: 8),
+
+                  // Time and edit button row
                   Row(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         _formatTime(message.timestamp),
                         style: TextStyle(
-                          color: message.isUser 
+                          color: message.isUser
                               ? Colors.white.withValues(alpha: 0.8)
                               : AppColors.textLight,
                           fontSize: 11,
                         ),
                       ),
+
+                      // Edit button for AI messages with transaction info
+                      if (!message.isUser &&
+                          message.text.contains('[EDIT_BUTTON]'))
+                        TextButton.icon(
+                          onPressed: () => _editTransaction(),
+                          icon: const Icon(Icons.edit, size: 16),
+                          label: const Text('Chỉnh sửa'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+
                       if (message.isUser) ...[
-                        const SizedBox(width: 4),
                         Icon(
                           Icons.done_all_rounded,
                           size: 14,
@@ -511,8 +598,9 @@ class _FullChatScreenState extends State<FullChatScreen> {
                   height: 20,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(3, (index) => 
-                      Container(
+                    children: List.generate(
+                      3,
+                      (index) => Container(
                         width: 6,
                         height: 6,
                         decoration: BoxDecoration(
@@ -563,7 +651,8 @@ class _FullChatScreenState extends State<FullChatScreen> {
             Expanded(
               child: Container(
                 constraints: const BoxConstraints(maxHeight: 120),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.grey100,
                   borderRadius: BorderRadius.circular(24),
@@ -617,7 +706,7 @@ class _FullChatScreenState extends State<FullChatScreen> {
     );
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
@@ -634,46 +723,145 @@ class _FullChatScreenState extends State<FullChatScreen> {
     _messageController.clear();
     _scrollToBottom();
 
-    // Giả lập phản hồi AI
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    try {
+      // Gọi AI service thật thay vì mock
+      final aiResponse = await _aiService.processChatInput(text);
+
+      // Lưu log chat
+      await _chatLogService.createLog(
+        question: text,
+        response: aiResponse,
+      );
+
       setState(() {
         _isTyping = false;
         _messages.add(ChatMessage(
-          text: _generateAIResponse(text),
+          text: aiResponse,
           isUser: false,
           timestamp: DateTime.now(),
         ));
       });
-      _scrollToBottom();
-    });
-  }
-
-  String _generateAIResponse(String userMessage) {
-    final message = userMessage.toLowerCase();
-    
-    if (message.contains('chi tiêu') || message.contains('phân tích')) {
-      return "📊 **Phân tích chi tiêu tháng này**\n\nDựa vào dữ liệu của bạn, tôi thấy:\n\n💰 **Tổng chi tiêu:** 8.500.000đ\n🍽️ **Ăn uống:** 35.7% (3.040.000đ)\n🛍️ **Mua sắm:** 21.4% (1.819.000đ)\n🚗 **Di chuyển:** 17.9% (1.522.000đ)\n🎮 **Giải trí:** 14.3% (1.216.000đ)\n🏠 **Hóa đơn:** 10.7% (909.000đ)\n\n💡 **Gợi ý:** Bạn nên giảm chi tiêu ăn uống bằng cách nấu ăn tại nhà nhiều hơn. Điều này có thể tiết kiệm 20-30% chi phí ăn uống!";
-    } else if (message.contains('tiết kiệm') || message.contains('kế hoạch')) {
-      return "💰 **Kế hoạch tiết kiệm thông minh**\n\nVới thu nhập và chi tiêu hiện tại:\n\n📈 **Thu nhập:** 15.000.000đ\n📉 **Chi tiêu:** 8.500.000đ\n💵 **Có thể tiết kiệm:** 6.500.000đ\n\n🎯 **Gợi ý phân bổ theo quy tắc 50/30/20:**\n• 50% (7.5M) - Nhu cầu thiết yếu\n• 30% (4.5M) - Giải trí & mua sắm\n• 20% (3M) - Tiết kiệm & đầu tư\n\n🚀 **Mục tiêu:** Với 3 triệu/tháng, sau 1 năm bạn sẽ có 36 triệu đồng!";
-    } else if (message.contains('hello') || message.contains('xin chào') || message.contains('hi')) {
-      return "Xin chào bạn! 👋 Rất vui được gặp bạn!\n\nTôi là Moni AI, trợ lý tài chính được thiết kế đặc biệt để giúp bạn quản lý tài chính hiệu quả hơn.\n\n✨ **Hôm nay tôi có thể giúp bạn:**\n• Phân tích chi tiêu chi tiết\n• Lập kế hoạch tiết kiệm cá nhân\n• Tư vấn về các khoản đầu tư\n• Theo dõi tiến độ mục tiêu tài chính\n\nBạn muốn bắt đầu từ đâu nhỉ? 😊";
-    } else if (message.contains('cảm ơn') || message.contains('thank')) {
-      return "Không có gì! 😊 Tôi rất vui khi được hỗ trợ bạn!\n\nViệc quản lý tài chính tốt là một hành trình dài, và tôi sẽ luôn ở đây để đồng hành cùng bạn.\n\n🌟 **Nhớ rằng:** Mỗi quyết định tài chính nhỏ hôm nay sẽ tạo nên tương lai tài chính tươi sáng của bạn!\n\nCó gì cần hỗ trợ thêm, cứ nhắn cho tôi nhé! 💪";
-    } else {
-      return "Cảm ơn bạn đã chia sẻ! 😊\n\nTôi đã ghi nhận thông tin này và sẽ sử dụng để hỗ trợ bạn tốt hơn trong tương lai.\n\n🤖 **Mẹo:** Bạn có thể hỏi tôi về:\n• \"Phân tích chi tiêu của tôi\"\n• \"Lập kế hoạch tiết kiệm\"\n• \"Tư vấn đầu tư\"\n• \"Mục tiêu tài chính\"\n\nBạn có câu hỏi nào khác về tài chính không? 💡";
+    } catch (e) {
+      // Fallback nếu có lỗi
+      setState(() {
+        _isTyping = false;
+        _messages.add(ChatMessage(
+          text:
+              "Xin lỗi, tôi đang gặp một chút trục trặc. Vui lòng thử lại sau ít phút. 😅\n\nLỗi: ${e.toString()}",
+          isUser: false,
+          timestamp: DateTime.now(),
+        ));
+      });
     }
+
+    _scrollToBottom();
   }
 
   void _clearChat() {
     setState(() {
       _messages.clear();
       _messages.add(ChatMessage(
-        text: "🔄 Cuộc trò chuyện đã được làm mới!\n\nTôi sẵn sàng hỗ trợ bạn với những câu hỏi mới về tài chính. Hãy bắt đầu bằng cách cho tôi biết bạn cần giúp đỡ gì nhé! 😊",
+        text:
+            "🔄 Cuộc trò chuyện đã được làm mới!\n\nTôi sẵn sàng hỗ trợ bạn với những câu hỏi mới về tài chính. Hãy bắt đầu bằng cách cho tôi biết bạn cần giúp đỡ gì nhé! 😊",
         isUser: false,
         timestamp: DateTime.now(),
       ));
     });
     _scrollToBottom();
+  }
+
+  Widget _buildAIMessage(String text) {
+    // Clean up the text and separate edit button markers
+    String cleanText =
+        text.replaceAll('[EDIT_BUTTON]', '').replaceAll('[/EDIT_BUTTON]', '');
+
+    return SelectableText.rich(
+      _parseMarkdownText(cleanText),
+      style: const TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 15,
+        height: 1.4,
+      ),
+    );
+  }
+
+  TextSpan _parseMarkdownText(String text) {
+    final spans = <TextSpan>[];
+    final lines = text.split('\n');
+
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
+
+      if (line.startsWith('**') && line.endsWith('**') && line.length > 4) {
+        // Bold text
+        spans.add(TextSpan(
+          text: line.substring(2, line.length - 2),
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+          ),
+        ));
+      } else if (line.startsWith('• ')) {
+        // Bullet points
+        spans.add(TextSpan(
+          text: line,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+          ),
+        ));
+      } else if (line.contains('**')) {
+        // Inline bold text
+        spans.add(_parseInlineBold(line));
+      } else {
+        // Regular text
+        spans.add(TextSpan(text: line));
+      }
+
+      if (i < lines.length - 1) {
+        spans.add(const TextSpan(text: '\n'));
+      }
+    }
+
+    return TextSpan(children: spans);
+  }
+
+  TextSpan _parseInlineBold(String text) {
+    final spans = <TextSpan>[];
+    final regex = RegExp(r'\*\*(.*?)\*\*');
+    int lastEnd = 0;
+
+    for (final match in regex.allMatches(text)) {
+      // Add text before bold
+      if (match.start > lastEnd) {
+        spans.add(TextSpan(text: text.substring(lastEnd, match.start)));
+      }
+
+      // Add bold text
+      spans.add(TextSpan(
+        text: match.group(1),
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ));
+
+      lastEnd = match.end;
+    }
+
+    // Add remaining text
+    if (lastEnd < text.length) {
+      spans.add(TextSpan(text: text.substring(lastEnd)));
+    }
+
+    return TextSpan(children: spans);
+  }
+
+  void _editTransaction() {
+    // TODO: Navigate to edit transaction screen
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+            'Tính năng chỉnh sửa giao dịch sẽ có trong phiên bản tiếp theo!'),
+        backgroundColor: AppColors.primary,
+      ),
+    );
   }
 
   void _scrollToBottom() {
