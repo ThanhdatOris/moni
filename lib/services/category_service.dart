@@ -243,7 +243,8 @@ class CategoryService {
           .get();
 
       if (doc.exists && doc.data() != null) {
-        return CategoryModel.fromMap(doc.data()!, doc.id);
+        return CategoryModel.fromMap(
+            doc.data() as Map<String, dynamic>, doc.id);
       }
       return null;
     } catch (e) {
@@ -395,7 +396,8 @@ class CategoryService {
           .get();
 
       return snapshot.docs.map((doc) {
-        return CategoryModel.fromMap(doc.data(), doc.id);
+        return CategoryModel.fromMap(
+            doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
     } catch (e) {
       _logger.e('Lỗi lấy danh mục người dùng: $e');

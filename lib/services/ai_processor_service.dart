@@ -18,7 +18,6 @@ class AIProcessorService {
 
   // Cache để tránh gọi API trùng lặp
   final Map<String, String> _categoryCache = {};
-  final Map<String, String> _responseCache = {};
   static const int _cacheMaxSize = 100;
 
   // Rate limiting

@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/category_service.dart';
-import '../services/service_locator.dart';
 import 'auth_screen.dart';
 import 'home_screen.dart';
 import 'splash_screen.dart';
@@ -57,7 +56,7 @@ class _SplashWrapperState extends State<SplashWrapper> {
 
   Future<void> _createDefaultCategories() async {
     try {
-      final categoryService = serviceLocator<CategoryService>();
+      final categoryService = CategoryService();
       await categoryService.createDefaultCategories();
     } catch (e) {
       // Lỗi tạo danh mục mặc định - không quan trọng lắm

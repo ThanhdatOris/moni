@@ -5,7 +5,6 @@ import '../constants/app_colors.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/category_service.dart';
-import '../services/service_locator.dart';
 import '../services/transaction_service.dart';
 
 class ExpenseChart extends StatefulWidget {
@@ -16,9 +15,8 @@ class ExpenseChart extends StatefulWidget {
 }
 
 class _ExpenseChartState extends State<ExpenseChart> {
-  final TransactionService _transactionService =
-      serviceLocator<TransactionService>();
-  final CategoryService _categoryService = serviceLocator<CategoryService>();
+  final TransactionService _transactionService = TransactionService();
+  final CategoryService _categoryService = CategoryService();
 
   Map<String, double> _chartData = {};
   Map<String, Color> _colorMap = {};

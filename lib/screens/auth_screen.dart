@@ -360,11 +360,10 @@ class _AuthScreenState extends State<AuthScreen> {
                             }
                           }
 
-                          if (mounted) {
-                            setState(() {
-                              _isLoading = false;
-                            });
-                          }
+                          if (!mounted) return;
+                          setState(() {
+                            _isLoading = false;
+                          });
                         },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -424,11 +423,10 @@ class _AuthScreenState extends State<AuthScreen> {
                                       }
                                     }
 
-                                    if (mounted) {
-                                      setState(() {
-                                        _isLoading = false;
-                                      });
-                                    }
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _isLoading = false;
+                                    });
                                   },
                             style: ElevatedButton.styleFrom(
                               padding: const EdgeInsets.symmetric(

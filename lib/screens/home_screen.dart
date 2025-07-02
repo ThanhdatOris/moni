@@ -5,9 +5,9 @@ import '../widgets/financial_overview.dart';
 import '../widgets/home_header.dart';
 import '../widgets/menubar.dart';
 import '../widgets/recent_transactions.dart';
-import 'add_transaction_screen.dart';
+import 'transaction/add_transaction_screen.dart';
 import 'chatbot_screen.dart';
-import 'profile_screen.dart';
+import 'profile/profile_screen.dart';
 import 'transaction_calendar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -71,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class HomeTabContent extends StatefulWidget {
-  const HomeTabContent({Key? key}) : super(key: key);
+  const HomeTabContent({super.key});
 
   @override
   State<HomeTabContent> createState() => _HomeTabContentState();

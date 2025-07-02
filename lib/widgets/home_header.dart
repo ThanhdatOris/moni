@@ -2,17 +2,16 @@ import 'dart:ui';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/transaction_service.dart';
-
-class ModernHomeHeader extends StatefulWidget {
+class ModernHomeHeader extends ConsumerStatefulWidget {
   const ModernHomeHeader({super.key});
 
   @override
-  State<ModernHomeHeader> createState() => _ModernHomeHeaderState();
+  ConsumerState<ModernHomeHeader> createState() => _ModernHomeHeaderState();
 }
 
-class _ModernHomeHeaderState extends State<ModernHomeHeader> {
+class _ModernHomeHeaderState extends ConsumerState<ModernHomeHeader> {
   String _userName = 'Khách';
   String _greeting = 'Chào bạn!';
   int _daysSinceFirstTransaction = 0;
@@ -75,41 +74,12 @@ class _ModernHomeHeaderState extends State<ModernHomeHeader> {
   }
 
   Future<void> _calculateDaysSinceFirstTransaction() async {
-    try {
-      final transactionService = TransactionService();
-
-      // Lấy tất cả giao dịch và tìm giao dịch cũ nhất
-      final transactionsStream = transactionService.getTransactions();
-      final transactions = await transactionsStream.first;
-
-      if (transactions.isNotEmpty) {
-        // Sắp xếp theo thời gian tạo để tìm giao dịch đầu tiên
-        transactions.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-        final firstTransactionDate = transactions.first.createdAt;
-        final now = DateTime.now();
-        final difference = now.difference(firstTransactionDate).inDays +
-            1; // +1 để tính cả ngày hiện tại
-
-        if (mounted) {
-          setState(() {
-            _daysSinceFirstTransaction = difference;
-          });
-        }
-      } else {
-        // Nếu chưa có giao dịch nào, hiển thị ngày 1
-        if (mounted) {
-          setState(() {
-            _daysSinceFirstTransaction = 1;
-          });
-        }
-      }
-    } catch (e) {
-      // Nếu có lỗi, sử dụng số ngày mặc định
-      if (mounted) {
-        setState(() {
-          _daysSinceFirstTransaction = 1;
-        });
-      }
+    // TODO: Implement với clean architecture khi transaction use cases ready
+    // Hiện tại set default value để tránh lỗi
+    if (mounted) {
+      setState(() {
+        _daysSinceFirstTransaction = 1;
+      });
     }
   }
 

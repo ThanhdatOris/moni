@@ -5,7 +5,6 @@ import '../constants/app_colors.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/category_service.dart';
-import '../services/service_locator.dart';
 import '../services/transaction_service.dart';
 
 class RecentTransactions extends StatefulWidget {
@@ -16,9 +15,8 @@ class RecentTransactions extends StatefulWidget {
 }
 
 class _RecentTransactionsState extends State<RecentTransactions> {
-  final TransactionService _transactionService =
-      serviceLocator<TransactionService>();
-  final CategoryService _categoryService = serviceLocator<CategoryService>();
+  final TransactionService _transactionService = TransactionService();
+  final CategoryService _categoryService = CategoryService();
 
   List<TransactionModel> _transactions = [];
   Map<String, CategoryModel> _categoryMap = {};

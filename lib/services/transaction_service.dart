@@ -329,8 +329,11 @@ class TransactionService {
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        total += data['amount'] as double;
+        final data = doc.data();
+        if (data != null) {
+          final map = data as Map<String, dynamic>;
+          total += (map['amount'] ?? 0) as double;
+        }
       }
 
       return total;
@@ -367,26 +370,29 @@ class TransactionService {
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final transaction = TransactionModel.fromMap(data, doc.id);
+        final data = doc.data();
+        if (data != null) {
+          final map = data as Map<String, dynamic>;
+          final transaction = TransactionModel.fromMap(map, doc.id);
 
-        // Filter trong client
-        bool shouldInclude = true;
+          // Filter trong client
+          bool shouldInclude = true;
 
-        if (startDate != null && transaction.date.isBefore(startDate)) {
-          shouldInclude = false;
-        }
+          if (startDate != null && transaction.date.isBefore(startDate)) {
+            shouldInclude = false;
+          }
 
-        if (endDate != null && transaction.date.isAfter(endDate)) {
-          shouldInclude = false;
-        }
+          if (endDate != null && transaction.date.isAfter(endDate)) {
+            shouldInclude = false;
+          }
 
-        if (categoryId != null && transaction.categoryId != categoryId) {
-          shouldInclude = false;
-        }
+          if (categoryId != null && transaction.categoryId != categoryId) {
+            shouldInclude = false;
+          }
 
-        if (shouldInclude) {
-          total += transaction.amount;
+          if (shouldInclude) {
+            total += transaction.amount;
+          }
         }
       }
 
@@ -432,8 +438,11 @@ class TransactionService {
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        total += data['amount'] as double;
+        final data = doc.data();
+        if (data != null) {
+          final map = data as Map<String, dynamic>;
+          total += (map['amount'] ?? 0) as double;
+        }
       }
 
       return total;
@@ -470,26 +479,29 @@ class TransactionService {
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final transaction = TransactionModel.fromMap(data, doc.id);
+        final data = doc.data();
+        if (data != null) {
+          final map = data as Map<String, dynamic>;
+          final transaction = TransactionModel.fromMap(map, doc.id);
 
-        // Filter trong client
-        bool shouldInclude = true;
+          // Filter trong client
+          bool shouldInclude = true;
 
-        if (startDate != null && transaction.date.isBefore(startDate)) {
-          shouldInclude = false;
-        }
+          if (startDate != null && transaction.date.isBefore(startDate)) {
+            shouldInclude = false;
+          }
 
-        if (endDate != null && transaction.date.isAfter(endDate)) {
-          shouldInclude = false;
-        }
+          if (endDate != null && transaction.date.isAfter(endDate)) {
+            shouldInclude = false;
+          }
 
-        if (categoryId != null && transaction.categoryId != categoryId) {
-          shouldInclude = false;
-        }
+          if (categoryId != null && transaction.categoryId != categoryId) {
+            shouldInclude = false;
+          }
 
-        if (shouldInclude) {
-          total += transaction.amount;
+          if (shouldInclude) {
+            total += transaction.amount;
+          }
         }
       }
 

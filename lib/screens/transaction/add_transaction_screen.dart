@@ -8,11 +8,11 @@ import 'package:get_it/get_it.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
-import '../constants/app_colors.dart';
-import '../models/category_model.dart';
-import '../models/transaction_model.dart';
-import '../services/category_service.dart';
-import '../services/transaction_service.dart';
+import '../../constants/app_colors.dart';
+import '../../models/category_model.dart';
+import '../../models/transaction_model.dart';
+import '../../services/category_service.dart';
+import '../../services/transaction_service.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({super.key});
