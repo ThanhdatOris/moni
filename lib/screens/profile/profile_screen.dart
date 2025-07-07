@@ -95,8 +95,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFFFF9800), // Orange
-            Color(0xFFFF6F00), // Deep Orange
+            AppColors.primary, // Orange
+            AppColors.primaryDark, // Deep Orange
           ],
         ),
         borderRadius: BorderRadius.circular(20),
@@ -108,55 +108,136 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Avatar with white border
             Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 4),
+                border: Border.all(color: Colors.white, width: 3),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
               child: _buildAvatar(),
             ),
-            const SizedBox(height: 20),
-            // Name
-            Text(
-              _userModel?.name ?? FirebaseAuth.instance.currentUser?.displayName ?? 'Người dùng',
-              style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: [
-                  Shadow(
-                    color: Colors.black26,
-                    blurRadius: 4,
-                    offset: Offset(0, 2),
+            const SizedBox(width: 12),
+            // Name and Email Column
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Name
+                  Text(
+                    _userModel?.name ?? FirebaseAuth.instance.currentUser?.displayName ?? 'Người dùng',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 4,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  // Email
+                  Text(
+                    _userModel?.email ?? FirebaseAuth.instance.currentUser?.email ?? 'Chưa có email',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  // Membership badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.verified_user,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Thành viên',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            // Email
-            Text(
-              _userModel?.email ?? FirebaseAuth.instance.currentUser?.email ?? 'Chưa có email',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white70,
-                fontWeight: FontWeight.w500,
+            // Edit profile button
+            Container(
+              margin: const EdgeInsets.only(left: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: 32,
+                height: 32,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.edit,
+                    color: AppColors.primary,
+                    size: 16,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  tooltip: 'Chỉnh sửa hồ sơ',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const EditProfileScreen(),
+                    ),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 24),
-            // Stats
-            _buildStats(),
           ],
         ),
       ),
@@ -169,10 +250,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final displayName = _userModel?.name ?? currentUser?.displayName ?? 'User';
 
     return CircleAvatar(
-      radius: 50,
+      radius: 36,
       backgroundColor: Colors.white,
       child: CircleAvatar(
-        radius: 46,
+        radius: 32,
         backgroundColor: Colors.grey.shade200,
         backgroundImage: photoURL != null && photoURL.isNotEmpty
             ? NetworkImage(photoURL)
@@ -181,66 +262,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? _buildDefaultAvatar(displayName)
             : null,
       ),
-    );
-  }
-
-  Widget _buildStats() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildStatItem('Số dư', '2,500,000đ'),
-          Container(
-            height: 40,
-            width: 1,
-            color: Colors.white.withValues(alpha: 0.3),
-          ),
-          _buildStatItem('Giao dịch', '124'),
-          Container(
-            height: 40,
-            width: 1,
-            color: Colors.white.withValues(alpha: 0.3),
-          ),
-          _buildStatItem('Mục tiêu', '8/10'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String title, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            shadows: [
-              Shadow(
-                color: Colors.black26,
-                blurRadius: 2,
-                offset: Offset(0, 1),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Colors.white70,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 
@@ -880,13 +901,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildDefaultAvatar(String userName) {
     return CircleAvatar(
-      radius: 46,
+      radius: 32,
       backgroundColor: const Color(0xFFFF9800),
       child: Text(
         userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
         style: const TextStyle(
           color: Colors.white,
-          fontSize: 28,
+          fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
       ),

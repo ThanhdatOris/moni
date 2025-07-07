@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/di/injection_container.dart';
 import '../services/auth_service.dart';
 import '../services/transaction_service.dart';
+import '../constants/app_colors.dart';
 
 class ModernHomeHeader extends ConsumerStatefulWidget {
   const ModernHomeHeader({super.key});
@@ -162,12 +163,9 @@ class _ModernHomeHeaderState extends ConsumerState<ModernHomeHeader> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFFFF6B35),
-            Color(0xFFFF8E53),
-            Color(0xFFFFB56B),
-            Color(0xFFFFC87C),
+            AppColors.primaryDark,
+            AppColors.primary,
           ],
-          stops: [0.0, 0.3, 0.7, 1.0],
         ),
         borderRadius: const BorderRadius.vertical(
           bottom: Radius.circular(30),
