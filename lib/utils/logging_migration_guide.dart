@@ -48,9 +48,8 @@
 // HOẶC:
 // this.handleErrorWithUI(context, error, showSnackBar: true);
 
-import '../services/logging_service.dart';
 import '../services/error_handler.dart';
-import '../services/notification_service.dart';
+import '../services/logging_service.dart';
 
 /// Class demo việc sử dụng hệ thống log mới
 class DemoService {

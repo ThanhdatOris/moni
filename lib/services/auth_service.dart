@@ -127,12 +127,11 @@ class AuthService {
       if (user != null) {
         // Kiểm tra xem user đã tồn tại trong Firestore chưa
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
-        
         UserModel userModel;
         if (userDoc.exists) {
           // User đã tồn tại - lấy thông tin từ Firestore
           userModel = UserModel.fromMap(userDoc.data()!, user.uid);
-          _logger.i('Đăng nhập Google thành công cho user hiện tại: ${user.uid}');
+          logInfo('Đăng nhập Google thành công cho user hiện tại: ${user.uid}');
         } else {
           // User mới - tạo document mới
           final now = DateTime.now();
@@ -153,15 +152,15 @@ class AuthService {
           // Tạo danh mục mặc định cho user mới
           await _createDefaultCategories(user.uid);
           
-          _logger.i('Đăng nhập Google thành công cho user mới: ${user.uid}');
+          logInfo('Đăng nhập Google thành công cho user mới: ${user.uid}');
         }
 
         return userModel;
       }
       return null;
-    } catch (e) {
-      _logger.e('Lỗi đăng nhập Google: $e');
-      throw _handleAuthException(e);
+    } catch (e, stackTrace) {
+      logError('Lỗi đăng nhập Google', error: e, stackTrace: stackTrace);
+      throw handleError(e, stackTrace: stackTrace);
     }
   }
 
@@ -172,9 +171,9 @@ class AuthService {
       await _googleSignIn.signOut();
       // Đăng xuất từ Firebase Auth
       await _auth.signOut();
-      _logger.i('Đăng xuất thành công');
-    } catch (e) {
-      _logger.e('Lỗi đăng xuất: $e');
+      logInfo('Đăng xuất thành công');
+    } catch (e, stackTrace) {
+      logError('Lỗi đăng xuất', error: e, stackTrace: stackTrace);
       throw Exception('Không thể đăng xuất: $e');
     }
   }
@@ -192,7 +191,7 @@ class AuthService {
 
       // Cập nhật email nếu khác với email hiện tại
       if (user.email != email) {
-        await user.updateEmail(email);
+        await user.verifyBeforeUpdateEmail(email);
       }
 
       // Cập nhật display name
@@ -205,10 +204,10 @@ class AuthService {
         'updated_at': Timestamp.fromDate(DateTime.now()),
       });
 
-      _logger.i('Cập nhật profile thành công cho user: ${user.uid}');
-    } catch (e) {
-      _logger.e('Lỗi cập nhật profile: $e');
-      throw _handleAuthException(e);
+      logInfo('Cập nhật profile thành công cho user: ${user.uid}');
+    } catch (e, stackTrace) {
+      logError('Lỗi cập nhật profile', error: e, stackTrace: stackTrace);
+      throw handleError(e, stackTrace: stackTrace);
     }
   }
 
@@ -216,10 +215,10 @@ class AuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-      _logger.i('Đã gửi email reset mật khẩu cho: $email');
-    } catch (e) {
-      _logger.e('Lỗi gửi email reset mật khẩu: $e');
-      throw _handleAuthException(e);
+      logInfo('Đã gửi email reset mật khẩu cho: $email');
+    } catch (e, stackTrace) {
+      logError('Lỗi gửi email reset mật khẩu', error: e, stackTrace: stackTrace);
+      throw handleError(e, stackTrace: stackTrace);
     }
   }
 
@@ -245,10 +244,10 @@ class AuthService {
       // Cập nhật mật khẩu mới
       await user.updatePassword(newPassword);
 
-      _logger.i('Đổi mật khẩu thành công cho user: ${user.uid}');
-    } catch (e) {
-      _logger.e('Lỗi đổi mật khẩu: $e');
-      throw _handleAuthException(e);
+      logInfo('Đổi mật khẩu thành công cho user: ${user.uid}');
+    } catch (e, stackTrace) {
+      logError('Lỗi đổi mật khẩu', error: e, stackTrace: stackTrace);
+      throw handleError(e, stackTrace: stackTrace);
     }
   }
 
@@ -264,8 +263,8 @@ class AuthService {
         return UserModel.fromMap(userDoc.data()!, user.uid);
       }
       return null;
-    } catch (e) {
-      _logger.e('Lỗi lấy dữ liệu người dùng: $e');
+    } catch (e, stackTrace) {
+      logError('Lỗi lấy dữ liệu người dùng', error: e, stackTrace: stackTrace);
       return null;
     }
   }
@@ -275,36 +274,11 @@ class AuthService {
     try {
       final categoryService = CategoryService();
       await categoryService.createDefaultCategories();
-      _logger.i('Tạo danh mục mặc định thành công cho user: $userId');
-    } catch (e) {
-      _logger.e('Lỗi tạo danh mục mặc định cho user $userId: $e');
+      logInfo('Tạo danh mục mặc định thành công cho user: $userId');
+    } catch (e, stackTrace) {
+      logError('Lỗi tạo danh mục mặc định cho user $userId', error: e, stackTrace: stackTrace);
       // Không throw exception vì đây không phải lỗi nghiêm trọng
     }
-  }
-
-  /// Xử lý exception từ Firebase Auth
-  Exception _handleAuthException(dynamic e) {
-    if (e is FirebaseAuthException) {
-      switch (e.code) {
-        case 'user-not-found':
-          return Exception('Không tìm thấy tài khoản với email này');
-        case 'wrong-password':
-          return Exception('Mật khẩu không chính xác');
-        case 'email-already-in-use':
-          return Exception('Email này đã được sử dụng');
-        case 'weak-password':
-          return Exception('Mật khẩu quá yếu');
-        case 'invalid-email':
-          return Exception('Email không hợp lệ');
-        case 'operation-not-allowed':
-          return Exception('Thao tác này không được phép');
-        case 'too-many-requests':
-          return Exception('Quá nhiều yêu cầu, vui lòng thử lại sau');
-        default:
-          return Exception('Lỗi xác thực: ${e.message}');
-      }
-    }
-    return Exception('Đã xảy ra lỗi: $e');
   }
 }
 
