@@ -105,18 +105,6 @@ class _TransactionCalendarScreenState extends State<TransactionCalendarScreen> {
               icon: Icons.calendar_month,
               title: 'Lịch giao dịch',
               subtitle: 'Xem lịch sử giao dịch theo ngày',
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.today, color: AppColors.primary),
-                  onPressed: () {
-                    setState(() {
-                      _selectedDay = DateTime.now();
-                      _focusedDay = DateTime.now();
-                      _selectedDayTransactions = _getTransactionsForDay(_selectedDay);
-                    });
-                  },
-                ),
-              ],
             ),
             
             // Simple Calendar Grid
