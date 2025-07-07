@@ -5,6 +5,7 @@ class UserModel {
   final String userId;
   final String name;
   final String email;
+  final String? photoUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? defaultCategory;
@@ -13,6 +14,7 @@ class UserModel {
     required this.userId,
     required this.name,
     required this.email,
+    this.photoUrl,
     required this.createdAt,
     required this.updatedAt,
     this.defaultCategory,
@@ -24,6 +26,7 @@ class UserModel {
       userId: id,
       name: map['name'] ?? '',
       email: map['email'] ?? '',
+      photoUrl: map['photo_url'],
       createdAt: (map['created_at'] as Timestamp).toDate(),
       updatedAt: (map['updated_at'] as Timestamp).toDate(),
       defaultCategory: map['default_category'],
@@ -35,6 +38,7 @@ class UserModel {
     return {
       'name': name,
       'email': email,
+      'photo_url': photoUrl,
       'created_at': Timestamp.fromDate(createdAt),
       'updated_at': Timestamp.fromDate(updatedAt),
       'default_category': defaultCategory,
@@ -46,6 +50,7 @@ class UserModel {
     String? userId,
     String? name,
     String? email,
+    String? photoUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? defaultCategory,
@@ -54,6 +59,7 @@ class UserModel {
       userId: userId ?? this.userId,
       name: name ?? this.name,
       email: email ?? this.email,
+      photoUrl: photoUrl ?? this.photoUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       defaultCategory: defaultCategory ?? this.defaultCategory,
@@ -62,7 +68,7 @@ class UserModel {
 
   @override
   String toString() {
-    return 'UserModel(userId: $userId, name: $name, email: $email, createdAt: $createdAt, updatedAt: $updatedAt, defaultCategory: $defaultCategory)';
+    return 'UserModel(userId: $userId, name: $name, email: $email, photoUrl: $photoUrl, createdAt: $createdAt, updatedAt: $updatedAt, defaultCategory: $defaultCategory)';
   }
 
   @override
@@ -73,6 +79,7 @@ class UserModel {
         other.userId == userId &&
         other.name == name &&
         other.email == email &&
+        other.photoUrl == photoUrl &&
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
         other.defaultCategory == defaultCategory;
@@ -83,6 +90,7 @@ class UserModel {
     return userId.hashCode ^
         name.hashCode ^
         email.hashCode ^
+        photoUrl.hashCode ^
         createdAt.hashCode ^
         updatedAt.hashCode ^
         defaultCategory.hashCode;

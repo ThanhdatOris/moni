@@ -1,15 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:logger/logger.dart';
 
 import '../models/user_model.dart';
+import 'category_service.dart';
+import 'error_handler.dart';
+import 'logging_service.dart';
 
 /// Service xử lý xác thực người dùng
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final Logger _logger = Logger();
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   /// Lấy người dùng hiện tại
   User? get currentUser => _auth.currentUser;
@@ -50,13 +54,20 @@ class AuthService {
         // Cập nhật display name
         await user.updateDisplayName(name);
 
-        _logger.i('Đăng ký thành công cho user: ${user.uid}');
+        // Tạo danh mục mặc định cho user mới
+        await _createDefaultCategories(user.uid);
+
+        // Sử dụng hệ thống log mới
+        logInfo('Đăng ký thành công cho user: ${user.uid}', data: {
+          'email': email,
+          'name': name,
+        });
         return userModel;
       }
       return null;
-    } catch (e) {
-      _logger.e('Lỗi đăng ký: $e');
-      throw _handleAuthException(e);
+    } catch (e, stackTrace) {
+      logError('Lỗi đăng ký', data: {'email': email}, error: e, stackTrace: stackTrace);
+      throw handleError(e, stackTrace: stackTrace);
     }
   }
 
@@ -79,13 +90,77 @@ class AuthService {
 
         if (userDoc.exists) {
           final userModel = UserModel.fromMap(userDoc.data()!, user.uid);
-          _logger.i('Đăng nhập thành công cho user: ${user.uid}');
+          logInfo('Đăng nhập thành công cho user: ${user.uid}', data: {'email': email});
           return userModel;
         }
       }
       return null;
+    } catch (e, stackTrace) {
+      logError('Lỗi đăng nhập', data: {'email': email}, error: e, stackTrace: stackTrace);
+      throw handleError(e, stackTrace: stackTrace);
+    }
+  }
+
+  /// Đăng nhập bằng Google
+  Future<UserModel?> signInWithGoogle() async {
+    try {
+      // Kích hoạt flow đăng nhập Google
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        // User đã hủy đăng nhập
+        return null;
+      }
+
+      // Lấy thông tin xác thực từ Google
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Tạo credential cho Firebase
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Đăng nhập với Firebase
+      final UserCredential result = await _auth.signInWithCredential(credential);
+      final User? user = result.user;
+
+      if (user != null) {
+        // Kiểm tra xem user đã tồn tại trong Firestore chưa
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        
+        UserModel userModel;
+        if (userDoc.exists) {
+          // User đã tồn tại - lấy thông tin từ Firestore
+          userModel = UserModel.fromMap(userDoc.data()!, user.uid);
+          _logger.i('Đăng nhập Google thành công cho user hiện tại: ${user.uid}');
+        } else {
+          // User mới - tạo document mới
+          final now = DateTime.now();
+          userModel = UserModel(
+            userId: user.uid,
+            name: user.displayName ?? 'User',
+            email: user.email ?? '',
+            photoUrl: user.photoURL,
+            createdAt: now,
+            updatedAt: now,
+          );
+
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .set(userModel.toMap());
+
+          // Tạo danh mục mặc định cho user mới
+          await _createDefaultCategories(user.uid);
+          
+          _logger.i('Đăng nhập Google thành công cho user mới: ${user.uid}');
+        }
+
+        return userModel;
+      }
+      return null;
     } catch (e) {
-      _logger.e('Lỗi đăng nhập: $e');
+      _logger.e('Lỗi đăng nhập Google: $e');
       throw _handleAuthException(e);
     }
   }
@@ -93,6 +168,9 @@ class AuthService {
   /// Đăng xuất người dùng
   Future<void> logout() async {
     try {
+      // Đăng xuất từ Google Sign-In
+      await _googleSignIn.signOut();
+      // Đăng xuất từ Firebase Auth
       await _auth.signOut();
       _logger.i('Đăng xuất thành công');
     } catch (e) {
@@ -189,6 +267,18 @@ class AuthService {
     } catch (e) {
       _logger.e('Lỗi lấy dữ liệu người dùng: $e');
       return null;
+    }
+  }
+
+  /// Tạo danh mục mặc định cho user mới
+  Future<void> _createDefaultCategories(String userId) async {
+    try {
+      final categoryService = CategoryService();
+      await categoryService.createDefaultCategories();
+      _logger.i('Tạo danh mục mặc định thành công cho user: $userId');
+    } catch (e) {
+      _logger.e('Lỗi tạo danh mục mặc định cho user $userId: $e');
+      // Không throw exception vì đây không phải lỗi nghiêm trọng
     }
   }
 

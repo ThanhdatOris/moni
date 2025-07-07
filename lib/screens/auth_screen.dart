@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
+import '../services/auth_service.dart';
+import '../widgets/google_signin_setup_dialog.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -149,6 +151,59 @@ class _AuthScreenState extends State<AuthScreen> {
     }
 
     return 'Lỗi: $e';
+  }
+
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authService = AuthService();
+      final userModel = await authService.signInWithGoogle();
+      
+      if (userModel != null) {
+        // Đăng nhập thành công, AuthStateChanges sẽ tự động chuyển hướng
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Đăng nhập thành công với tài khoản ${userModel.name}'),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        // Kiểm tra lỗi Google Sign-In để hiển thị dialog hướng dẫn
+        final errorString = e.toString().toLowerCase();
+        if (errorString.contains('google') || 
+            errorString.contains('oauth') || 
+            errorString.contains('10')) {
+          _showGoogleSignInSetupDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lỗi đăng nhập Google: ${_getErrorMessage(e)}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showGoogleSignInSetupDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const GoogleSignInSetupDialog(),
+    );
   }
 
   void _showConfigurationDialog() {
@@ -339,6 +394,73 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
 
                 const SizedBox(height: 24),
+
+                // Google Sign-In button
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white,
+                        Colors.grey.shade50,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _signInWithGoogle,
+                    icon: Container(
+                      width: 24,
+                      height: 24,
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFF4285F4), // Google Blue
+                            Color(0xFF34A853), // Google Green
+                            Color(0xFFFBBC05), // Google Yellow
+                            Color(0xFFEA4335), // Google Red
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.g_mobiledata,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                    label: const Text(
+                      'Đăng nhập bằng Google',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide.none,
+                      backgroundColor: Colors.transparent,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
 
                 // Anonymous sign in
                 OutlinedButton(

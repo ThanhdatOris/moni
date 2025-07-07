@@ -449,7 +449,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
             textColor: Colors.red,
             showDivider: false,
             onTap: () async {
-              await FirebaseAuth.instance.signOut();
+              // Hiển thị dialog xác nhận
+              final shouldLogout = await showDialog<bool>(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: const Text('Xác nhận đăng xuất'),
+                    content: const Text('Bạn có chắc chắn muốn đăng xuất không?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Hủy'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Đăng xuất'),
+                      ),
+                    ],
+                  );
+                },
+              );
+
+              if (shouldLogout == true) {
+                try {
+                  await FirebaseAuth.instance.signOut();
+                  // StreamBuilder trong SplashWrapper sẽ tự động chuyển về AuthScreen
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Lỗi đăng xuất: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              }
             },
           ),
           const SizedBox(height: 16),
