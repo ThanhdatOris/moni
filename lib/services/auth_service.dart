@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -8,12 +9,16 @@ import '../models/user_model.dart';
 import 'category_service.dart';
 import 'error_handler.dart';
 import 'logging_service.dart';
+import 'offline_service.dart';
 
 /// Service xử lý xác thực người dùng
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // Force account selection khi đăng nhập
+    signInOption: SignInOption.standard,
+  );
 
   /// Lấy người dùng hiện tại
   User? get currentUser => _auth.currentUser;
@@ -104,6 +109,11 @@ class AuthService {
   /// Đăng nhập bằng Google
   Future<UserModel?> signInWithGoogle() async {
     try {
+      // Force disconnect trước để đảm bảo account picker hiển thị
+      if (await _googleSignIn.isSignedIn()) {
+        await _googleSignIn.disconnect();
+      }
+      
       // Kích hoạt flow đăng nhập Google
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
@@ -120,21 +130,61 @@ class AuthService {
         idToken: googleAuth.idToken,
       );
 
-      // Đăng nhập với Firebase
-      final UserCredential result = await _auth.signInWithCredential(credential);
+      // Kiểm tra xem email đã tồn tại với provider khác chưa
+      final email = googleUser.email;
+      final signInMethods = await _auth.fetchSignInMethodsForEmail(email);
+      
+      UserCredential result;
+
+      if (signInMethods.isNotEmpty && !signInMethods.contains('google.com')) {
+        // Email đã tồn tại với provider khác (email/password)
+        // Thử link account
+        try {
+          // Đăng nhập với credential hiện tại để link
+          result = await _auth.signInWithCredential(credential);
+          logInfo('Đã link Google account với email/password account: $email');
+        } catch (e) {
+          // Nếu link thất bại, có thể do account-exists-with-different-credential
+          logError('Không thể link Google account với email/password account', error: e);
+          throw Exception('Email này đã được sử dụng với phương thức đăng nhập khác. Vui lòng đăng nhập bằng email/password hoặc sử dụng email khác.');
+        }
+      } else {
+        // Email chưa tồn tại hoặc đã có Google provider
+        result = await _auth.signInWithCredential(credential);
+      }
+
       final User? user = result.user;
 
       if (user != null) {
         // Kiểm tra xem user đã tồn tại trong Firestore chưa
         final userDoc = await _firestore.collection('users').doc(user.uid).get();
         UserModel userModel;
+        final now = DateTime.now();
+        
         if (userDoc.exists) {
-          // User đã tồn tại - lấy thông tin từ Firestore
-          userModel = UserModel.fromMap(userDoc.data()!, user.uid);
+          // User đã tồn tại - lấy thông tin từ Firestore và cập nhật avatar Google
+          final existingData = userDoc.data()!;
+          userModel = UserModel.fromMap(existingData, user.uid);
+          
+          // Cập nhật avatar Google nếu có và chưa có avatar
+          if (user.photoURL != null && (userModel.photoUrl == null || userModel.photoUrl!.isEmpty)) {
+            userModel = userModel.copyWith(
+              photoUrl: user.photoURL,
+              updatedAt: now,
+            );
+            
+            // Cập nhật vào Firestore
+            await _firestore.collection('users').doc(user.uid).update({
+              'photo_url': user.photoURL,
+              'updated_at': Timestamp.fromDate(now),
+            });
+            
+            logInfo('Cập nhật avatar Google cho user hiện tại: ${user.uid}');
+          }
+          
           logInfo('Đăng nhập Google thành công cho user hiện tại: ${user.uid}');
         } else {
           // User mới - tạo document mới
-          final now = DateTime.now();
           userModel = UserModel(
             userId: user.uid,
             name: user.displayName ?? 'User',
@@ -155,6 +205,9 @@ class AuthService {
           logInfo('Đăng nhập Google thành công cho user mới: ${user.uid}');
         }
 
+        // Lưu session cho offline (nếu cần)
+        await _saveOfflineSession(userModel);
+
         return userModel;
       }
       return null;
@@ -164,13 +217,125 @@ class AuthService {
     }
   }
 
+  /// Đăng nhập ẩn danh (Anonymous)
+  Future<UserModel?> signInAnonymously() async {
+    try {
+      // Kiểm tra kết nối internet
+      final connectivity = await Connectivity().checkConnectivity();
+      final isOnline = !connectivity.contains(ConnectivityResult.none);
+
+      if (isOnline) {
+        // Đăng nhập anonymous online
+        return await _signInAnonymouslyOnline();
+      } else {
+        // Đăng nhập anonymous offline
+        return await _signInAnonymouslyOffline();
+      }
+    } catch (e, stackTrace) {
+      logError('Lỗi đăng nhập anonymous', error: e, stackTrace: stackTrace);
+      throw handleError(e, stackTrace: stackTrace);
+    }
+  }
+
+  /// Đăng nhập anonymous online
+  Future<UserModel?> _signInAnonymouslyOnline() async {
+    final UserCredential result = await _auth.signInAnonymously();
+    final User? user = result.user;
+
+    if (user != null) {
+      // Tạo hoặc lấy thông tin user từ Firestore
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      
+      UserModel userModel;
+      if (userDoc.exists) {
+        // Anonymous user đã tồn tại - lấy thông tin từ Firestore
+        userModel = UserModel.fromMap(userDoc.data()!, user.uid);
+        logInfo('Đăng nhập anonymous thành công cho user hiện tại: ${user.uid}');
+      } else {
+        // Anonymous user mới - tạo document mới
+        final now = DateTime.now();
+        userModel = UserModel(
+          userId: user.uid,
+          name: 'Khách', // Tên mặc định cho anonymous user
+          email: '', // Anonymous user không có email
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .set(userModel.toMap());
+
+        // Tạo danh mục mặc định cho anonymous user mới
+        await _createDefaultCategories(user.uid);
+
+        logInfo('Tạo anonymous user mới thành công: ${user.uid}');
+      }
+
+      // Lưu session cho offline
+      await _saveOfflineSession(userModel);
+
+      return userModel;
+    }
+    return null;
+  }
+
+  /// Đăng nhập anonymous offline
+  Future<UserModel?> _signInAnonymouslyOffline() async {
+    // Tạo user ID offline tạm thời
+    final userId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
+    final now = DateTime.now();
+    
+    final userModel = UserModel(
+      userId: userId,
+      name: 'Khách (Offline)',
+      email: '',
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    // Lưu session offline
+    await _saveOfflineSession(userModel);
+
+    logInfo('Tạo anonymous user offline: $userId');
+    return userModel;
+  }
+
+  /// Lưu session offline
+  Future<void> _saveOfflineSession(UserModel user) async {
+    try {
+      final offlineService = OfflineService();
+      await offlineService.saveOfflineUserSession(
+        userId: user.userId,
+        userName: user.name,
+        email: user.email.isNotEmpty ? user.email : null,
+      );
+    } catch (e) {
+      logError('Lỗi lưu session offline', error: e);
+    }
+  }
+
   /// Đăng xuất người dùng
   Future<void> logout() async {
     try {
-      // Đăng xuất từ Google Sign-In
-      await _googleSignIn.signOut();
+      // Đăng xuất từ Google Sign-In và disconnect để force chọn tài khoản lần sau
+      if (await _googleSignIn.isSignedIn()) {
+        await _googleSignIn.disconnect();
+        await _googleSignIn.signOut();
+      }
+      
       // Đăng xuất từ Firebase Auth
       await _auth.signOut();
+      
+      // Clear offline session nếu có
+      try {
+        final offlineService = OfflineService();
+        await offlineService.clearAllOfflineData();
+      } catch (e) {
+        // Ignore offline service errors during logout
+      }
+      
       logInfo('Đăng xuất thành công');
     } catch (e, stackTrace) {
       logError('Lỗi đăng xuất', error: e, stackTrace: stackTrace);
@@ -182,6 +347,7 @@ class AuthService {
   Future<void> updateProfile({
     required String name,
     required String email,
+    String? photoUrl,
   }) async {
     try {
       final User? user = _auth.currentUser;
@@ -197,12 +363,20 @@ class AuthService {
       // Cập nhật display name
       await user.updateDisplayName(name);
 
-      // Cập nhật thông tin trong Firestore
-      await _firestore.collection('users').doc(user.uid).update({
+      // Chuẩn bị dữ liệu cập nhật
+      final updateData = {
         'name': name,
         'email': email,
         'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+      };
+
+      // Thêm photo URL nếu có
+      if (photoUrl != null) {
+        updateData['photo_url'] = photoUrl;
+      }
+
+      // Cập nhật thông tin trong Firestore
+      await _firestore.collection('users').doc(user.uid).update(updateData);
 
       logInfo('Cập nhật profile thành công cho user: ${user.uid}');
     } catch (e, stackTrace) {
@@ -260,7 +434,26 @@ class AuthService {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
 
       if (userDoc.exists) {
-        return UserModel.fromMap(userDoc.data()!, user.uid);
+        final userData = userDoc.data()!;
+        var userModel = UserModel.fromMap(userData, user.uid);
+        
+        // Kiểm tra và cập nhật avatar từ Firebase Auth nếu Firestore không có
+        if ((userModel.photoUrl == null || userModel.photoUrl!.isEmpty) && user.photoURL != null) {
+          // Cập nhật avatar từ Firebase Auth vào Firestore
+          await _firestore.collection('users').doc(user.uid).update({
+            'photo_url': user.photoURL,
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
+          
+          userModel = userModel.copyWith(
+            photoUrl: user.photoURL,
+            updatedAt: DateTime.now(),
+          );
+          
+          logInfo('Cập nhật avatar từ Firebase Auth vào Firestore cho user: ${user.uid}');
+        }
+        
+        return userModel;
       }
       return null;
     } catch (e, stackTrace) {
@@ -278,6 +471,27 @@ class AuthService {
     } catch (e, stackTrace) {
       logError('Lỗi tạo danh mục mặc định cho user $userId', error: e, stackTrace: stackTrace);
       // Không throw exception vì đây không phải lỗi nghiêm trọng
+    }
+  }
+
+  /// Chuyển đổi tài khoản Google (force account picker)
+  Future<UserModel?> switchGoogleAccount() async {
+    try {
+      // Disconnect hoàn toàn khỏi Google Sign-In
+      if (await _googleSignIn.isSignedIn()) {
+        await _googleSignIn.disconnect();
+      }
+      
+      // Clear Firebase session hiện tại
+      await _auth.signOut();
+      
+      logInfo('Đã clear session, bắt đầu đăng nhập lại');
+      
+      // Đăng nhập lại với account picker
+      return await signInWithGoogle();
+    } catch (e, stackTrace) {
+      logError('Lỗi chuyển đổi tài khoản Google', error: e, stackTrace: stackTrace);
+      throw handleError(e, stackTrace: stackTrace);
     }
   }
 }

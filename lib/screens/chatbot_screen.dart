@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import '../constants/app_colors.dart';
 import '../services/ai_processor_service.dart';
 import '../services/chat_log_service.dart';
+import '../widgets/custom_page_header.dart';
 
 // A model for a single chat message
 class ChatMessage {
@@ -31,21 +32,10 @@ class ChatbotPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
-              const Text(
-                'Trợ lý AI',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Trợ lý tài chính thông minh của bạn',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textSecondary,
-                ),
+              CustomPageHeader(
+                icon: Icons.smart_toy_rounded,
+                title: 'Trợ lý AI',
+                subtitle: 'Trợ lý tài chính thông minh của bạn',
               ),
               const SizedBox(height: 32),
 
@@ -334,84 +324,48 @@ class _FullChatScreenState extends State<FullChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),
-        ),
-        title: Row(
+      body: SafeArea(
+        child: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF6B35), Color(0xFFFFB56B)],
+            // Header
+            CustomPageHeader(
+              icon: Icons.smart_toy_rounded,
+              title: 'Moni AI',
+              subtitle: 'Trợ lý tài chính thông minh',
+              actions: [
+                IconButton(
+                  onPressed: _clearChat,
+                  icon: const Icon(Icons.refresh_rounded,
+                      color: AppColors.textSecondary),
+                  tooltip: 'Làm mới cuộc trò chuyện',
                 ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.smart_toy_rounded,
-                color: Colors.white,
-                size: 20,
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
+                  tooltip: 'Đóng',
+                ),
+              ],
+            ),
+
+            // Chat messages
+            Expanded(
+              child: ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: _messages.length,
+                itemBuilder: (context, index) {
+                  return _buildMessage(_messages[index]);
+                },
               ),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Moni AI Assistant',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    'Đang hoạt động',
-                    style: TextStyle(
-                      color: Color(0xFF4CAF50),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+
+            // Typing indicator
+            if (_isTyping) _buildTypingIndicator(),
+
+            // Input area
+            _buildInputArea(),
           ],
         ),
-        actions: [
-          IconButton(
-            onPressed: _clearChat,
-            icon: const Icon(Icons.refresh_rounded,
-                color: AppColors.textSecondary),
-            tooltip: 'Làm mới cuộc trò chuyện',
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Chat messages
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                return _buildMessage(_messages[index]);
-              },
-            ),
-          ),
-
-          // Typing indicator
-          if (_isTyping) _buildTypingIndicator(),
-
-          // Input area
-          _buildInputArea(),
-        ],
       ),
     );
   }

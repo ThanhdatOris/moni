@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../constants/app_colors.dart';
+import '../../widgets/custom_page_header.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -95,162 +96,173 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Cài đặt'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Security Section
-          _buildSectionCard(
-            'Bảo mật',
-            Icons.security,
-            [
-              SwitchListTile(
-                title: const Text('Xác thực 2 lớp'),
-                subtitle: const Text('Tăng cường bảo mật tài khoản'),
-                value: _twoFactorAuth,
-                onChanged: (value) async {
-                  setState(() {
-                    _twoFactorAuth = value;
-                  });
-                  await _saveSetting('two_factor_auth', value);
-                  
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        value 
-                          ? 'Đã bật xác thực 2 lớp' 
-                          : 'Đã tắt xác thực 2 lớp'
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            CustomPageHeader(
+              icon: Icons.settings,
+              title: 'Cài đặt',
+              subtitle: 'Tùy chỉnh ứng dụng theo nhu cầu của bạn',
+            ),
+            
+            // Settings Content
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  // Security Section
+                  _buildSectionCard(
+                    'Bảo mật',
+                    Icons.security,
+                    [
+                      SwitchListTile(
+                        title: const Text('Xác thực 2 lớp'),
+                        subtitle: const Text('Tăng cường bảo mật tài khoản'),
+                        value: _twoFactorAuth,
+                        onChanged: (value) async {
+                          setState(() {
+                            _twoFactorAuth = value;
+                          });
+                          await _saveSetting('two_factor_auth', value);
+                          
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                value 
+                                  ? 'Đã bật xác thực 2 lớp' 
+                                  : 'Đã tắt xác thực 2 lớp'
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+                    ],
+                  ),
 
-          const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-          // Notifications Section
-          _buildSectionCard(
-            'Thông báo',
-            Icons.notifications,
-            [
-              SwitchListTile(
-                title: const Text('Thông báo giao dịch'),
-                subtitle: const Text('Nhận thông báo khi có giao dịch mới'),
-                value: _transactionNotifications,
-                onChanged: (value) async {
-                  setState(() {
-                    _transactionNotifications = value;
-                  });
-                  await _saveSetting('transaction_notifications', value);
-                },
-              ),
-              SwitchListTile(
-                title: const Text('Báo cáo hàng tuần'),
-                subtitle: const Text('Nhận báo cáo tài chính hàng tuần'),
-                value: _weeklyReports,
-                onChanged: (value) async {
-                  setState(() {
-                    _weeklyReports = value;
-                  });
-                  await _saveSetting('weekly_reports', value);
-                },
-              ),
-            ],
-          ),
+                  // Notifications Section
+                  _buildSectionCard(
+                    'Thông báo',
+                    Icons.notifications,
+                    [
+                      SwitchListTile(
+                        title: const Text('Thông báo giao dịch'),
+                        subtitle: const Text('Nhận thông báo khi có giao dịch mới'),
+                        value: _transactionNotifications,
+                        onChanged: (value) async {
+                          setState(() {
+                            _transactionNotifications = value;
+                          });
+                          await _saveSetting('transaction_notifications', value);
+                        },
+                      ),
+                      SwitchListTile(
+                        title: const Text('Báo cáo hàng tuần'),
+                        subtitle: const Text('Nhận báo cáo tài chính hàng tuần'),
+                        value: _weeklyReports,
+                        onChanged: (value) async {
+                          setState(() {
+                            _weeklyReports = value;
+                          });
+                          await _saveSetting('weekly_reports', value);
+                        },
+                      ),
+                    ],
+                  ),
 
-          const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-          // Appearance Section
-          _buildSectionCard(
-            'Giao diện',
-            Icons.palette,
-            [
-              ListTile(
-                title: const Text('Chủ đề'),
-                subtitle: Text(_theme == 'light' ? 'Sáng' : 'Tối'),
-                trailing: DropdownButton<String>(
-                  value: _theme,
-                  items: const [
-                    DropdownMenuItem(value: 'light', child: Text('Sáng')),
-                    DropdownMenuItem(value: 'dark', child: Text('Tối')),
-                  ],
-                  onChanged: (value) async {
-                    if (value != null) {
-                      setState(() {
-                        _theme = value;
-                      });
-                      await _saveSetting('theme', value);
-                      
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Đã chuyển sang chủ đề ${value == 'light' ? 'sáng' : 'tối'}'),
+                  // Appearance Section
+                  _buildSectionCard(
+                    'Giao diện',
+                    Icons.palette,
+                    [
+                      ListTile(
+                        title: const Text('Chủ đề'),
+                        subtitle: Text(_theme == 'light' ? 'Sáng' : 'Tối'),
+                        trailing: DropdownButton<String>(
+                          value: _theme,
+                          items: const [
+                            DropdownMenuItem(value: 'light', child: Text('Sáng')),
+                            DropdownMenuItem(value: 'dark', child: Text('Tối')),
+                          ],
+                          onChanged: (value) async {
+                            if (value != null) {
+                              setState(() {
+                                _theme = value;
+                              });
+                              await _saveSetting('theme', value);
+                              
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Đã chuyển sang chủ đề ${value == 'light' ? 'sáng' : 'tối'}'),
+                                ),
+                              );
+                            }
+                          },
                         ),
-                      );
-                    }
-                  },
-                ),
-              ),
-              ListTile(
-                title: const Text('Ngôn ngữ'),
-                subtitle: Text(_language == 'vi' ? 'Tiếng Việt' : 'English'),
-                trailing: DropdownButton<String>(
-                  value: _language,
-                  items: const [
-                    DropdownMenuItem(value: 'vi', child: Text('Tiếng Việt')),
-                    DropdownMenuItem(value: 'en', child: Text('English')),
-                  ],
-                  onChanged: (value) async {
-                    if (value != null) {
-                      setState(() {
-                        _language = value;
-                      });
-                      await _saveSetting('language', value);
-                      
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Đã chuyển sang ${value == 'vi' ? 'Tiếng Việt' : 'English'}'),
+                      ),
+                      ListTile(
+                        title: const Text('Ngôn ngữ'),
+                        subtitle: Text(_language == 'vi' ? 'Tiếng Việt' : 'English'),
+                        trailing: DropdownButton<String>(
+                          value: _language,
+                          items: const [
+                            DropdownMenuItem(value: 'vi', child: Text('Tiếng Việt')),
+                            DropdownMenuItem(value: 'en', child: Text('English')),
+                          ],
+                          onChanged: (value) async {
+                            if (value != null) {
+                              setState(() {
+                                _language = value;
+                              });
+                              await _saveSetting('language', value);
+                              
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Đã chuyển sang ${value == 'vi' ? 'Tiếng Việt' : 'English'}'),
+                                ),
+                              );
+                            }
+                          },
                         ),
-                      );
-                    }
-                  },
-                ),
-              ),
-            ],
-          ),
+                      ),
+                    ],
+                  ),
 
-          const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-          // Data Section
-          _buildSectionCard(
-            'Dữ liệu',
-            Icons.storage,
-            [
-              ListTile(
-                title: const Text('Sao lưu dữ liệu'),
-                subtitle: const Text('Tạo bản sao lưu dữ liệu của bạn'),
-                trailing: ElevatedButton(
-                  onPressed: _performBackup,
-                  child: const Text('Sao lưu'),
-                ),
+                  // Data Section
+                  _buildSectionCard(
+                    'Dữ liệu',
+                    Icons.storage,
+                    [
+                      ListTile(
+                        title: const Text('Sao lưu dữ liệu'),
+                        subtitle: const Text('Tạo bản sao lưu dữ liệu của bạn'),
+                        trailing: ElevatedButton(
+                          onPressed: _performBackup,
+                          child: const Text('Sao lưu'),
+                        ),
+                      ),
+                      ListTile(
+                        title: const Text('Xuất báo cáo'),
+                        subtitle: const Text('Xuất báo cáo tài chính dưới dạng PDF'),
+                        trailing: ElevatedButton(
+                          onPressed: _exportReport,
+                          child: const Text('Xuất'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              ListTile(
-                title: const Text('Xuất báo cáo'),
-                subtitle: const Text('Xuất báo cáo tài chính dưới dạng PDF'),
-                trailing: ElevatedButton(
-                  onPressed: _exportReport,
-                  child: const Text('Xuất'),
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

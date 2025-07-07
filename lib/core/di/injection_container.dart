@@ -5,12 +5,15 @@ import 'package:get_it/get_it.dart';
 
 // Legacy Services - Simple architecture
 import '../../services/ai_processor_service.dart';
+import '../../services/anonymous_conversion_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/budget_alert_service.dart';
 import '../../services/category_service.dart';
 import '../../services/chat_log_service.dart';
 import '../../services/environment_service.dart';
 import '../../services/firebase_service.dart';
+import '../../services/offline_service.dart';
+import '../../services/offline_sync_service.dart';
 import '../../services/report_service.dart';
 import '../../services/transaction_service.dart';
 
@@ -39,11 +42,38 @@ Future<void> init() async {
   // BUSINESS SERVICES (Legacy)
   // ==========================================================================
 
+  // Core services first
+  getIt.registerLazySingleton<OfflineService>(() => OfflineService());
   getIt.registerLazySingleton<AuthService>(() => AuthService());
-  getIt.registerLazySingleton<TransactionService>(() => TransactionService());
   getIt.registerLazySingleton<CategoryService>(() => CategoryService());
-  getIt.registerLazySingleton<BudgetAlertService>(() => BudgetAlertService());
-  getIt.registerLazySingleton<ReportService>(() => ReportService());
+  
+  // Transaction service with offline support
+  getIt.registerLazySingleton<TransactionService>(() => TransactionService(
+    offlineService: getIt<OfflineService>(),
+  ));
+  
+  // Services that depend on TransactionService
+  getIt.registerLazySingleton<BudgetAlertService>(() => BudgetAlertService(
+    transactionService: getIt<TransactionService>(),
+  ));
+  getIt.registerLazySingleton<ReportService>(() => ReportService(
+    transactionService: getIt<TransactionService>(),
+  ));
+  
+  // Sync service
+  getIt.registerLazySingleton<OfflineSyncService>(() => OfflineSyncService(
+    offlineService: getIt<OfflineService>(),
+    transactionService: getIt<TransactionService>(),
+    categoryService: getIt<CategoryService>(),
+  ));
+  
+  // Anonymous conversion service
+  getIt.registerLazySingleton<AnonymousConversionService>(() => AnonymousConversionService(
+    offlineService: getIt<OfflineService>(),
+    syncService: getIt<OfflineSyncService>(),
+  ));
+  
+  // Other services
   getIt.registerLazySingleton<AIProcessorService>(() => AIProcessorService());
   getIt.registerLazySingleton<ChatLogService>(() => ChatLogService());
 }

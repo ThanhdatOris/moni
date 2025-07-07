@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../constants/app_colors.dart';
+import '../../core/di/injection_container.dart';
+import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
@@ -19,6 +21,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _authService = AuthService();
   
   bool _isLoading = false;
+  UserModel? _userModel;
 
   @override
   void initState() {
@@ -26,11 +29,25 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _loadCurrentUserData();
   }
 
-  void _loadCurrentUserData() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      _nameController.text = user.displayName ?? '';
-      _emailController.text = user.email ?? '';
+  Future<void> _loadCurrentUserData() async {
+    final authService = getIt<AuthService>();
+    final userData = await authService.getUserData();
+    
+    if (userData != null) {
+      setState(() {
+        _userModel = userData;
+        _nameController.text = userData.name;
+        _emailController.text = userData.email;
+      });
+    } else {
+      // Fallback to Firebase Auth user
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        setState(() {
+          _nameController.text = user.displayName ?? '';
+          _emailController.text = user.email ?? '';
+        });
+      }
     }
   }
 
@@ -81,23 +98,84 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     }
   }
 
+  Widget _buildDefaultAvatar() {
+    return Text(
+      _nameController.text.isNotEmpty 
+          ? _nameController.text[0].toUpperCase() 
+          : 'U',
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Chỉnh sửa thông tin'),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Icon and Title Row
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF9800), Color(0xFFFF6F00)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Chỉnh sửa hồ sơ',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Cập nhật thông tin cá nhân của bạn',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Form content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
               const SizedBox(height: 20),
               
               // Avatar section
@@ -112,16 +190,24 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       child: CircleAvatar(
                         radius: 50,
                         backgroundColor: AppColors.primary,
-                        child: Text(
-                          _nameController.text.isNotEmpty 
-                              ? _nameController.text[0].toUpperCase() 
-                              : 'U',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: _userModel?.photoUrl != null && _userModel!.photoUrl!.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(50),
+                                child: Image.network(
+                                  _userModel!.photoUrl!,
+                                  fit: BoxFit.cover,
+                                  width: 100,
+                                  height: 100,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return _buildDefaultAvatar();
+                                  },
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return _buildDefaultAvatar();
+                                  },
+                                ),
+                              )
+                            : _buildDefaultAvatar(),
                       ),
                     ),
                     Positioned(
@@ -228,8 +314,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         ),
                       ),
               ),
-            ],
-          ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

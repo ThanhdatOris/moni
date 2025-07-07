@@ -4,6 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/di/injection_container.dart';
+import '../services/auth_service.dart';
+import '../services/transaction_service.dart';
+
 class ModernHomeHeader extends ConsumerStatefulWidget {
   const ModernHomeHeader({super.key});
 
@@ -15,30 +19,45 @@ class _ModernHomeHeaderState extends ConsumerState<ModernHomeHeader> {
   String _userName = 'Khách';
   String _greeting = 'Chào bạn!';
   int _daysSinceFirstTransaction = 0;
+  String? _userPhotoUrl;
 
   @override
   void initState() {
     super.initState();
     _setGreeting();
     _calculateDaysSinceFirstTransaction();
+    _loadUserInfo();
     // Lắng nghe sự thay đổi auth state để cập nhật tên người dùng
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (mounted) {
-        _loadUserInfo(user);
+        _loadUserInfo();
       }
     });
   }
 
-  void _loadUserInfo(User? user) {
-    if (user != null) {
+  Future<void> _loadUserInfo() async {
+    final authService = getIt<AuthService>();
+    final userModel = await authService.getUserData();
+    
+    if (userModel != null) {
       setState(() {
-        _userName =
-            user.displayName ?? user.email?.split('@')[0] ?? 'Người dùng';
+        _userName = userModel.name.isNotEmpty ? userModel.name : 'Người dùng';
+        _userPhotoUrl = userModel.photoUrl;
       });
     } else {
-      setState(() {
-        _userName = 'Moner';
-      });
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        setState(() {
+          _userName = currentUser.displayName ?? 
+              currentUser.email?.split('@')[0] ?? 'Người dùng';
+          _userPhotoUrl = currentUser.photoURL;
+        });
+      } else {
+        setState(() {
+          _userName = 'Moner';
+          _userPhotoUrl = null;
+        });
+      }
     }
   }
 
@@ -74,12 +93,62 @@ class _ModernHomeHeaderState extends ConsumerState<ModernHomeHeader> {
   }
 
   Future<void> _calculateDaysSinceFirstTransaction() async {
-    // TODO: Implement với clean architecture khi transaction use cases ready
-    // Hiện tại set default value để tránh lỗi
-    if (mounted) {
-      setState(() {
-        _daysSinceFirstTransaction = 1;
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        if (mounted) {
+          setState(() {
+            _daysSinceFirstTransaction = 0;
+          });
+        }
+        return;
+      }
+
+      final transactionService = getIt<TransactionService>();
+      
+      // Lấy tất cả giao dịch để tìm giao dịch đầu tiên
+      final transactionsStream = transactionService.getTransactions();
+      
+      // Listen một lần để lấy dữ liệu
+      transactionsStream.take(1).listen((transactions) {
+        if (!mounted) return;
+        
+        if (transactions.isEmpty) {
+          setState(() {
+            _daysSinceFirstTransaction = 0;
+          });
+          return;
+        }
+
+        // Tìm giao dịch có ngày sớm nhất
+        DateTime firstTransactionDate = transactions.first.date;
+        for (final transaction in transactions) {
+          if (transaction.date.isBefore(firstTransactionDate)) {
+            firstTransactionDate = transaction.date;
+          }
+        }
+
+        final now = DateTime.now();
+        final difference = now.difference(firstTransactionDate).inDays + 1;
+        
+        setState(() {
+          _daysSinceFirstTransaction = difference > 0 ? difference : 1;
+        });
+      }, onError: (error) {
+        // Nếu có lỗi, set default value
+        if (mounted) {
+          setState(() {
+            _daysSinceFirstTransaction = 1;
+          });
+        }
       });
+    } catch (e) {
+      // Nếu có lỗi, set default value
+      if (mounted) {
+        setState(() {
+          _daysSinceFirstTransaction = 1;
+        });
+      }
     }
   }
 
@@ -196,7 +265,9 @@ class _ModernHomeHeaderState extends ConsumerState<ModernHomeHeader> {
 
                           // Subtitle
                           Text(
-                            'Tiết kiệm chi tiêu ngày thứ: $_daysSinceFirstTransaction',
+                            _daysSinceFirstTransaction > 0 
+                                ? 'Quản lý chi tiêu được $_daysSinceFirstTransaction ngày'
+                                : 'Hãy bắt đầu ghi chép chi tiêu của bạn!',
                             style: TextStyle(
                               fontSize: 13, // Giảm size
                               color: Colors.white.withValues(alpha: 0.8),
@@ -256,37 +327,75 @@ class _ModernHomeHeaderState extends ConsumerState<ModernHomeHeader> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(27.5),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFFFF9800).withValues(alpha: 0.8),
-                    const Color(0xFFFF5722).withValues(alpha: 0.9),
-                  ],
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  _getUserInitials(),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black26,
-                        offset: const Offset(1, 1),
-                        blurRadius: 2,
+          child: _userPhotoUrl != null && _userPhotoUrl!.isNotEmpty
+              ? Stack(
+                  children: [
+                    // Background với gradient
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            const Color(0xFFFF9800).withValues(alpha: 0.8),
+                            const Color(0xFFFF5722).withValues(alpha: 0.9),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                    // Hình ảnh avatar
+                    Image.network(
+                      _userPhotoUrl!,
+                      fit: BoxFit.cover,
+                      width: 55,
+                      height: 55,
+                      errorBuilder: (context, error, stackTrace) {
+                        // Nếu load ảnh thất bại, hiển thị chữ cái đầu
+                        return _buildDefaultAvatar();
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return _buildDefaultAvatar();
+                      },
+                    ),
+                  ],
+                )
+              : _buildDefaultAvatar(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDefaultAvatar() {
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+      child: Container(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFFFF9800).withValues(alpha: 0.8),
+              const Color(0xFFFF5722).withValues(alpha: 0.9),
+            ],
+          ),
+        ),
+        child: Center(
+          child: Text(
+            _getUserInitials(),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              shadows: [
+                Shadow(
+                  color: Colors.black26,
+                  offset: const Offset(1, 1),
+                  blurRadius: 2,
                 ),
-              ),
+              ],
             ),
           ),
         ),

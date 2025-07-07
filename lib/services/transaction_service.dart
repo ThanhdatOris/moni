@@ -1,42 +1,87 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
 import '../models/transaction_model.dart';
+import 'offline_service.dart';
 
 /// Service quản lý giao dịch tài chính
 class TransactionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _logger = Logger();
+  final OfflineService _offlineService;
+
+  TransactionService({
+    required OfflineService offlineService,
+  }) : _offlineService = offlineService;
 
   /// Tạo giao dịch mới
   Future<String> createTransaction(TransactionModel transaction) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('Người dùng chưa đăng nhập');
+      // Kiểm tra kết nối internet
+      final connectivity = await Connectivity().checkConnectivity();
+      final isOnline = !connectivity.contains(ConnectivityResult.none);
+
+      if (isOnline) {
+        return await _createTransactionOnline(transaction);
+      } else {
+        return await _createTransactionOffline(transaction);
       }
-
-      final now = DateTime.now();
-      final transactionData = transaction.copyWith(
-        userId: user.uid,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      final docRef = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('transactions')
-          .add(transactionData.toMap());
-
-      _logger.i('Tạo giao dịch thành công: ${docRef.id}');
-      return docRef.id;
     } catch (e) {
       _logger.e('Lỗi tạo giao dịch: $e');
       throw Exception('Không thể tạo giao dịch: $e');
     }
+  }
+
+  /// Tạo giao dịch online
+  Future<String> _createTransactionOnline(TransactionModel transaction) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Người dùng chưa đăng nhập');
+    }
+
+    final now = DateTime.now();
+    final transactionData = transaction.copyWith(
+      userId: user.uid,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final docRef = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('transactions')
+        .add(transactionData.toMap());
+
+    _logger.i('Tạo giao dịch online thành công: ${docRef.id}');
+    return docRef.id;
+  }
+
+  /// Tạo giao dịch offline
+  Future<String> _createTransactionOffline(TransactionModel transaction) async {
+    final userSession = await _offlineService.getOfflineUserSession();
+    final userId = userSession['userId'];
+    
+    if (userId == null) {
+      throw Exception('Không có session offline');
+    }
+
+    final transactionId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
+    final now = DateTime.now();
+    
+    final transactionData = transaction.copyWith(
+      transactionId: transactionId,
+      userId: userId,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await _offlineService.saveOfflineTransaction(transactionData);
+    
+    _logger.i('Tạo giao dịch offline thành công: $transactionId');
+    return transactionId;
   }
 
   /// Cập nhật giao dịch

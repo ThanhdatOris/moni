@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/anonymous_user_banner.dart';
 import '../widgets/expense_chart.dart';
 import '../widgets/financial_overview.dart';
 import '../widgets/home_header.dart';
 import '../widgets/menubar.dart';
 import '../widgets/recent_transactions.dart';
-import 'transaction/add_transaction_screen.dart';
+import '../widgets/simple_offline_status_banner.dart';
 import 'chatbot_screen.dart';
 import 'profile/profile_screen.dart';
+import 'transaction/add_transaction_screen.dart';
 import 'transaction_calendar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -98,6 +100,12 @@ class _HomeTabContentState extends State<HomeTabContent> {
         children: [
           // Header Section với gradient background
           const ModernHomeHeader(),
+
+          // Offline Status Banner (hiển thị trạng thái kết nối)
+          const SimpleOfflineStatusBanner(),
+
+          // Anonymous User Banner (chỉ hiển thị cho anonymous user)
+          const AnonymousUserBanner(),
 
           const SizedBox(height: 20),
 

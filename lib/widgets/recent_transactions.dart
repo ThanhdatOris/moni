@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../constants/app_colors.dart';
+import '../core/di/injection_container.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/category_service.dart';
@@ -15,8 +16,8 @@ class RecentTransactions extends StatefulWidget {
 }
 
 class _RecentTransactionsState extends State<RecentTransactions> {
-  final TransactionService _transactionService = TransactionService();
-  final CategoryService _categoryService = CategoryService();
+  late final TransactionService _transactionService;
+  late final CategoryService _categoryService;
 
   List<TransactionModel> _transactions = [];
   Map<String, CategoryModel> _categoryMap = {};
@@ -25,6 +26,8 @@ class _RecentTransactionsState extends State<RecentTransactions> {
   @override
   void initState() {
     super.initState();
+    _transactionService = getIt<TransactionService>();
+    _categoryService = getIt<CategoryService>();
     _loadRecentTransactions();
   }
 

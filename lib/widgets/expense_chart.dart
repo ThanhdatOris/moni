@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pie_chart/pie_chart.dart';
 
 import '../constants/app_colors.dart';
+import '../core/di/injection_container.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/category_service.dart';
@@ -15,8 +16,8 @@ class ExpenseChart extends StatefulWidget {
 }
 
 class _ExpenseChartState extends State<ExpenseChart> {
-  final TransactionService _transactionService = TransactionService();
-  final CategoryService _categoryService = CategoryService();
+  late final TransactionService _transactionService;
+  late final CategoryService _categoryService;
 
   Map<String, double> _chartData = {};
   Map<String, Color> _colorMap = {};
@@ -40,6 +41,8 @@ class _ExpenseChartState extends State<ExpenseChart> {
   @override
   void initState() {
     super.initState();
+    _transactionService = getIt<TransactionService>();
+    _categoryService = getIt<CategoryService>();
     _loadChartData();
   }
 

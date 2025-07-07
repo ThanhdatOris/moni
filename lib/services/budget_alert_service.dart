@@ -3,14 +3,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
 import '../models/budget_alert_model.dart';
+import 'offline_service.dart';
 import 'transaction_service.dart';
 
 /// Service quản lý cảnh báo ngân sách
 class BudgetAlertService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final TransactionService _transactionService = TransactionService();
+  final TransactionService _transactionService;
   final Logger _logger = Logger();
+
+  BudgetAlertService({TransactionService? transactionService})
+      : _transactionService = transactionService ?? TransactionService(offlineService: OfflineService());
 
   /// Tạo cảnh báo ngân sách mới
   Future<String> setAlert(BudgetAlertModel alert) async {

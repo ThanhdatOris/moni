@@ -472,7 +472,17 @@ class _AuthScreenState extends State<AuthScreen> {
                           });
 
                           try {
-                            await FirebaseAuth.instance.signInAnonymously();
+                            final authService = AuthService();
+                            final userModel = await authService.signInAnonymously();
+                            
+                            if (userModel != null && mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Đăng nhập khách thành công! Chào mừng ${userModel.name}'),
+                                  backgroundColor: AppColors.primary,
+                                ),
+                              );
+                            }
                           } catch (e) {
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(

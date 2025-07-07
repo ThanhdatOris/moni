@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../constants/app_colors.dart';
 import '../models/transaction_model.dart';
 import '../services/transaction_service.dart';
+import '../widgets/custom_page_header.dart';
 
 class TransactionCalendarScreen extends StatefulWidget {
   const TransactionCalendarScreen({super.key});
@@ -96,84 +97,88 @@ class _TransactionCalendarScreenState extends State<TransactionCalendarScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Lịch giao dịch'),
-        backgroundColor: AppColors.backgroundLight,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.today),
-            onPressed: () {
-              setState(() {
-                _selectedDay = DateTime.now();
-                _focusedDay = DateTime.now();
-                _selectedDayTransactions = _getTransactionsForDay(_selectedDay);
-              });
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Simple Calendar Grid
-          _buildCalendarGrid(),
-
-          // Selected day summary
-          if (_selectedDayTransactions.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFFF7043), Color(0xFFFFD180)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            CustomPageHeader(
+              icon: Icons.calendar_month,
+              title: 'Lịch giao dịch',
+              subtitle: 'Xem lịch sử giao dịch theo ngày',
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.today, color: AppColors.primary),
+                  onPressed: () {
+                    setState(() {
+                      _selectedDay = DateTime.now();
+                      _focusedDay = DateTime.now();
+                      _selectedDayTransactions = _getTransactionsForDay(_selectedDay);
+                    });
+                  },
                 ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _buildSummaryItem(
-                      'Thu nhập',
-                      _formatCurrency(
-                          _getDayTotal(_selectedDay, TransactionType.income)),
-                      Icons.trending_up,
-                    ),
-                  ),
-                  Container(
-                    width: 1,
-                    height: 40,
-                    color: Colors.white.withValues(alpha: 0.3),
-                  ),
-                  Expanded(
-                    child: _buildSummaryItem(
-                      'Chi tiêu',
-                      _formatCurrency(
-                          _getDayTotal(_selectedDay, TransactionType.expense)),
-                      Icons.trending_down,
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
+            
+            // Simple Calendar Grid
+            _buildCalendarGrid(),
 
-          // Transactions list
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _selectedDayTransactions.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _selectedDayTransactions.length,
-                        itemBuilder: (context, index) {
-                          return _buildTransactionItem(
-                              _selectedDayTransactions[index]);
-                        },
+            // Selected day summary
+            if (_selectedDayTransactions.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF7043), Color(0xFFFFD180)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Thu nhập',
+                        _formatCurrency(
+                            _getDayTotal(_selectedDay, TransactionType.income)),
+                        Icons.trending_up,
                       ),
-          ),
-        ],
+                    ),
+                    Container(
+                      width: 1,
+                      height: 40,
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                    Expanded(
+                      child: _buildSummaryItem(
+                        'Chi tiêu',
+                        _formatCurrency(
+                            _getDayTotal(_selectedDay, TransactionType.expense)),
+                        Icons.trending_down,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Transactions list
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _selectedDayTransactions.isEmpty
+                      ? _buildEmptyState()
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _selectedDayTransactions.length,
+                          itemBuilder: (context, index) {
+                            return _buildTransactionItem(
+                                _selectedDayTransactions[index]);
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }
