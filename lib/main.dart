@@ -39,12 +39,14 @@ void main() async {
   // Khởi tạo Firebase
   await FirebaseService.initialize();
 
-  // Tạo tài khoản test nếu cần
-  try {
-    await AuthServiceTest.createTestAccount();
-    await AuthServiceTest.createBackupTestAccount();
-  } catch (e) {
-    //print('Lỗi tạo tài khoản test: $e');
+  // Tạo tài khoản test chỉ trong production (không chạy khi debug)
+  if (EnvironmentService.isProduction) {
+    try {
+      await AuthServiceTest.createTestAccount();
+      await AuthServiceTest.createBackupTestAccount();
+    } catch (e) {
+      //print('Lỗi tạo tài khoản test: $e');
+    }
   }
 
   // Setup dependency injection

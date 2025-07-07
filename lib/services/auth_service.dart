@@ -71,7 +71,8 @@ class AuthService {
       }
       return null;
     } catch (e, stackTrace) {
-      logError('Lỗi đăng ký', data: {'email': email}, error: e, stackTrace: stackTrace);
+      logError('Lỗi đăng ký',
+          data: {'email': email}, error: e, stackTrace: stackTrace);
       throw handleError(e, stackTrace: stackTrace);
     }
   }
@@ -95,13 +96,15 @@ class AuthService {
 
         if (userDoc.exists) {
           final userModel = UserModel.fromMap(userDoc.data()!, user.uid);
-          logInfo('Đăng nhập thành công cho user: ${user.uid}', data: {'email': email});
+          logInfo('Đăng nhập thành công cho user: ${user.uid}',
+              data: {'email': email});
           return userModel;
         }
       }
       return null;
     } catch (e, stackTrace) {
-      logError('Lỗi đăng nhập', data: {'email': email}, error: e, stackTrace: stackTrace);
+      logError('Lỗi đăng nhập',
+          data: {'email': email}, error: e, stackTrace: stackTrace);
       throw handleError(e, stackTrace: stackTrace);
     }
   }
@@ -113,7 +116,7 @@ class AuthService {
       if (await _googleSignIn.isSignedIn()) {
         await _googleSignIn.disconnect();
       }
-      
+
       // Kích hoạt flow đăng nhập Google
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
@@ -122,7 +125,8 @@ class AuthService {
       }
 
       // Lấy thông tin xác thực từ Google
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // Tạo credential cho Firebase
       final credential = GoogleAuthProvider.credential(
@@ -133,7 +137,7 @@ class AuthService {
       // Kiểm tra xem email đã tồn tại với provider khác chưa
       final email = googleUser.email;
       final signInMethods = await _auth.fetchSignInMethodsForEmail(email);
-      
+
       UserCredential result;
 
       if (signInMethods.isNotEmpty && !signInMethods.contains('google.com')) {
@@ -145,8 +149,10 @@ class AuthService {
           logInfo('Đã link Google account với email/password account: $email');
         } catch (e) {
           // Nếu link thất bại, có thể do account-exists-with-different-credential
-          logError('Không thể link Google account với email/password account', error: e);
-          throw Exception('Email này đã được sử dụng với phương thức đăng nhập khác. Vui lòng đăng nhập bằng email/password hoặc sử dụng email khác.');
+          logError('Không thể link Google account với email/password account',
+              error: e);
+          throw Exception(
+              'Email này đã được sử dụng với phương thức đăng nhập khác. Vui lòng đăng nhập bằng email/password hoặc sử dụng email khác.');
         }
       } else {
         // Email chưa tồn tại hoặc đã có Google provider
@@ -157,31 +163,33 @@ class AuthService {
 
       if (user != null) {
         // Kiểm tra xem user đã tồn tại trong Firestore chưa
-        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final userDoc =
+            await _firestore.collection('users').doc(user.uid).get();
         UserModel userModel;
         final now = DateTime.now();
-        
+
         if (userDoc.exists) {
           // User đã tồn tại - lấy thông tin từ Firestore và cập nhật avatar Google
           final existingData = userDoc.data()!;
           userModel = UserModel.fromMap(existingData, user.uid);
-          
+
           // Cập nhật avatar Google nếu có và chưa có avatar
-          if (user.photoURL != null && (userModel.photoUrl == null || userModel.photoUrl!.isEmpty)) {
+          if (user.photoURL != null &&
+              (userModel.photoUrl == null || userModel.photoUrl!.isEmpty)) {
             userModel = userModel.copyWith(
               photoUrl: user.photoURL,
               updatedAt: now,
             );
-            
+
             // Cập nhật vào Firestore
             await _firestore.collection('users').doc(user.uid).update({
               'photo_url': user.photoURL,
               'updated_at': Timestamp.fromDate(now),
             });
-            
+
             logInfo('Cập nhật avatar Google cho user hiện tại: ${user.uid}');
           }
-          
+
           logInfo('Đăng nhập Google thành công cho user hiện tại: ${user.uid}');
         } else {
           // User mới - tạo document mới
@@ -201,7 +209,7 @@ class AuthService {
 
           // Tạo danh mục mặc định cho user mới
           await _createDefaultCategories(user.uid);
-          
+
           logInfo('Đăng nhập Google thành công cho user mới: ${user.uid}');
         }
 
@@ -219,22 +227,22 @@ class AuthService {
 
   /// Đăng nhập ẩn danh (Anonymous)
   Future<UserModel?> signInAnonymously() async {
-    try {
-      // Kiểm tra kết nối internet
-      final connectivity = await Connectivity().checkConnectivity();
-      final isOnline = !connectivity.contains(ConnectivityResult.none);
+    return await handleErrorSafelyAsync<UserModel?>(
+      () async {
+        // Kiểm tra kết nối internet
+        final connectivity = await Connectivity().checkConnectivity();
+        final isOnline = !connectivity.contains(ConnectivityResult.none);
 
-      if (isOnline) {
-        // Đăng nhập anonymous online
-        return await _signInAnonymouslyOnline();
-      } else {
-        // Đăng nhập anonymous offline
-        return await _signInAnonymouslyOffline();
-      }
-    } catch (e, stackTrace) {
-      logError('Lỗi đăng nhập anonymous', error: e, stackTrace: stackTrace);
-      throw handleError(e, stackTrace: stackTrace);
-    }
+        if (isOnline) {
+          // Đăng nhập anonymous online
+          return await _signInAnonymouslyOnline();
+        } else {
+          // Đăng nhập anonymous offline
+          return await _signInAnonymouslyOffline();
+        }
+      },
+      context: 'AuthService.signInAnonymously',
+    );
   }
 
   /// Đăng nhập anonymous online
@@ -245,12 +253,13 @@ class AuthService {
     if (user != null) {
       // Tạo hoặc lấy thông tin user từ Firestore
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
-      
+
       UserModel userModel;
       if (userDoc.exists) {
         // Anonymous user đã tồn tại - lấy thông tin từ Firestore
         userModel = UserModel.fromMap(userDoc.data()!, user.uid);
-        logInfo('Đăng nhập anonymous thành công cho user hiện tại: ${user.uid}');
+        logInfo(
+            'Đăng nhập anonymous thành công cho user hiện tại: ${user.uid}');
       } else {
         // Anonymous user mới - tạo document mới
         final now = DateTime.now();
@@ -286,7 +295,7 @@ class AuthService {
     // Tạo user ID offline tạm thời
     final userId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
     final now = DateTime.now();
-    
+
     final userModel = UserModel(
       userId: userId,
       name: 'Khách (Offline)',
@@ -324,10 +333,10 @@ class AuthService {
         await _googleSignIn.disconnect();
         await _googleSignIn.signOut();
       }
-      
+
       // Đăng xuất từ Firebase Auth
       await _auth.signOut();
-      
+
       // Clear offline session nếu có
       try {
         final offlineService = OfflineService();
@@ -335,7 +344,7 @@ class AuthService {
       } catch (e) {
         // Ignore offline service errors during logout
       }
-      
+
       logInfo('Đăng xuất thành công');
     } catch (e, stackTrace) {
       logError('Lỗi đăng xuất', error: e, stackTrace: stackTrace);
@@ -391,7 +400,8 @@ class AuthService {
       await _auth.sendPasswordResetEmail(email: email);
       logInfo('Đã gửi email reset mật khẩu cho: $email');
     } catch (e, stackTrace) {
-      logError('Lỗi gửi email reset mật khẩu', error: e, stackTrace: stackTrace);
+      logError('Lỗi gửi email reset mật khẩu',
+          error: e, stackTrace: stackTrace);
       throw handleError(e, stackTrace: stackTrace);
     }
   }
@@ -436,23 +446,25 @@ class AuthService {
       if (userDoc.exists) {
         final userData = userDoc.data()!;
         var userModel = UserModel.fromMap(userData, user.uid);
-        
+
         // Kiểm tra và cập nhật avatar từ Firebase Auth nếu Firestore không có
-        if ((userModel.photoUrl == null || userModel.photoUrl!.isEmpty) && user.photoURL != null) {
+        if ((userModel.photoUrl == null || userModel.photoUrl!.isEmpty) &&
+            user.photoURL != null) {
           // Cập nhật avatar từ Firebase Auth vào Firestore
           await _firestore.collection('users').doc(user.uid).update({
             'photo_url': user.photoURL,
             'updated_at': Timestamp.fromDate(DateTime.now()),
           });
-          
+
           userModel = userModel.copyWith(
             photoUrl: user.photoURL,
             updatedAt: DateTime.now(),
           );
-          
-          logInfo('Cập nhật avatar từ Firebase Auth vào Firestore cho user: ${user.uid}');
+
+          logInfo(
+              'Cập nhật avatar từ Firebase Auth vào Firestore cho user: ${user.uid}');
         }
-        
+
         return userModel;
       }
       return null;
@@ -469,7 +481,8 @@ class AuthService {
       await categoryService.createDefaultCategories();
       logInfo('Tạo danh mục mặc định thành công cho user: $userId');
     } catch (e, stackTrace) {
-      logError('Lỗi tạo danh mục mặc định cho user $userId', error: e, stackTrace: stackTrace);
+      logError('Lỗi tạo danh mục mặc định cho user $userId',
+          error: e, stackTrace: stackTrace);
       // Không throw exception vì đây không phải lỗi nghiêm trọng
     }
   }
@@ -481,16 +494,17 @@ class AuthService {
       if (await _googleSignIn.isSignedIn()) {
         await _googleSignIn.disconnect();
       }
-      
+
       // Clear Firebase session hiện tại
       await _auth.signOut();
-      
+
       logInfo('Đã clear session, bắt đầu đăng nhập lại');
-      
+
       // Đăng nhập lại với account picker
       return await signInWithGoogle();
     } catch (e, stackTrace) {
-      logError('Lỗi chuyển đổi tài khoản Google', error: e, stackTrace: stackTrace);
+      logError('Lỗi chuyển đổi tài khoản Google',
+          error: e, stackTrace: stackTrace);
       throw handleError(e, stackTrace: stackTrace);
     }
   }

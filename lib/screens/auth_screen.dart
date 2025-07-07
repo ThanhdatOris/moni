@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../services/auth_service.dart';
+import '../services/error_handler.dart';
 import '../widgets/google_signin_setup_dialog.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -161,13 +162,14 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       final authService = AuthService();
       final userModel = await authService.signInWithGoogle();
-      
+
       if (userModel != null) {
         // Đăng nhập thành công, AuthStateChanges sẽ tự động chuyển hướng
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Đăng nhập thành công với tài khoản ${userModel.name}'),
+              content:
+                  Text('Đăng nhập thành công với tài khoản ${userModel.name}'),
               backgroundColor: AppColors.primary,
             ),
           );
@@ -177,8 +179,8 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) {
         // Kiểm tra lỗi Google Sign-In để hiển thị dialog hướng dẫn
         final errorString = e.toString().toLowerCase();
-        if (errorString.contains('google') || 
-            errorString.contains('oauth') || 
+        if (errorString.contains('google') ||
+            errorString.contains('oauth') ||
             errorString.contains('10')) {
           _showGoogleSignInSetupDialog();
         } else {
@@ -473,22 +475,33 @@ class _AuthScreenState extends State<AuthScreen> {
 
                           try {
                             final authService = AuthService();
-                            final userModel = await authService.signInAnonymously();
-                            
+                            final userModel =
+                                await authService.signInAnonymously();
+
                             if (userModel != null && mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('Đăng nhập khách thành công! Chào mừng ${userModel.name}'),
+                                  content: Text(
+                                      'Đăng nhập khách thành công! Chào mừng ${userModel.name}'),
                                   backgroundColor: AppColors.primary,
                                 ),
                               );
                             }
                           } catch (e) {
                             if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text('Lỗi đăng nhập khách: $e')),
-                              );
+                              // Sử dụng error handler để hiển thị lỗi
+                              if (e is AppError) {
+                                ErrorHandler.instance.handleErrorWithUI(
+                                  context,
+                                  e,
+                                  contextInfo: 'Đăng nhập khách',
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                      content: Text('Lỗi đăng nhập khách: $e')),
+                                );
+                              }
                             }
                           }
 

@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'logging_service.dart';
@@ -398,4 +399,122 @@ extension ErrorHandling on Object {
       showSnackBar: showSnackBar,
     );
   }
+}
+
+// =============================================================================
+// HELPER FUNCTIONS để dễ sử dụng hơn
+// =============================================================================
+
+/// Helper function để throw AppError thay vì Exception
+Never throwAppError(
+  dynamic error, {
+  StackTrace? stackTrace,
+  String? context,
+  Map<String, dynamic>? data,
+}) {
+  final appError = ErrorHandler.instance.handleError(
+    error,
+    stackTrace: stackTrace,
+    context: context,
+    data: data,
+  );
+  throw appError;
+}
+
+/// Helper function để xử lý lỗi với try-catch pattern
+T handleErrorSafely<T>(
+  T Function() operation, {
+  T? fallbackValue,
+  String? context,
+  bool logError = true,
+}) {
+  try {
+    return operation();
+  } catch (e, stackTrace) {
+    if (logError) {
+      ErrorHandler.instance.handleError(
+        e,
+        stackTrace: stackTrace,
+        context: context,
+      );
+    }
+    
+    if (fallbackValue != null) {
+      return fallbackValue;
+    }
+    
+    rethrow;
+  }
+}
+
+/// Helper function để xử lý Future với error handling
+Future<T> handleErrorSafelyAsync<T>(
+  Future<T> Function() operation, {
+  T? fallbackValue,
+  String? context,
+  bool logError = true,
+}) async {
+  try {
+    return await operation();
+  } catch (e, stackTrace) {
+    if (logError) {
+      ErrorHandler.instance.handleError(
+        e,
+        stackTrace: stackTrace,
+        context: context,
+      );
+    }
+    
+    if (fallbackValue != null) {
+      return fallbackValue;
+    }
+    
+    rethrow;
+  }
+}
+
+/// Helper function để debug error trong development mode
+void debugError(
+  dynamic error, {
+  StackTrace? stackTrace,
+  String? context,
+  Map<String, dynamic>? data,
+}) {
+  if (kDebugMode) {
+    final appError = ErrorHandler.instance.handleError(
+      error,
+      stackTrace: stackTrace,
+      context: context,
+      data: data,
+    );
+    
+    print('🚨 DEBUG ERROR:');
+    print('  Type: ${appError.type.name}');
+    print('  Code: ${appError.code}');
+    print('  Message: ${appError.message}');
+    print('  User Message: ${appError.userMessage}');
+    print('  Context: $context');
+    if (data != null) {
+      print('  Data: $data');
+    }
+    print('  Stack Trace: ${appError.stackTrace}');
+    print('─' * 50);
+  }
+}
+
+/// Helper function để tạo custom error
+AppError createAppError({
+  required ErrorType type,
+  required String code,
+  required String message,
+  String? userMessage,
+  Map<String, dynamic>? data,
+}) {
+  return AppError(
+    type: type,
+    code: code,
+    message: message,
+    userMessage: userMessage,
+    data: data,
+  );
 }
