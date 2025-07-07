@@ -76,7 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _buildHeader(),
                           _buildSettingsMenu(context, FirebaseAuth.instance.currentUser),
                           _buildLogoutSection(),
-                          const SizedBox(height: 50),
+                          const SizedBox(height: 80),
                         ],
                       ),
                     ),
@@ -331,17 +331,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
+      clipBehavior: Clip.antiAlias, // Đảm bảo nội dung không tràn ra ngoài bo góc
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Generate setting sections
-          ..._settingSections.map((section) => _buildSettingSection(
-            context,
-            icon: section['icon'],
-            title: section['title'],
-            subtitle: section['subtitle'],
-            child: section['widget'],
-          )),
+          ..._settingSections.asMap().entries.map((entry) {
+            final index = entry.key;
+            final section = entry.value;
+            final isFirst = index == 0;
+            final isLast = index == _settingSections.length - 1;
+            
+            return _buildSettingSection(
+              context,
+              icon: section['icon'],
+              title: section['title'],
+              subtitle: section['subtitle'],
+              child: section['widget'],
+              isFirst: isFirst,
+              isLast: isLast,
+            );
+          }).toList(),
         ],
       ),
     );
@@ -353,12 +363,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required String subtitle,
     required Widget child,
+    bool isFirst = false,
+    bool isLast = false,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 1),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: Color(0xFFF5F5F5), width: 1)),
+        border: Border(
+          bottom: isLast 
+            ? BorderSide.none 
+            : const BorderSide(color: Color(0xFFF5F5F5), width: 1)
+        ),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
