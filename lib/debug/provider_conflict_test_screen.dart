@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../widgets/provider_conflict_test_widget.dart';
+import 'provider_conflict_test_widget.dart';
 
 class ProviderConflictTestScreen extends ConsumerWidget {
   const ProviderConflictTestScreen({super.key});
