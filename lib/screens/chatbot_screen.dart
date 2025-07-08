@@ -36,9 +36,9 @@ class ChatbotPage extends StatelessWidget {
               subtitle: 'Trợ lý tài chính thông minh của bạn',
             ),
 
-            // Nội dung với padding 2 bên 20px
+            // Nội dung với padding 2 bên 20px - scroll dài theo screen
             Expanded(
-              child: Padding(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,36 +157,34 @@ class ChatbotPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
 
-                    Expanded(
-                      child: ListView(
-                        children: [
-                          _buildFeatureItem(
-                            Icons.analytics_rounded,
-                            'Phân tích chi tiêu',
-                            'Phân tích chi tiêu theo danh mục và đưa ra gợi ý tối ưu hóa',
-                            const Color(0xFF2196F3),
-                          ),
-                          _buildFeatureItem(
-                            Icons.savings_rounded,
-                            'Lập kế hoạch tiết kiệm',
-                            'Hỗ trợ thiết lập mục tiêu và kế hoạch tiết kiệm phù hợp',
-                            const Color(0xFF4CAF50),
-                          ),
-                          _buildFeatureItem(
-                            Icons.lightbulb_rounded,
-                            'Tư vấn tài chính',
-                            'Đưa ra lời khuyên về đầu tư và quản lý tài chính cá nhân',
-                            const Color(0xFFFF9800),
-                          ),
-                          _buildFeatureItem(
-                            Icons.support_agent_rounded,
-                            'Hỗ trợ 24/7',
-                            'Trả lời câu hỏi và hỗ trợ sử dụng ứng dụng bất cứ lúc nào',
-                            const Color(0xFF9C27B0),
-                          ),
-                        ],
-                      ),
+                    // Features items - không giới hạn chiều cao
+                    _buildFeatureItem(
+                      Icons.analytics_rounded,
+                      'Phân tích chi tiêu',
+                      'Phân tích chi tiêu theo danh mục và đưa ra gợi ý tối ưu hóa',
+                      const Color(0xFF2196F3),
                     ),
+                    _buildFeatureItem(
+                      Icons.savings_rounded,
+                      'Lập kế hoạch tiết kiệm',
+                      'Hỗ trợ thiết lập mục tiêu và kế hoạch tiết kiệm phù hợp',
+                      const Color(0xFF4CAF50),
+                    ),
+                    _buildFeatureItem(
+                      Icons.lightbulb_rounded,
+                      'Tư vấn tài chính',
+                      'Đưa ra lời khuyên về đầu tư và quản lý tài chính cá nhân',
+                      const Color(0xFFFF9800),
+                    ),
+                    _buildFeatureItem(
+                      Icons.support_agent_rounded,
+                      'Hỗ trợ 24/7',
+                      'Trả lời câu hỏi và hỗ trợ sử dụng ứng dụng bất cứ lúc nào',
+                      const Color(0xFF9C27B0),
+                    ),
+
+                    // Thêm khoảng trống ở cuối để đảm bảo scroll mượt
+                    const SizedBox(height: 120),
                   ],
                 ),
               ),

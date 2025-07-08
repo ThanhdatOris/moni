@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import '../services/environment_service.dart';
+import '../services/offline_service.dart';
 import 'auth_screen.dart';
 import 'home_screen.dart';
 import 'splash_screen.dart';
@@ -32,6 +34,10 @@ class _SplashWrapperState extends State<SplashWrapper> {
     // Lắng nghe auth state changes
     final authCompleter = FirebaseAuth.instance.authStateChanges().first;
 
+    // Kiểm tra offline sessions
+    final offlineService = GetIt.instance<OfflineService>();
+    final hasOfflineSession = await offlineService.hasOfflineSession();
+
     // Chờ cả auth state và minimum time
     await Future.wait([
       authCompleter,
@@ -43,6 +49,17 @@ class _SplashWrapperState extends State<SplashWrapper> {
         _isMinimumTimeCompleted = true;
         _isAuthStateLoaded = true;
       });
+
+      // Debug log về offline session
+      if (kDebugMode && EnvironmentService.isDevelopment) {
+        print('🔍 OFFLINE SESSION CHECK:');
+        print('  - Has offline session: $hasOfflineSession');
+        if (hasOfflineSession) {
+          final session = await offlineService.getOfflineUserSession();
+          print('  - Offline userId: ${session['userId']}');
+          print('  - Offline userName: ${session['userName']}');
+        }
+      }
     }
   }
 
@@ -72,10 +89,42 @@ class _SplashWrapperState extends State<SplashWrapper> {
         }
 
         // Chuyển đến màn hình phù hợp
-        if (snapshot.hasData && snapshot.data != null) {
+        final user = snapshot.data;
+
+        if (user != null) {
+          // Có Firebase user (cả anonymous và registered) -> vào HomeScreen
+          // HomeScreen sẽ tự xử lý hiển thị UI phù hợp cho từng loại user
+          if (kDebugMode && EnvironmentService.isDevelopment) {
+            print(
+                '✅ Navigating to HomeScreen - User type: ${user.isAnonymous ? "Anonymous" : "Registered"}');
+          }
           return const HomeScreen();
         } else {
-          return const AuthScreen();
+          // Không có Firebase user - kiểm tra offline sessions
+          return FutureBuilder<bool>(
+            future: GetIt.instance<OfflineService>().hasOfflineSession(),
+            builder: (context, offlineSnapshot) {
+              if (offlineSnapshot.connectionState == ConnectionState.waiting) {
+                return const SplashScreen();
+              }
+
+              final hasOfflineSession = offlineSnapshot.data ?? false;
+
+              if (hasOfflineSession) {
+                // Có offline session -> vào HomeScreen
+                if (kDebugMode && EnvironmentService.isDevelopment) {
+                  print('✅ Navigating to HomeScreen - Offline anonymous user');
+                }
+                return const HomeScreen();
+              } else {
+                // Không có user nào (cả Firebase và offline) -> vào AuthScreen
+                if (kDebugMode && EnvironmentService.isDevelopment) {
+                  print('➡️ Navigating to AuthScreen - No user found');
+                }
+                return const AuthScreen();
+              }
+            },
+          );
         }
       },
     );
