@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../constants/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -93,13 +94,19 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _startAnimations() {
-    _fadeController.forward();
+    if (mounted) {
+      _fadeController.forward();
+    }
     Future.delayed(const Duration(milliseconds: 300), () {
-      _scaleController.forward();
+      if (mounted) {
+        _scaleController.forward();
+      }
     });
     Future.delayed(const Duration(milliseconds: 800), () {
-      _loadingController.forward();
-      _pulseController.forward();
+      if (mounted) {
+        _loadingController.forward();
+        _pulseController.forward();
+      }
     });
   }
 
@@ -197,7 +204,8 @@ class _SplashScreenState extends State<SplashScreen>
                 const SizedBox(height: 20),
                 // New loading indicator
                 AnimatedBuilder(
-                  animation: Listenable.merge([_loadingAnimation, _pulseAnimation]),
+                  animation:
+                      Listenable.merge([_loadingAnimation, _pulseAnimation]),
                   builder: (context, child) {
                     return Transform.scale(
                       scale: _pulseAnimation.value,

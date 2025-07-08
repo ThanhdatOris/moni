@@ -63,14 +63,14 @@ class TransactionService {
   Future<String> _createTransactionOffline(TransactionModel transaction) async {
     final userSession = await _offlineService.getOfflineUserSession();
     final userId = userSession['userId'];
-    
+
     if (userId == null) {
       throw Exception('Không có session offline');
     }
 
     final transactionId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
     final now = DateTime.now();
-    
+
     final transactionData = transaction.copyWith(
       transactionId: transactionId,
       userId: userId,
@@ -79,7 +79,7 @@ class TransactionService {
     );
 
     await _offlineService.saveOfflineTransaction(transactionData);
-    
+
     _logger.i('Tạo giao dịch offline thành công: $transactionId');
     return transactionId;
   }
@@ -183,10 +183,11 @@ class TransactionService {
             isLessThanOrEqualTo: Timestamp.fromDate(endDate));
       }
 
-      // Chỉ orderBy khi không có date filter để tránh composite index
-      if (startDate == null && endDate == null) {
-        query = query.orderBy('date', descending: true);
-      }
+      // Tạm thời bỏ orderBy để tránh composite index error
+      // Sẽ sort trong client thay vì server
+      // if (startDate == null && endDate == null) {
+      //   query = query.orderBy('date', descending: true);
+      // }
 
       if (limit != null) {
         query = query.limit(limit);
@@ -208,10 +209,8 @@ class TransactionService {
               doc.data() as Map<String, dynamic>, doc.id);
         }).toList();
 
-        // Sắp xếp trong client nếu cần
-        if (startDate != null || endDate != null) {
-          transactions.sort((a, b) => b.date.compareTo(a.date));
-        }
+        // Luôn sắp xếp trong client vì không dùng orderBy server
+        transactions.sort((a, b) => b.date.compareTo(a.date));
 
         return transactions;
       });
@@ -377,7 +376,15 @@ class TransactionService {
         final data = doc.data();
         if (data != null) {
           final map = data as Map<String, dynamic>;
-          total += (map['amount'] ?? 0) as double;
+          final amount = map['amount'] ?? 0;
+          // Handle both int and double from Firestore
+          if (amount is int) {
+            total += amount.toDouble();
+          } else if (amount is double) {
+            total += amount;
+          } else if (amount is num) {
+            total += amount.toDouble();
+          }
         }
       }
 
@@ -486,7 +493,15 @@ class TransactionService {
         final data = doc.data();
         if (data != null) {
           final map = data as Map<String, dynamic>;
-          total += (map['amount'] ?? 0) as double;
+          final amount = map['amount'] ?? 0;
+          // Handle both int and double from Firestore
+          if (amount is int) {
+            total += amount.toDouble();
+          } else if (amount is double) {
+            total += amount;
+          } else if (amount is num) {
+            total += amount.toDouble();
+          }
         }
       }
 
