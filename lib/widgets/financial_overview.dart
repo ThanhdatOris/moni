@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
+import 'package:moni/constants/app_colors.dart';
 
 import '../services/services.dart';
 
@@ -177,7 +178,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: AppColors.primary.withValues(alpha: 0.8),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

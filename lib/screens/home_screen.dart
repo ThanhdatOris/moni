@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../widgets/anonymous_user_banner.dart';
 import '../widgets/expense_chart.dart';
 import '../widgets/financial_overview.dart';
+import '../widgets/home_banner.dart';
 import '../widgets/home_header.dart';
 import '../widgets/menubar.dart';
 import '../widgets/recent_transactions.dart';
@@ -122,7 +123,12 @@ class _HomeTabContentState extends State<HomeTabContent> {
           // Recent Transactions
           RecentTransactions(key: _recentTransactionsKey),
 
-          const SizedBox(height: 100), // Space for bottom menu
+          const SizedBox(height: 20),
+
+          // Home Banner Slider
+          const HomeBanner(),
+
+          const SizedBox(height: 120), // Space for bottom menu
         ],
       ),
     );

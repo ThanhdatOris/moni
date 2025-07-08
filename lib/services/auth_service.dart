@@ -518,7 +518,7 @@ class AuthServiceTest {
   /// Tạo tài khoản test với email và password
   static Future<void> createTestAccount() async {
     try {
-      const testEmail = '9588666@gmail.com';
+      const testEmail = 'test@example.com';
       const testPassword = '123456';
 
       // Kiểm tra xem tài khoản đã tồn tại chưa
@@ -537,7 +537,7 @@ class AuthServiceTest {
       }
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
-        _logger.i('Tài khoản test đã tồn tại: 9588666@gmail.com ✅');
+        _logger.i('Tài khoản test đã tồn tại: test@example.com ✅');
       } else {
         _logger.w('Lỗi kiểm tra tài khoản test: ${e.code} - ${e.message}');
       }
@@ -580,7 +580,7 @@ class AuthServiceTest {
   /// Đăng nhập với tài khoản test
   static Future<UserCredential?> signInWithTestAccount() async {
     try {
-      const testEmail = '9588666@gmail.com';
+      const testEmail = 'test@example.com';
       const testPassword = '123456';
 
       final credential = await _auth.signInWithEmailAndPassword(
