@@ -14,10 +14,28 @@ class _HomeBannerState extends State<HomeBanner> {
   int _currentPage = 0;
   Timer? _timer;
 
-  final List<String> _bannerImages = [
-    'assets/images/banner/banner_1.png',
-    'assets/images/banner/banner_2.png',
-    'assets/images/banner/banner_3.png',
+  final List<Map<String, dynamic>> _bannerData = [
+    {
+      'image': 'assets/images/banner_1.jpg',
+      'gradient': [const Color(0xFFFF9800), const Color(0xFFFF6F00)],
+      'icon': Icons.account_balance_wallet,
+      'title': 'Quản lý tài chính thông minh',
+      'subtitle': 'Theo dõi chi tiêu hàng ngày một cách dễ dàng',
+    },
+    {
+      'image': 'assets/images/banner_2.jpg',
+      'gradient': [const Color(0xFF4CAF50), const Color(0xFF2E7D32)],
+      'icon': Icons.savings,
+      'title': 'Tiết kiệm hiệu quả',
+      'subtitle': 'Lập kế hoạch tài chính cho tương lai',
+    },
+    {
+      'image': 'assets/images/banner_3.jpg',
+      'gradient': [const Color(0xFF2196F3), const Color(0xFF1565C0)],
+      'icon': Icons.analytics,
+      'title': 'Báo cáo chi tiết',
+      'subtitle': 'Phân tích chi tiêu với biểu đồ trực quan',
+    },
   ];
 
   @override
@@ -36,7 +54,7 @@ class _HomeBannerState extends State<HomeBanner> {
   void _startAutoScroll() {
     _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (_pageController.hasClients) {
-        int nextPage = (_currentPage + 1) % _bannerImages.length;
+        int nextPage = (_currentPage + 1) % _bannerData.length;
         _pageController.animateToPage(
           nextPage,
           duration: const Duration(milliseconds: 800),
@@ -74,41 +92,106 @@ class _HomeBannerState extends State<HomeBanner> {
                     _currentPage = index;
                   });
                 },
-                itemCount: _bannerImages.length,
+                itemCount: _bannerData.length,
                 itemBuilder: (context, index) {
+                  final bannerItem = _bannerData[index];
                   return GestureDetector(
                     onTap: () {
                       // Có thể thêm logic điều hướng khi tap vào banner
                       debugPrint('Banner ${index + 1} tapped');
                     },
-                    child: Image.asset(
-                      _bannerImages[index],
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[300],
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.image_not_supported,
-                                  size: 48,
-                                  color: Colors.grey[600],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Không thể tải ảnh',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 14,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Background image với fallback
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: bannerItem['gradient'],
+                            ),
+                          ),
+                          child: Image.asset(
+                            bannerItem['image']!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback hiển thị icon và gradient khi ảnh lỗi
+                              return Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: bannerItem['gradient'],
                                   ),
                                 ),
+                                child: Align(
+                                  alignment: Alignment(0, -0.25), // Di chuyển icon lên khoảng 2/4 chiều cao
+                                  child: Icon(
+                                    bannerItem['icon'],
+                                    size: 64,
+                                    color: Colors.white.withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        // Overlay gradient
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.6),
                               ],
                             ),
                           ),
-                        );
-                      },
+                        ),
+                        // Text content
+                        Positioned(
+                          bottom: 20,
+                          left: 20,
+                          right: 20,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                bannerItem['title']!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                bannerItem['subtitle']!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -122,7 +205,7 @@ class _HomeBannerState extends State<HomeBanner> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
-              _bannerImages.length,
+              _bannerData.length,
               (index) => AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
                 margin: const EdgeInsets.symmetric(horizontal: 4),
