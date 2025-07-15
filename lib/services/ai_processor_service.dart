@@ -6,6 +6,7 @@ import 'package:logger/logger.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
+import '../utils/currency_formatter.dart';
 import 'category_service.dart';
 import 'environment_service.dart';
 import 'transaction_service.dart';
@@ -45,8 +46,8 @@ class AIProcessorService {
         Schema(
           SchemaType.object,
           properties: {
-            'amount': Schema(SchemaType.number,
-                description: 'Transaction amount (positive number)'),
+            'amount': Schema(SchemaType.string,
+                description: 'Transaction amount (preserve k/tr format: "18k", "1tr", or plain number)'),
             'description': Schema(SchemaType.string,
                 description: 'Transaction description'),
             'category': Schema(SchemaType.string,
@@ -146,15 +147,20 @@ You are Moni AI, a smart financial assistant. Analyze user input and:
 
 1. If user inputs transaction info, IMMEDIATELY call addTransaction function with correct categorization:
 
+IMPORTANT: For amount parsing, preserve the original format including k/tr suffixes:
+- "18k" should be passed as "18k" not 18
+- "1tr" should be passed as "1tr" not 1
+- "500000" can be passed as 500000
+
 INCOME examples:
-- "trợ cấp 1tr" → category: "Thu nhập", type: "income"  
-- "lương 10tr" → category: "Lương", type: "income"
-- "bán hàng 500k" → category: "Thu nhập", type: "income"
+- "trợ cấp 1tr" → amount: "1tr", category: "Thu nhập", type: "income"  
+- "lương 10tr" → amount: "10tr", category: "Lương", type: "income"
+- "bán hàng 500k" → amount: "500k", category: "Thu nhập", type: "income"
 
 EXPENSE examples:  
-- "cơm sườn 20k" → category: "Ăn uống", type: "expense"
-- "taxi 50k" → category: "Đi lại", type: "expense"
-- "mua áo 200k" → category: "Mua sắm", type: "expense"
+- "cơm sườn 20k" → amount: "20k", category: "Ăn uống", type: "expense"
+- "taxi 50k" → amount: "50k", category: "Đi lại", type: "expense"
+- "mua áo 200k" → amount: "200k", category: "Mua sắm", type: "expense"
 
 2. If financial question, provide helpful answer.
 
@@ -211,7 +217,8 @@ User input: "$input"
       final categoryService = _getIt<CategoryService>();
 
       // Extract parameters with detailed logging
-      final amount = (args['amount'] as num).toDouble();
+      final rawAmount = args['amount'];
+      final amount = _parseAmount(rawAmount);
       final description = args['description'] as String;
       final categoryName = args['category'] as String? ?? 'Ăn uống';
       final typeStr = args['type'] as String? ?? 'expense';
@@ -291,7 +298,7 @@ User input: "$input"
 
       return '''✅ **Đã thêm giao dịch thành công!**
 
-💰 **Số tiền:** ${_formatCurrency(amount)}
+💰 **Số tiền:** ${CurrencyFormatter.formatAmountWithCurrency(amount)}
 📝 **Mô tả:** $description
 📁 **Danh mục:** $categoryName
 📅 **Ngày:** ${transactionDate.day}/${transactionDate.month}/${transactionDate.year}
@@ -399,18 +406,36 @@ Data: ${transactionData.toString()}
     cache[key] = value;
   }
 
-  /// Format currency with Vietnamese formatting
-  String _formatCurrency(double amount) {
-    final absAmount = amount.abs();
-    if (absAmount >= 1000000) {
-      final millions = absAmount / 1000000;
-      return '${millions.toStringAsFixed(millions == millions.roundToDouble() ? 0 : 1)}tr đ';
-    } else if (absAmount >= 1000) {
-      final thousands = absAmount / 1000;
-      return '${thousands.toStringAsFixed(thousands == thousands.roundToDouble() ? 0 : 1)}k đ';
-    } else {
-      return '${absAmount.toStringAsFixed(0)} đ';
+  /// Parse amount from various formats (18k, 1tr, 18000, etc.)
+  double _parseAmount(dynamic rawAmount) {
+    if (rawAmount is num) {
+      return rawAmount.toDouble();
     }
+    
+    if (rawAmount is String) {
+      // Remove spaces and convert to lowercase
+      String cleanAmount = rawAmount.trim().toLowerCase();
+      
+      // Remove currency symbols
+      cleanAmount = cleanAmount.replaceAll(RegExp(r'[đvndđồng,.]'), '');
+      
+      // Handle Vietnamese format: k = 1000, tr = 1000000
+      if (cleanAmount.endsWith('k')) {
+        final number = double.tryParse(cleanAmount.replaceAll('k', '')) ?? 0;
+        return number * 1000;
+      } else if (cleanAmount.endsWith('tr') || cleanAmount.endsWith('triệu')) {
+        final number = double.tryParse(cleanAmount.replaceAll(RegExp(r'(tr|triệu)'), '')) ?? 0;
+        return number * 1000000;
+      } else if (cleanAmount.endsWith('tỷ')) {
+        final number = double.tryParse(cleanAmount.replaceAll('tỷ', '')) ?? 0;
+        return number * 1000000000;
+      } else {
+        // Try to parse as regular number
+        return double.tryParse(cleanAmount) ?? 0;
+      }
+    }
+    
+    return 0;
   }
 
   /// Parse JSON response từ Gemini

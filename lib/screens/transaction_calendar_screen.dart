@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../constants/app_colors.dart';
 import '../models/transaction_model.dart';
 import '../services/transaction_service.dart';
+import '../utils/currency_formatter.dart';
 import '../widgets/custom_page_header.dart';
 
 class TransactionCalendarScreen extends StatefulWidget {
@@ -459,11 +460,6 @@ class _TransactionCalendarScreenState extends State<TransactionCalendarScreen> {
   }
 
   String _formatCurrency(double amount) {
-    final formatter = NumberFormat.currency(
-      locale: 'vi_VN',
-      symbol: 'đ',
-      decimalDigits: 0,
-    );
-    return formatter.format(amount);
+    return CurrencyFormatter.formatAmountWithCurrency(amount);
   }
 }

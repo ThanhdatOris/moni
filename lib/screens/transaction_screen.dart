@@ -8,6 +8,7 @@ import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/category_service.dart';
 import '../services/transaction_service.dart';
+import '../utils/currency_formatter.dart';
 
 final getIt = GetIt.instance;
 
@@ -569,10 +570,7 @@ class _TransactionListTabState extends State<TransactionListTab> {
                           ),
                         ),
                         title: Text(
-                          NumberFormat.currency(
-                            locale: 'vi_VN',
-                            symbol: 'đ',
-                          ).format(transaction.amount),
+                          CurrencyFormatter.formatAmountWithCurrency(transaction.amount),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: transaction.type == TransactionType.income

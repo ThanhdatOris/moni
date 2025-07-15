@@ -7,6 +7,7 @@ import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../services/category_service.dart';
 import '../services/transaction_service.dart';
+import '../utils/currency_formatter.dart';
 
 class RecentTransactions extends StatefulWidget {
   const RecentTransactions({super.key});
@@ -270,7 +271,7 @@ class _RecentTransactionsState extends State<RecentTransactions> {
 
           // Số tiền
           Text(
-            '${isExpense ? '-' : '+'}${NumberFormat('#,###', 'vi_VN').format(transaction.amount)}đ',
+            '${isExpense ? '-' : '+'}${CurrencyFormatter.formatAmountWithCurrency(transaction.amount)}',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,

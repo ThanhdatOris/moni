@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:moni/constants/app_colors.dart';
 
 import '../services/services.dart';
+import '../utils/currency_formatter.dart';
 
 /// A widget that displays financial overview as modern bank cards with glassmorphism effect.
 class FinancialOverviewCards extends StatefulWidget {
@@ -73,8 +74,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
   }
 
   String _formatCurrency(double amount) {
-    final formatter = NumberFormat('#,###', 'vi_VN');
-    return '${formatter.format(amount)}đ';
+    return CurrencyFormatter.formatAmountWithCurrency(amount);
   }
 
   String _getUserName() {

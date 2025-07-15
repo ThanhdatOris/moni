@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../constants/app_colors.dart';
 
@@ -95,7 +94,7 @@ class TransactionDateSelector extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          DateFormat('dd/MM/yyyy').format(selectedDate),
+                          _formatVietnameseDate(selectedDate),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -143,6 +142,23 @@ class TransactionDateSelector extends StatelessWidget {
               onSurface: AppColors.textPrimary,
             ),
             dialogBackgroundColor: Colors.white,
+            // Custom text style for Vietnamese
+            textTheme: Theme.of(context).textTheme.copyWith(
+              headlineSmall: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+              titleMedium: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+              bodyLarge: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 14,
+              ),
+            ),
           ),
           child: child!,
         );
@@ -152,6 +168,24 @@ class TransactionDateSelector extends StatelessWidget {
     if (picked != null && picked != selectedDate) {
       onDateChanged(picked);
     }
+  }
+
+  String _formatVietnameseDate(DateTime date) {
+    final List<String> weekdays = [
+      '', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'
+    ];
+    
+    final List<String> months = [
+      '', 'tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5', 'tháng 6',
+      'tháng 7', 'tháng 8', 'tháng 9', 'tháng 10', 'tháng 11', 'tháng 12'
+    ];
+
+    final weekday = weekdays[date.weekday];
+    final day = date.day;
+    final month = months[date.month];
+    final year = date.year;
+
+    return '$weekday, $day $month $year';
   }
 
   String _getRelativeDate() {
