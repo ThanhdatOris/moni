@@ -6,7 +6,7 @@ import '../widgets/financial_overview.dart';
 import '../widgets/home_banner.dart';
 import '../widgets/home_header.dart';
 import '../widgets/menubar.dart';
-import '../widgets/recent_transactions.dart';
+import '../widgets/home_recent_transactions.dart';
 import '../widgets/simple_offline_status_banner.dart';
 import 'chatbot_screen.dart';
 import 'profile/profile_screen.dart';
@@ -121,7 +121,7 @@ class _HomeTabContentState extends State<HomeTabContent> {
           const SizedBox(height: 20),
 
           // Recent Transactions
-          RecentTransactions(key: _recentTransactionsKey),
+          HomeRecentTransactions(key: _recentTransactionsKey),
 
           const SizedBox(height: 20),
 

@@ -9,14 +9,14 @@ import '../services/category_service.dart';
 import '../services/transaction_service.dart';
 import '../utils/currency_formatter.dart';
 
-class RecentTransactions extends StatefulWidget {
-  const RecentTransactions({super.key});
+class HomeRecentTransactions extends StatefulWidget {
+  const HomeRecentTransactions({super.key});
 
   @override
-  State<RecentTransactions> createState() => _RecentTransactionsState();
+  State<HomeRecentTransactions> createState() => _HomeRecentTransactionsState();
 }
 
-class _RecentTransactionsState extends State<RecentTransactions> {
+class _HomeRecentTransactionsState extends State<HomeRecentTransactions> {
   late final TransactionService _transactionService;
   late final CategoryService _categoryService;
 
