@@ -1,17 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 
 import '../constants/app_colors.dart';
 
-class TransactionAmountInput extends StatelessWidget {
+/// Custom formatter for currency input
+class CurrencyInputFormatter extends TextInputFormatter {
+  static final NumberFormat _formatter = NumberFormat('#,###', 'vi_VN');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    // Remove all non-digits
+    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    if (digitsOnly.isEmpty) {
+      return const TextEditingValue(text: '');
+    }
+
+    // Format with thousand separators
+    final num = int.parse(digitsOnly);
+    final formatted = _formatter.format(num);
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+class TransactionAmountInput extends StatefulWidget {
   final TextEditingController controller;
   final String? Function(String?)? validator;
+  final void Function(String)? onChanged;
 
   const TransactionAmountInput({
     super.key,
     required this.controller,
     this.validator,
+    this.onChanged,
   });
+
+  @override
+  State<TransactionAmountInput> createState() => _TransactionAmountInputState();
+}
+
+class _TransactionAmountInputState extends State<TransactionAmountInput> {
+  late final CurrencyInputFormatter _formatter;
+  
+  @override
+  void initState() {
+    super.initState();
+    _formatter = CurrencyInputFormatter();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,9 +110,13 @@ class TransactionAmountInput extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           TextFormField(
-            controller: controller,
+            controller: widget.controller,
             keyboardType: TextInputType.number,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              _formatter,
+            ],
+            onChanged: widget.onChanged,
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
@@ -123,7 +174,7 @@ class TransactionAmountInput extends StatelessWidget {
               fillColor: const Color(0xFFF8FAFC),
               contentPadding: const EdgeInsets.all(16),
             ),
-            validator: validator ?? _defaultValidator,
+            validator: widget.validator ?? _defaultValidator,
           ),
         ],
       ),

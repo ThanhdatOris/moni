@@ -22,7 +22,6 @@ class CategoryIconHelper {
         iconWidget = _buildCustomIcon(category.customIconUrl, size, color);
         break;
       case CategoryIconType.material:
-      default:
         iconWidget = _buildMaterialIcon(category.icon, size, color);
         break;
     }
@@ -100,6 +99,11 @@ class CategoryIconHelper {
         },
       ),
     );
+  }
+
+  /// Lấy IconData từ tên icon (public method)
+  static IconData getIconData(String iconName) {
+    return _getMaterialIconData(iconName);
   }
 
   /// Map tên icon string thành IconData
@@ -342,7 +346,6 @@ class CategoryIconHelper {
       case CategoryIconType.custom:
         return _buildCustomIcon(iconData, size, color);
       case CategoryIconType.material:
-      default:
         return _buildMaterialIcon(iconData, size, color);
     }
   }

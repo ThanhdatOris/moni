@@ -3,19 +3,28 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:logger/logger.dart';
 
 import '../../constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
+import '../../services/advanced_validation_service.dart';
 import '../../services/category_service.dart';
+import '../../services/duplicate_detection_service.dart';
+import '../../services/spending_limit_service.dart';
 import '../../services/transaction_service.dart';
+import '../../services/transaction_template_service.dart';
+import '../../services/transaction_validation_service.dart';
+import '../../widgets/advanced_validation_widgets.dart';
+import '../../widgets/duplicate_warning_dialog.dart';
+import '../../widgets/enhanced_category_selector.dart';
+import '../../widgets/enhanced_save_button.dart';
+import '../../widgets/spending_limit_widgets.dart';
 import '../../widgets/transaction_ai_scan_tab.dart';
 import '../../widgets/transaction_amount_input.dart';
-import '../../widgets/transaction_category_selector.dart';
 import '../../widgets/transaction_date_selector.dart';
 import '../../widgets/transaction_note_input.dart';
-import '../../widgets/transaction_quick_templates.dart';
-import '../../widgets/transaction_save_button.dart';
+import '../../widgets/transaction_template_widget.dart';
 import '../../widgets/transaction_type_selector.dart';
 
 class AddTransactionScreen extends StatefulWidget {
@@ -28,6 +37,7 @@ class AddTransactionScreen extends StatefulWidget {
 class _AddTransactionScreenState extends State<AddTransactionScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final Logger _logger = Logger();
 
   // Form controllers
   final _formKey = GlobalKey<FormState>();
@@ -107,7 +117,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
       // Create new subscription with improved error handling and retry logic
       _categoriesSubscription =
-          _categoryService.getCategories(type: _selectedType).listen(
+          _categoryService.getCategoriesOptimized(type: _selectedType).listen(
         (categories) {
           _timeoutTimer?.cancel();
           if (mounted && !hasTimedOut) {
@@ -130,8 +140,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         cancelOnError: false,
       );
 
-      // Set shorter timeout for better UX
-      _timeoutTimer = Timer(const Duration(seconds: 10), () {
+      // Set optimized timeout for better UX
+      _timeoutTimer = Timer(const Duration(seconds: 5), () {
         hasTimedOut = true;
         _categoriesSubscription?.cancel();
         if (mounted) {
@@ -153,7 +163,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
   /// Retry loading categories
   Future<void> _retryLoadCategories() async {
-    print('DEBUG: Retrying load categories'); // Debug log
+    _logger.d('Retrying load categories');
     await _loadCategories();
   }
 
@@ -357,9 +367,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
             const SizedBox(height: 16),
             TransactionAmountInput(
               controller: _amountController,
+              onChanged: (value) => _validateAmountRealTime(value),
             ),
             const SizedBox(height: 16),
-            TransactionCategorySelector(
+            EnhancedCategorySelector(
               selectedCategory: _selectedCategory,
               categories: _categories,
               isLoading: _isCategoriesLoading,
@@ -370,6 +381,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                 });
               },
               onRetry: _retryLoadCategories,
+              transactionType: _tabController.index == 0
+                  ? TransactionType.expense
+                  : TransactionType.income,
+              transactionNote:
+                  _noteController.text.isNotEmpty ? _noteController.text : null,
+              transactionTime: _selectedDate,
             ),
             const SizedBox(height: 16),
             TransactionDateSelector(
@@ -385,14 +402,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
               controller: _noteController,
             ),
             const SizedBox(height: 16),
-            TransactionQuickTemplates(
+            BudgetTransactionTemplateWidget(
               transactionType: _selectedType,
-              onTemplateSelected: _applyTemplate,
+              onTemplateSelected: _applyTransactionTemplate,
             ),
             const SizedBox(height: 20),
-            TransactionSaveButton(
+            EnhancedSaveButton(
               isLoading: _isLoading,
               onSave: _saveTransaction,
+              icon: Icons.save,
             ),
           ],
         ),
@@ -411,16 +429,65 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     );
   }
 
-  void _applyTemplate(Map<String, dynamic> template) {
+  void _applyTransactionTemplate(TransactionTemplate template) {
     setState(() {
-      _amountController.text = template['amount'] ?? '';
-      _noteController.text = template['note'] ?? template['name'] ?? '';
+      _amountController.text = template.amount.toString();
+      _noteController.text = template.note;
+      _selectedType = template.type;
+
+      // Tìm category từ template
+      final category = _categories.firstWhere(
+        (cat) => cat.categoryId == template.categoryId,
+        orElse: () => CategoryModel(
+          categoryId: template.categoryId,
+          userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+          name: template.categoryName,
+          type: template.type,
+          icon: 'category',
+          iconType: CategoryIconType.material,
+          color: 0xFF2196F3,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+          isDefault: false,
+          isSuggested: false,
+          isDeleted: false,
+        ),
+      );
+      _selectedCategory = category;
     });
   }
 
   Future<void> _saveTransaction() async {
     if (!_formKey.currentState!.validate()) {
       return;
+    }
+
+    // Enhanced validation using validation service
+    final validationResult = TransactionValidationService.validateTransaction(
+      amountText: _amountController.text,
+      category: _selectedCategory,
+      date: _selectedDate,
+      type: _selectedType,
+      note: _noteController.text,
+    );
+
+    if (!validationResult.isValid) {
+      // Show first error
+      final firstError = validationResult.errors.values.first;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(firstError),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    // Show warnings if any
+    if (validationResult.hasWarnings) {
+      final hasUserConfirmed =
+          await _showWarningDialog(validationResult.warnings);
+      if (!hasUserConfirmed) return;
     }
 
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -437,6 +504,105 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       return;
     }
 
+    // Tạo transaction model để kiểm tra trùng lặp
+    final newTransaction = TransactionModel(
+      transactionId: '',
+      userId: currentUser.uid,
+      amount: double.parse(_amountController.text),
+      categoryId: _selectedCategory!.categoryId,
+      type: _selectedType,
+      note: _noteController.text,
+      date: _selectedDate,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      isDeleted: false,
+    );
+
+    // Kiểm tra trùng lặp
+    final duplicateService = DuplicateDetectionService();
+    final recentTransactions = await _getRecentTransactions();
+    final duplicateResult = await duplicateService.detectDuplicates(
+      newTransaction: newTransaction,
+      recentTransactions: recentTransactions,
+    );
+
+    // Hiển thị cảnh báo trùng lặp nếu cần
+    if (duplicateResult.hasDuplicates) {
+      if (!mounted) return;
+      final shouldProceed = await BudgetDuplicateWarningDialog.show(
+        context,
+        duplicateResult,
+      );
+      if (!shouldProceed) return;
+    }
+
+    // Kiểm tra giới hạn chi tiêu (chỉ cho giao dịch chi tiêu)
+    if (_selectedType == TransactionType.expense) {
+      final limitService = SpendingLimitService();
+      final limitResult = await limitService.checkSpendingLimit(
+        amount: newTransaction.amount,
+        categoryId: _selectedCategory?.id ?? '',
+        transactionDate: _selectedDate,
+        recentTransactions: recentTransactions,
+      );
+
+      if (limitResult.hasWarnings) {
+        if (limitResult.shouldBlock) {
+          // Hiển thị cảnh báo và block
+          if (!mounted) return;
+          final shouldContinue = await BudgetLimitWarningDialog.show(
+            context,
+            limitResult,
+          );
+          if (!shouldContinue) return;
+        } else {
+          // Hiển thị cảnh báo nhưng cho phép tiếp tục
+          if (!mounted) return;
+          await BudgetLimitWarningDialog.show(
+            context,
+            limitResult,
+          );
+        }
+      }
+    }
+
+    // Advanced validation
+    final advancedValidationResult =
+        await AdvancedValidationService.validateSpendingPattern(
+      newTransaction: newTransaction,
+      recentTransactions: recentTransactions,
+      categories: _categories,
+    );
+
+    // Kiểm tra template suggestions
+    final templateService = TransactionTemplateService();
+    final templateSuggestions =
+        await templateService.suggestTemplatesFromFrequentTransactions(
+      recentTransactions,
+    );
+
+    // Hiển thị advanced validation nếu có warnings
+    if (advancedValidationResult.hasWarnings) {
+      if (!mounted) return;
+      final advancedResult = await BudgetAdvancedValidationDialog.show(
+        context,
+        validationResult: advancedValidationResult,
+      );
+
+      // TODO: Handle template suggestions separately
+      // Template suggestions: ${templateSuggestions.length} found
+
+      switch (advancedResult) {
+        case AdvancedValidationResult.cancel:
+          return;
+        case AdvancedValidationResult.setupRecurring:
+          // TODO: Implement recurring transaction setup
+          break;
+        case AdvancedValidationResult.proceed:
+          break;
+      }
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -446,7 +612,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         throw Exception('Vui lòng chọn danh mục');
       }
 
-      final amount = double.parse(_amountController.text);
+      final amount = validationResult.amount ?? 0.0;
       final transaction = TransactionModel(
         transactionId: '',
         userId: currentUser.uid,
@@ -555,8 +721,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           .where((cat) => cat.type == transactionType && !cat.isDeleted)
           .toList();
 
-      print(
-          'DEBUG: Looking for category "$categoryName" in ${filteredCategories.length} categories of type ${transactionType.value}');
+      _logger.d(
+          'Looking for category "$categoryName" in ${filteredCategories.length} categories of type ${transactionType.value}');
 
       if (categoryName.isNotEmpty && filteredCategories.isNotEmpty) {
         // Try exact name match first
@@ -577,7 +743,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
         if (matchedCategory.categoryId.isNotEmpty) {
           categoryId = matchedCategory.categoryId;
-          print('DEBUG: Found exact match: ${matchedCategory.name}');
+          _logger.d('Found exact match: ${matchedCategory.name}');
         } else {
           // Try partial name match
           for (final category in filteredCategories) {
@@ -588,7 +754,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                     .toLowerCase()
                     .contains(category.name.toLowerCase())) {
               categoryId = category.categoryId;
-              print('DEBUG: Found partial match: ${category.name}');
+              _logger.d('Found partial match: ${category.name}');
               break;
             }
           }
@@ -598,8 +764,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       // If no category found, use first available category of the same type
       if (categoryId.isEmpty && filteredCategories.isNotEmpty) {
         categoryId = filteredCategories.first.categoryId;
-        print(
-            'DEBUG: Using default category: ${filteredCategories.first.name}');
+        _logger.d('Using default category: ${filteredCategories.first.name}');
       }
 
       // If still no category, check if we need to create a default one
@@ -674,6 +839,88 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         });
       }
     }
+  }
+
+  /// Real-time validation cho amount input
+  void _validateAmountRealTime(String value) {
+    // Chỉ validate nếu có input
+    if (value.isNotEmpty) {
+      // Remove formatting to get raw number
+      final cleanValue = value.replaceAll(',', '');
+      final amount = double.tryParse(cleanValue);
+
+      if (amount != null &&
+          amount > TransactionValidationService.suspiciousAmount) {
+        // Show subtle warning cho số tiền lớn
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Số tiền khá lớn (${TransactionValidationService.formatCurrency(amount)})'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Lấy danh sách giao dịch gần đây để kiểm tra trùng lặp
+  Future<List<TransactionModel>> _getRecentTransactions() async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return [];
+
+      // Lấy giao dịch gần đây (tạm thời trả về danh sách rỗng)
+      // TODO: Implement actual recent transactions retrieval
+      return [];
+    } catch (e) {
+      _logger.e('Error getting recent transactions: $e');
+      return [];
+    }
+  }
+
+  /// Show warning dialog cho user confirmation
+  Future<bool> _showWarningDialog(Map<String, String> warnings) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.warning_amber, color: Colors.orange),
+                const SizedBox(width: 8),
+                Text('Cảnh báo'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: warnings.entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('• ', style: TextStyle(color: Colors.orange)),
+                      Expanded(child: Text(entry.value)),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Tiếp tục'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   @override

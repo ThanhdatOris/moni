@@ -658,4 +658,45 @@ class TransactionService {
       return Stream.value([]);
     }
   }
+
+  /// Lấy giao dịch theo khoảng thời gian cho AI services
+  Future<List<TransactionModel>> getTransactionsByDateRange(
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return [];
+
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('transactions')
+          .where('is_deleted', isEqualTo: false)
+          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .get();
+
+      final transactions = snapshot.docs.map((doc) {
+        return TransactionModel.fromMap(doc.data(), doc.id);
+      }).toList();
+
+      // Sort by date descending
+      transactions.sort((a, b) => b.date.compareTo(a.date));
+
+      _logger.i(
+          'Lấy ${transactions.length} giao dịch từ ${startDate.toIso8601String()} đến ${endDate.toIso8601String()}');
+      return transactions;
+    } catch (e) {
+      _logger.e('Lỗi lấy giao dịch theo khoảng thời gian: $e');
+      // Fallback: use the stream method and convert to list
+      try {
+        final stream = getTransactions(startDate: startDate, endDate: endDate);
+        return await stream.first;
+      } catch (fallbackError) {
+        _logger.e('Lỗi fallback getTransactionsByDateRange: $fallbackError');
+        return [];
+      }
+    }
+  }
 }

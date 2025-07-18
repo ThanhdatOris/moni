@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 
 import '../constants/app_colors.dart';
 
@@ -13,9 +14,15 @@ enum NotificationType {
 /// Service quản lý thông báo UI
 class NotificationService {
   static NotificationService? _instance;
-  static NotificationService get instance => _instance ??= NotificationService._();
-  
+  static NotificationService get instance =>
+      _instance ??= NotificationService._();
+
   NotificationService._();
+  
+  // Factory constructor for DI compatibility
+  factory NotificationService() => instance;
+  
+  final Logger _logger = Logger();
 
   /// Hiển thị SnackBar thành công
   void showSuccess(
@@ -120,13 +127,14 @@ class NotificationService {
           borderRadius: BorderRadius.circular(12),
         ),
         duration: duration,
-        action: action ?? SnackBarAction(
-          label: 'Đóng',
-          textColor: Colors.white70,
-          onPressed: () {
-            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          },
-        ),
+        action: action ??
+            SnackBarAction(
+              label: 'Đóng',
+              textColor: Colors.white70,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
         elevation: 6,
       ),
     );
@@ -278,6 +286,92 @@ class NotificationService {
   void hideLoadingDialog(BuildContext context) {
     if (context.mounted) {
       Navigator.of(context).pop();
+    }
+  }
+
+  /// Send intelligent alert for AI services
+  Future<void> sendIntelligentAlert({
+    required String title,
+    required String message,
+    required Map<String, dynamic> data,
+    String importance = 'medium',
+    BuildContext? context,
+  }) async {
+    try {
+      // If context is provided, show immediate notification
+      if (context != null && context.mounted) {
+        final notificationType = _getNotificationTypeFromImportance(importance);
+        _showSnackBar(context, message, notificationType);
+      }
+
+      // Here you would implement actual push notification or save to database
+      // For now, we'll just log it
+      _logger.i('Intelligent Alert: $title - $message');
+    } catch (e) {
+      _logger.e('Error sending intelligent alert: $e');
+    }
+  }
+
+  /// Send budget adjustment suggestion for AI services
+  Future<void> sendBudgetAdjustmentSuggestion(
+    Map<String, dynamic> suggestion, {
+    BuildContext? context,
+  }) async {
+    try {
+      final title = suggestion['title'] ?? 'Budget Adjustment Suggestion';
+      final message =
+          suggestion['message'] ?? 'New budget recommendation available';
+
+      // If context is provided, show immediate notification
+      if (context != null && context.mounted) {
+        showInfo(context, message);
+      }
+
+      // Here you would implement actual suggestion storage or notification
+      // For now, we'll just log it
+      _logger.i('Budget Adjustment Suggestion: $title - $message');
+    } catch (e) {
+      _logger.e('Error sending budget adjustment suggestion: $e');
+    }
+  }
+
+  /// Send intelligent report for AI services
+  Future<void> sendIntelligentReport(
+    List<dynamic> insights,
+    List<dynamic> recommendations, 
+    Map<String, dynamic> analytics,
+    String frequency, {
+    BuildContext? context,
+  }) async {
+    try {
+      final title = 'Financial Report - ${frequency.toUpperCase()}';
+      final message = 'Your ${frequency.toLowerCase()} financial report is ready with ${insights.length} insights and ${recommendations.length} recommendations';
+      
+      // If context is provided, show immediate notification
+      if (context != null && context.mounted) {
+        showInfo(context, message);
+      }
+      
+      // Here you would implement actual report generation or notification
+      // For now, we'll just log it
+      _logger.i('Intelligent Report: $title - $message');
+    } catch (e) {
+      _logger.e('Error sending intelligent report: $e');
+    }
+  }
+
+  /// Helper method to convert importance string to NotificationType
+  NotificationType _getNotificationTypeFromImportance(String importance) {
+    switch (importance.toLowerCase()) {
+      case 'high':
+      case 'critical':
+        return NotificationType.error;
+      case 'medium':
+        return NotificationType.warning;
+      case 'low':
+        return NotificationType.info;
+      default:
+        return NotificationType.info;
     }
   }
 }

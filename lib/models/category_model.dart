@@ -59,6 +59,9 @@ class CategoryModel {
     this.isDeleted = false,
   });
 
+  /// Getter for id to match AI services expectations
+  String get id => categoryId;
+
   /// Kiểm tra loại icon
   bool get isEmoji => iconType == CategoryIconType.emoji;
   bool get isMaterialIcon => iconType == CategoryIconType.material;

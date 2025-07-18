@@ -49,4 +49,10 @@ class CurrencyFormatter {
   static String formatVND(double amount) {
     return formatAmountWithCurrency(amount);
   }
+
+  /// Format currency (alias for formatAmountWithCurrency)
+  /// Ví dụ: 1000000 -> "1,000,000đ"
+  static String formatCurrency(double amount) {
+    return formatAmountWithCurrency(amount);
+  }
 }

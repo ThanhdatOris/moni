@@ -331,60 +331,6 @@ Lưu ý:
     }
   }
 
-  /// Parse JSON response cải tiến cho transaction extraction
-  Map<String, dynamic> _parseTransactionJsonResponse(String response) {
-    try {
-      // Tìm JSON trong response
-      final jsonStart = response.indexOf('{');
-      final jsonEnd = response.lastIndexOf('}');
-
-      if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart) {
-        final jsonString = response.substring(jsonStart, jsonEnd + 1);
-        _logger.i('Extracted JSON: $jsonString');
-
-        // Thử parse JSON
-        final decoded =
-            jsonString.replaceAll('```json', '').replaceAll('```', '').trim();
-
-        // Tạm thời return mock data với format chuẩn vì cần implement JSON parser
-        return {
-          'success': true,
-          'amount': 125000.0,
-          'description': 'Cơm tấm Sài Gòn',
-          'merchant': 'Quán cơm tấm Sài Gòn',
-          'type': 'expense',
-          'category_suggestion': 'Ăn uống',
-          'date': DateTime.now().toIso8601String().split('T')[0],
-          'confidence': 85,
-          'raw_text': 'COM TAM SAI GON - 125,000 VND',
-        };
-      }
-
-      // Nếu không tìm thấy JSON, trả về lỗi
-      return {
-        'success': false,
-        'error':
-            'Không thể đọc được thông tin từ ảnh. Ảnh có thể không rõ nét hoặc không chứa thông tin giao dịch.',
-        'amount': 0,
-        'description': 'Không đọc được',
-        'type': 'expense',
-        'category_suggestion': 'Khác',
-        'confidence': 0,
-      };
-    } catch (e) {
-      _logger.e('Lỗi khi parse JSON response: $e');
-      return {
-        'success': false,
-        'error': 'Lỗi xử lý dữ liệu từ AI.',
-        'amount': 0,
-        'description': 'Lỗi xử lý',
-        'type': 'expense',
-        'category_suggestion': 'Khác',
-        'confidence': 0,
-      };
-    }
-  }
-
   /// Xử lý đầu vào chat và trả về phản hồi từ AI
   Future<String> processChatInput(String input) async {
     try {
@@ -830,25 +776,26 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
     return 0;
   }
 
-  /// Parse JSON response từ Gemini
-  Map<String, dynamic> _parseJsonResponse(String response) {
-    try {
-      // Tìm và trích xuất JSON từ response
-      final jsonStart = response.indexOf('{');
-      final jsonEnd = response.lastIndexOf('}');
+  // Unused for now, but may be useful for future JSON parsing
+  // /// Parse JSON response từ Gemini
+  // Map<String, dynamic> _parseJsonResponse(String response) {
+  //   try {
+  //     // Tìm và trích xuất JSON từ response
+  //     final jsonStart = response.indexOf('{');
+  //     final jsonEnd = response.lastIndexOf('}');
 
-      if (jsonStart != -1 && jsonEnd != -1) {
-        // final jsonString = response.substring(jsonStart, jsonEnd + 1);
-        // Có thể cần parse JSON ở đây, nhưng để đơn giản tạm thời return map rỗng
-        return {};
-      }
+  //     if (jsonStart != -1 && jsonEnd != -1) {
+  //       // final jsonString = response.substring(jsonStart, jsonEnd + 1);
+  //       // Có thể cần parse JSON ở đây, nhưng để đơn giản tạm thời return map rỗng
+  //       return {};
+  //     }
 
-      return {};
-    } catch (e) {
-      _logger.e('Lỗi khi parse JSON response: $e');
-      return {};
-    }
-  }
+  //     return {};
+  //   } catch (e) {
+  //     _logger.e('Lỗi khi parse JSON response: $e');
+  //     return {};
+  //   }
+  // }
 
   /// Check rate limit and token usage before API call
   Future<void> _checkRateLimit() async {

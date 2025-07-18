@@ -18,6 +18,13 @@ import '../../services/offline_sync_service.dart';
 import '../../services/report_service.dart';
 import '../../services/transaction_service.dart';
 
+// New AI Services
+import '../../services/ai_analytics_service.dart';
+import '../../services/ai_budget_agent_service.dart';
+import '../../services/advanced_validation_service.dart';
+import '../../services/duplicate_detection_service.dart';
+import '../../services/transaction_validation_service.dart';
+
 final getIt = GetIt.instance;
 
 /// Simple Dependency Injection for Legacy Architecture
@@ -80,6 +87,21 @@ Future<void> init() async {
   getIt.registerLazySingleton<OCRService>(() => OCRService());
   getIt.registerLazySingleton<AIProcessorService>(() => AIProcessorService());
   getIt.registerLazySingleton<ChatLogService>(() => ChatLogService());
+
+  // ==========================================================================
+  // NEW AI SERVICES
+  // ==========================================================================
+  
+  // AI Analytics Service
+  getIt.registerLazySingleton<AIAnalyticsService>(() => AIAnalyticsService());
+  
+  // AI Budget Agent Service
+  getIt.registerLazySingleton<AIBudgetAgentService>(() => AIBudgetAgentService());
+  
+  // Validation Services
+  getIt.registerLazySingleton<AdvancedValidationService>(() => AdvancedValidationService());
+  getIt.registerLazySingleton<DuplicateDetectionService>(() => DuplicateDetectionService());
+  getIt.registerLazySingleton<TransactionValidationService>(() => TransactionValidationService());
 }
 
 /// Reset dependencies (for testing)
@@ -109,3 +131,10 @@ ReportService get reportService => getIt<ReportService>();
 OCRService get ocrService => getIt<OCRService>();
 AIProcessorService get aiProcessorService => getIt<AIProcessorService>();
 ChatLogService get chatLogService => getIt<ChatLogService>();
+
+// AI Services
+AIAnalyticsService get aiAnalyticsService => getIt<AIAnalyticsService>();
+AIBudgetAgentService get aiBudgetAgentService => getIt<AIBudgetAgentService>();
+AdvancedValidationService get advancedValidationService => getIt<AdvancedValidationService>();
+DuplicateDetectionService get duplicateDetectionService => getIt<DuplicateDetectionService>();
+TransactionValidationService get transactionValidationService => getIt<TransactionValidationService>();

@@ -4,12 +4,14 @@ import 'package:logger/logger.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
+import 'category_cache_service.dart';
 
 /// Service quản lý danh mục giao dịch
 class CategoryService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _logger = Logger();
+  final CategoryCacheService _cacheService = CategoryCacheService();
 
   /// Tạo danh mục mới
   Future<String> createCategory(CategoryModel category) async {
@@ -120,6 +122,62 @@ class CategoryService {
     } catch (e) {
       _logger.e('Lỗi gán danh mục cha: $e');
       throw Exception('Không thể gán danh mục cha: $e');
+    }
+  }
+
+  /// Lấy danh sách danh mục của người dùng với cache tối ưu
+  Stream<List<CategoryModel>> getCategoriesOptimized({
+    TransactionType? type,
+  }) async* {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        yield [];
+        return;
+      }
+
+      // Kiểm tra cache trước
+      if (type != null) {
+        final cachedCategories = _cacheService.getCachedCategories(type);
+        if (cachedCategories != null) {
+          yield cachedCategories;
+        }
+      }
+
+      // Lấy dữ liệu từ Firestore
+      Query query = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('categories')
+          .where('is_deleted', isEqualTo: false);
+
+      // Áp dụng filter type nếu có
+      if (type != null) {
+        query = query.where('type', isEqualTo: type.value);
+      } else {
+        query = query.orderBy('name');
+      }
+
+      await for (final snapshot in query.snapshots()) {
+        var categories = snapshot.docs.map((doc) {
+          return CategoryModel.fromMap(
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          );
+        }).toList();
+
+        // Sắp xếp trong client nếu cần
+        if (type != null) {
+          categories.sort((a, b) => a.name.compareTo(b.name));
+          // Cache kết quả
+          _cacheService.setCachedCategories(type, categories);
+        }
+
+        yield categories;
+      }
+    } catch (e) {
+      _logger.e('Lỗi lấy danh sách danh mục: $e');
+      yield [];
     }
   }
 

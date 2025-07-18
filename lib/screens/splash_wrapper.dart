@@ -23,43 +23,36 @@ class _SplashWrapperState extends State<SplashWrapper> {
   @override
   void initState() {
     super.initState();
-    _initializeApp();
+    _loadAuthState();
+    _waitMinimumTime();
   }
 
-  Future<void> _initializeApp() async {
+  Future<void> _loadAuthState() async {
+    // Lắng nghe auth state changes
+    final authCompleter = FirebaseAuth.instance.authStateChanges().first;
+
+    // Chờ auth state
+    await authCompleter;
+
+    if (mounted) {
+      setState(() {
+        _isAuthStateLoaded = true;
+      });
+    }
+  }
+
+  Future<void> _waitMinimumTime() async {
     // Bắt đầu timer cho thời gian hiển thị tối thiểu
     final minimumDisplayTime =
         Future.delayed(const Duration(milliseconds: 2500));
 
-    // Lắng nghe auth state changes
-    final authCompleter = FirebaseAuth.instance.authStateChanges().first;
-
-    // Kiểm tra offline sessions
-    final offlineService = GetIt.instance<OfflineService>();
-    final hasOfflineSession = await offlineService.hasOfflineSession();
-
-    // Chờ cả auth state và minimum time
-    await Future.wait([
-      authCompleter,
-      minimumDisplayTime,
-    ]);
+    // Chờ minimum time
+    await minimumDisplayTime;
 
     if (mounted) {
       setState(() {
         _isMinimumTimeCompleted = true;
-        _isAuthStateLoaded = true;
       });
-
-      // Debug log về offline session
-      if (kDebugMode && EnvironmentService.isDevelopment) {
-        print('🔍 OFFLINE SESSION CHECK:');
-        print('  - Has offline session: $hasOfflineSession');
-        if (hasOfflineSession) {
-          final session = await offlineService.getOfflineUserSession();
-          print('  - Offline userId: ${session['userId']}');
-          print('  - Offline userName: ${session['userName']}');
-        }
-      }
     }
   }
 

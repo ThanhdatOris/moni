@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:logger/logger.dart';
 
 import '../constants/app_colors.dart';
 import '../models/category_model.dart';
@@ -58,7 +59,7 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
           break;
         }
       } catch (e) {
-        print('Error loading expense categories: $e');
+        Logger().e('Error loading expense categories: $e');
       }
 
       // Load income categories  
@@ -69,7 +70,7 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
           break;
         }
       } catch (e) {
-        print('Error loading income categories: $e');
+        Logger().e('Error loading income categories: $e');
       }
 
       if (mounted) {
@@ -77,10 +78,10 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
           _categories = allCategories;
           _isCategoriesLoading = false;
         });
-        print('Loaded ${allCategories.length} categories for scan tab');
+        Logger().i('Loaded ${allCategories.length} categories for scan tab');
       }
     } catch (e) {
-      print('Error in _loadCategories: $e');
+      Logger().e('Error in _loadCategories: $e');
       if (mounted) {
         setState(() {
           _categories = [];

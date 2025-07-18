@@ -254,14 +254,6 @@ class OCRService {
       'salary',
       'bonus'
     ];
-    final expenseKeywords = [
-      'chi',
-      'mua',
-      'thanh toán',
-      'payment',
-      'bill',
-      'hóa đơn'
-    ];
 
     final lowerText = text.toLowerCase();
 
