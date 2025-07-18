@@ -12,6 +12,20 @@ import '../utils/currency_formatter.dart';
 
 final getIt = GetIt.instance;
 
+/// ❌ DEPRECATED: TransactionScreen
+/// 
+/// Lý do deprecate:
+/// - Overlap chức năng với AddTransactionScreen (transaction/add_transaction_screen.dart)
+/// - AddTransactionScreen hiện đại hơn với AI scan và better UX
+/// - TransactionListTab overlap với TransactionHistoryScreen
+/// - Không được sử dụng trong navigation flow hiện tại
+/// 
+/// Migration:
+/// - Dùng AddTransactionScreen cho thêm giao dịch
+/// - Dùng TransactionHistoryScreen cho xem lịch sử giao dịch
+/// 
+/// TODO: Remove this file sau khi confirm không còn dependency
+@Deprecated('Use AddTransactionScreen and TransactionHistoryScreen instead')
 class TransactionScreen extends StatefulWidget {
   const TransactionScreen({super.key});
 

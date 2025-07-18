@@ -10,9 +10,9 @@ import '../widgets/home_recent_transactions.dart';
 import '../widgets/menubar.dart';
 import '../widgets/simple_offline_status_banner.dart';
 import 'chatbot_screen.dart';
+import 'history/transaction_history_screen.dart';
 import 'profile/profile_screen.dart';
 import 'transaction/add_transaction_screen.dart';
-import 'transaction_calendar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> get _widgetOptions => [
         HomeTabContent(key: _homeTabKey),
-        const TransactionCalendarScreen(),
+        const TransactionHistoryScreen(),
         const Center(),
         const ChatbotPage(),
         const ProfileScreen(),

@@ -52,7 +52,7 @@ class Menubar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildNavItem(Icons.home_filled, 0, 'Trang chủ'),
-                _buildNavItem(Icons.receipt_long_rounded, 1, 'Giao dịch'),
+                _buildNavItem(Icons.history_rounded, 1, 'Lịch sử'),
                 const SizedBox(width: 60), // Khoảng trống cho nút giữa
                 _buildNavItem(Icons.chat_bubble_rounded, 3, 'Trợ lý'),
                 _buildNavItem(Icons.person_rounded, 4, 'Cá nhân'),

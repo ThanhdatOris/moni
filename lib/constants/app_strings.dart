@@ -2,14 +2,14 @@ class AppStrings {
   // App
   static const String appName = 'Moni';
   static const String appSubtitle = 'Quản lý tài chính thông minh';
-  
+
   // Bottom Navigation
   static const String home = 'Trang chủ';
-  static const String transaction = 'Giao dịch';
-  static const String category = 'Danh mục';
+  static const String transactionHistory = 'Lịch sử';
+  static const String addTransactionNav = 'Thêm';
   static const String analytics = 'Phân tích';
   static const String assistant = 'Trợ lý';
-  
+
   // Home Screen
   static const String welcome = 'Chào mừng';
   static const String financialStatus = 'Tình hình thu chi';
@@ -18,7 +18,7 @@ class AppStrings {
   static const String totalIncome = 'Tổng thu';
   static const String totalExpense = 'Tổng chi';
   static const String balance = 'Số dư';
-  
+
   // Transaction Screen
   static const String addTransaction = 'Thêm giao dịch';
   static const String editTransaction = 'Sửa giao dịch';
@@ -33,7 +33,7 @@ class AppStrings {
   static const String scanReceipt = 'Quét hóa đơn';
   static const String inputByImage = 'Nhập bằng ảnh';
   static const String quickInput = 'Nhập nhanh';
-  
+
   // Category Screen
   static const String incomeCategory = 'Danh mục thu';
   static const String expenseCategory = 'Danh mục chi';
@@ -43,7 +43,7 @@ class AppStrings {
   static const String categoryName = 'Tên danh mục';
   static const String categoryIcon = 'Biểu tượng';
   static const String categoryColor = 'Màu sắc';
-  
+
   // Analytics Screen
   static const String monthlyReport = 'Báo cáo tháng';
   static const String yearlyReport = 'Báo cáo năm';
@@ -51,13 +51,13 @@ class AppStrings {
   static const String incomeVsExpense = 'Thu chi so sánh';
   static const String budgetAlert = 'Cảnh báo ngân sách';
   static const String forecast = 'Dự báo';
-  
+
   // Assistant Screen
   static const String askAssistant = 'Hỏi trợ lý';
   static const String voiceInput = 'Nhập bằng giọng nói';
   static const String textInput = 'Nhập văn bản';
   static const String suggestedQuestions = 'Câu hỏi gợi ý';
-  
+
   // Common
   static const String save = 'Lưu';
   static const String cancel = 'Hủy';
@@ -75,7 +75,7 @@ class AppStrings {
   static const String success = 'Thành công';
   static const String warning = 'Cảnh báo';
   static const String info = 'Thông tin';
-  
+
   // Error Messages
   static const String errorAmount = 'Vui lòng nhập số tiền hợp lệ';
   static const String errorCategory = 'Vui lòng chọn danh mục';
@@ -84,7 +84,7 @@ class AppStrings {
   static const String errorNetwork = 'Lỗi kết nối mạng';
   static const String errorServer = 'Lỗi máy chủ';
   static const String errorUnknown = 'Lỗi không xác định';
-  
+
   // Success Messages
   static const String successAddTransaction = 'Thêm giao dịch thành công';
   static const String successEditTransaction = 'Cập nhật giao dịch thành công';
@@ -92,4 +92,4 @@ class AppStrings {
   static const String successAddCategory = 'Thêm danh mục thành công';
   static const String successEditCategory = 'Cập nhật danh mục thành công';
   static const String successDeleteCategory = 'Xóa danh mục thành công';
-} 
+}
