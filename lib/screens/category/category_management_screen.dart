@@ -187,7 +187,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -232,7 +232,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
         decoration: BoxDecoration(
           gradient: isSelected
               ? LinearGradient(
-                  colors: [color, color.withOpacity(0.8)],
+                  colors: [color, color.withValues(alpha:0.8)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
@@ -272,7 +272,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -293,7 +293,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
               decoration: InputDecoration(
                 hintText: 'Tìm kiếm danh mục...',
                 hintStyle: TextStyle(
-                  color: AppColors.textSecondary.withOpacity(0.7),
+                  color: AppColors.textSecondary.withValues(alpha:0.7),
                   fontSize: 16,
                 ),
                 border: InputBorder.none,
@@ -352,7 +352,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
           Icon(
             Icons.category_outlined,
             size: 64,
-            color: AppColors.textSecondary.withOpacity(0.5),
+            color: AppColors.textSecondary.withValues(alpha:0.5),
           ),
           const SizedBox(height: 16),
           Text(
@@ -373,7 +373,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
                 : 'Bấm nút + để tạo danh mục đầu tiên',
             style: TextStyle(
               fontSize: 14,
-              color: AppColors.textSecondary.withOpacity(0.7),
+              color: AppColors.textSecondary.withValues(alpha:0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -424,7 +424,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -478,7 +478,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
               margin: const EdgeInsets.only(left: 8),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
+                color: AppColors.primary.withValues(alpha:0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(

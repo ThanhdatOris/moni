@@ -32,10 +32,10 @@ class CategoryIconHelper {
         width: size + 16,
         height: size + 16,
         decoration: BoxDecoration(
-          color: backgroundColor ?? Color(category.color).withOpacity(0.1),
+          color: backgroundColor ?? Color(category.color).withValues(alpha: 0.1),
           shape: BoxShape.circle,
           border: Border.all(
-            color: Color(category.color).withOpacity(0.3),
+            color: Color(category.color).withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -314,13 +314,13 @@ class CategoryIconHelper {
       height: size + 16,
       decoration: BoxDecoration(
         color: isSelected
-            ? (categoryColor ?? Colors.blue).withOpacity(0.2)
-            : Colors.grey.withOpacity(0.1),
+            ? (categoryColor ?? Colors.blue).withValues(alpha:0.2)
+            : Colors.grey.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isSelected
               ? (categoryColor ?? Colors.blue)
-              : Colors.grey.withOpacity(0.3),
+              : Colors.grey.withValues(alpha:0.3),
           width: isSelected ? 2 : 1,
         ),
       ),

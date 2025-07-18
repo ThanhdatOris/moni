@@ -122,7 +122,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -153,7 +153,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -183,7 +183,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -200,7 +200,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
                 Icon(
                   Icons.category_outlined,
                   size: 48,
-                  color: AppColors.textSecondary.withOpacity(0.5),
+                  color: AppColors.textSecondary.withValues(alpha:0.5),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -230,7 +230,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
             gradient: LinearGradient(
               colors: [
                 AppColors.primary,
-                AppColors.primary.withOpacity(0.8),
+                AppColors.primary.withValues(alpha:0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(8),
@@ -291,10 +291,10 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     return Container(
       width: 60,
       decoration: BoxDecoration(
-        color: Color(category.color).withOpacity(0.1),
+        color: Color(category.color).withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Color(category.color).withOpacity(0.3),
+          color: Color(category.color).withValues(alpha:0.3),
           width: 1,
         ),
       ),
