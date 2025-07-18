@@ -16,25 +16,25 @@ class HistorySummaryItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, color: Colors.white, size: 20),
-        const SizedBox(height: 4),
+        Icon(icon, color: Colors.white, size: 16),
+        const SizedBox(height: 3),
         Text(
           title,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 12,
+            fontSize: 11,
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 1),
         Text(
           amount,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.bold,
           ),
         ),
       ],
     );
   }
-} 
+}

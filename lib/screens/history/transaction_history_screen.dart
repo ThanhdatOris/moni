@@ -320,6 +320,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                 ],
               ),
             ),
+
           ],
         ),
       ),
@@ -327,82 +328,97 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
   }
 
   Widget _buildCalendarView() {
-    return Column(
-      children: [
+    return CustomScrollView(
+      slivers: [
         // Calendar Grid
-        HistoryCalendarGrid(
-          focusedDay: _focusedDay,
-          selectedDay: _selectedDay,
-          transactions: _transactions,
-          onMonthChanged: _changeMonth,
-          onMonthYearPicker: _showMonthYearPicker,
-          onDaySelected: (day) {
-            if (!mounted) return;
-            setState(() {
-              _selectedDay = day;
-              _selectedDayTransactions = _getTransactionsForDay(day);
-            });
-          },
+        SliverToBoxAdapter(
+          child: HistoryCalendarGrid(
+            focusedDay: _focusedDay,
+            selectedDay: _selectedDay,
+            transactions: _transactions,
+            onMonthChanged: _changeMonth,
+            onMonthYearPicker: _showMonthYearPicker,
+            onDaySelected: (day) {
+              if (!mounted) return;
+              setState(() {
+                _selectedDay = day;
+                _selectedDayTransactions = _getTransactionsForDay(day);
+              });
+            },
+          ),
         ),
 
         // Selected day summary
         if (_selectedDayTransactions.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [AppColors.primary, AppColors.primaryDark],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(10),
               ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: HistorySummaryItem(
-                    title: 'Thu nhập',
-                    amount: _formatCurrency(
-                        _getDayTotal(_selectedDay, TransactionType.income)),
-                    icon: Icons.trending_up,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: HistorySummaryItem(
+                      title: 'Thu nhập',
+                      amount: _formatCurrency(
+                          _getDayTotal(_selectedDay, TransactionType.income)),
+                      icon: Icons.trending_up,
+                    ),
                   ),
-                ),
-                Container(
-                  width: 1,
-                  height: 32,
-                  color: Colors.white.withValues(alpha: 0.3),
-                ),
-                Expanded(
-                  child: HistorySummaryItem(
-                    title: 'Chi tiêu',
-                    amount: _formatCurrency(
-                        _getDayTotal(_selectedDay, TransactionType.expense)),
-                    icon: Icons.trending_down,
+                  Container(
+                    width: 1,
+                    height: 24,
+                    color: Colors.white.withValues(alpha: 0.3),
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: HistorySummaryItem(
+                      title: 'Chi tiêu',
+                      amount: _formatCurrency(
+                          _getDayTotal(_selectedDay, TransactionType.expense)),
+                      icon: Icons.trending_down,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
+        // Loading indicator
+        if (_isLoading)
+          const SliverFillRemaining(
+            child: Center(child: CircularProgressIndicator()),
+          ),
+
+        // Empty state
+        if (!_isLoading && _selectedDayTransactions.isEmpty)
+          SliverFillRemaining(
+            child: HistoryEmptyState(selectedDay: _selectedDay),
+          ),
+
         // Transactions list for selected day
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _selectedDayTransactions.isEmpty
-                  ? HistoryEmptyState(selectedDay: _selectedDay)
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _selectedDayTransactions.length,
-                      itemBuilder: (context, index) {
-                        return HistoryTransactionItem(
-                          transaction: _selectedDayTransactions[index],
-                          onTap: () => _navigateToTransactionDetail(
-                              _selectedDayTransactions[index]),
-                        );
-                      },
-                    ),
-        ),
+        if (!_isLoading && _selectedDayTransactions.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  return HistoryTransactionItem(
+                    transaction: _selectedDayTransactions[index],
+                    onTap: () => _navigateToTransactionDetail(
+                        _selectedDayTransactions[index]),
+                  );
+                },
+                childCount: _selectedDayTransactions.length,
+              ),
+            ),
+          ),
       ],
     );
   }
