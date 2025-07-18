@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'constants/app_colors.dart';
 import 'constants/app_strings.dart';
+import 'core/di/injection_container.dart' as di;
 import 'screens/splash_wrapper.dart';
 import 'services/auth_service.dart';
 import 'services/environment_service.dart';
 import 'services/firebase_service.dart';
-import 'services/service_locator.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,16 +40,18 @@ void main() async {
   // Khởi tạo Firebase
   await FirebaseService.initialize();
 
-  // Tạo tài khoản test nếu cần
-  try {
-    await AuthServiceTest.createTestAccount();
-    await AuthServiceTest.createBackupTestAccount();
-  } catch (e) {
-    //print('Lỗi tạo tài khoản test: $e');
+  // Tạo tài khoản test chỉ trong production (không chạy khi debug)
+  if (EnvironmentService.isProduction) {
+    try {
+      await AuthServiceTest.createTestAccount();
+      await AuthServiceTest.createBackupTestAccount();
+    } catch (e) {
+      //print('Lỗi tạo tài khoản test: $e');
+    }
   }
 
   // Setup dependency injection
-  setupServiceLocator();
+  await di.init();
 
   runApp(const MyApp());
 }
@@ -60,6 +63,20 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: AppStrings.appName,
+      debugShowCheckedModeBanner: false,
+      
+      // Localization configuration
+      locale: const Locale('vi', 'VN'),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('vi', 'VN'), // Vietnamese
+        Locale('en', 'US'), // English
+      ],
+      
       theme: ThemeData.light().copyWith(
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         primaryColor: AppColors.primary,

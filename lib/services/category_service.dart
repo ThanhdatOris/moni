@@ -243,7 +243,8 @@ class CategoryService {
           .get();
 
       if (doc.exists && doc.data() != null) {
-        return CategoryModel.fromMap(doc.data()!, doc.id);
+        return CategoryModel.fromMap(
+            doc.data() as Map<String, dynamic>, doc.id);
       }
       return null;
     } catch (e) {
@@ -307,22 +308,72 @@ class CategoryService {
       final now = DateTime.now();
       final batch = _firestore.batch();
 
-      // Danh mục chi tiêu
+      // Danh mục chi tiêu với emoji
       final expenseCategories = [
-        {'name': 'Ăn uống', 'icon': 'restaurant', 'color': 0xFFFF6B35},
-        {'name': 'Di chuyển', 'icon': 'directions_car', 'color': 0xFF2196F3},
-        {'name': 'Mua sắm', 'icon': 'shopping_cart', 'color': 0xFF9C27B0},
-        {'name': 'Giải trí', 'icon': 'movie', 'color': 0xFFFF9800},
-        {'name': 'Hóa đơn', 'icon': 'receipt', 'color': 0xFFF44336},
-        {'name': 'Y tế', 'icon': 'local_hospital', 'color': 0xFF4CAF50},
+        {
+          'name': 'Ăn uống',
+          'icon': '🍽️',
+          'iconType': 'emoji',
+          'color': 0xFFFF6B35
+        },
+        {
+          'name': 'Di chuyển',
+          'icon': '🚗',
+          'iconType': 'emoji',
+          'color': 0xFF2196F3
+        },
+        {
+          'name': 'Mua sắm',
+          'icon': '🛒',
+          'iconType': 'emoji',
+          'color': 0xFF9C27B0
+        },
+        {
+          'name': 'Giải trí',
+          'icon': '🎬',
+          'iconType': 'emoji',
+          'color': 0xFFFF9800
+        },
+        {
+          'name': 'Hóa đơn',
+          'icon': '🧾',
+          'iconType': 'emoji',
+          'color': 0xFFF44336
+        },
+        {
+          'name': 'Y tế',
+          'icon': '🏥',
+          'iconType': 'emoji',
+          'color': 0xFF4CAF50
+        },
       ];
 
-      // Danh mục thu nhập
+      // Danh mục thu nhập với emoji
       final incomeCategories = [
-        {'name': 'Lương', 'icon': 'work', 'color': 0xFF4CAF50},
-        {'name': 'Thưởng', 'icon': 'card_giftcard', 'color': 0xFFFFD700},
-        {'name': 'Đầu tư', 'icon': 'trending_up', 'color': 0xFF00BCD4},
-        {'name': 'Khác', 'icon': 'more_horiz', 'color': 0xFF607D8B},
+        {
+          'name': 'Lương',
+          'icon': '💼',
+          'iconType': 'emoji',
+          'color': 0xFF4CAF50
+        },
+        {
+          'name': 'Thưởng',
+          'icon': '🎁',
+          'iconType': 'emoji',
+          'color': 0xFFFFD700
+        },
+        {
+          'name': 'Đầu tư',
+          'icon': '📈',
+          'iconType': 'emoji',
+          'color': 0xFF00BCD4
+        },
+        {
+          'name': 'Khác',
+          'icon': '💰',
+          'iconType': 'emoji',
+          'color': 0xFF607D8B
+        },
       ];
 
       // Tạo danh mục chi tiêu
@@ -339,6 +390,8 @@ class CategoryService {
           name: categoryData['name'] as String,
           type: TransactionType.expense,
           icon: categoryData['icon'] as String,
+          iconType: CategoryIconType.fromString(
+              categoryData['iconType'] as String? ?? 'material'),
           color: categoryData['color'] as int,
           isDefault: true,
           parentId: null,
@@ -364,6 +417,8 @@ class CategoryService {
           name: categoryData['name'] as String,
           type: TransactionType.income,
           icon: categoryData['icon'] as String,
+          iconType: CategoryIconType.fromString(
+              categoryData['iconType'] as String? ?? 'material'),
           color: categoryData['color'] as int,
           isDefault: true,
           parentId: null,
@@ -395,7 +450,8 @@ class CategoryService {
           .get();
 
       return snapshot.docs.map((doc) {
-        return CategoryModel.fromMap(doc.data(), doc.id);
+        return CategoryModel.fromMap(
+            doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
     } catch (e) {
       _logger.e('Lỗi lấy danh mục người dùng: $e');

@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
-import '../services/category_service.dart';
-import '../services/service_locator.dart';
+import '../services/environment_service.dart';
+import '../services/offline_service.dart';
 import 'auth_screen.dart';
 import 'home_screen.dart';
 import 'splash_screen.dart';
@@ -17,7 +19,6 @@ class SplashWrapper extends StatefulWidget {
 class _SplashWrapperState extends State<SplashWrapper> {
   bool _isMinimumTimeCompleted = false;
   bool _isAuthStateLoaded = false;
-  User? _currentUser;
 
   @override
   void initState() {
@@ -33,34 +34,32 @@ class _SplashWrapperState extends State<SplashWrapper> {
     // Lắng nghe auth state changes
     final authCompleter = FirebaseAuth.instance.authStateChanges().first;
 
+    // Kiểm tra offline sessions
+    final offlineService = GetIt.instance<OfflineService>();
+    final hasOfflineSession = await offlineService.hasOfflineSession();
+
     // Chờ cả auth state và minimum time
-    final results = await Future.wait([
+    await Future.wait([
       authCompleter,
       minimumDisplayTime,
     ]);
-
-    final user = results[0] as User?;
 
     if (mounted) {
       setState(() {
         _isMinimumTimeCompleted = true;
         _isAuthStateLoaded = true;
-        _currentUser = user;
       });
 
-      // Nếu user đã đăng nhập, tạo danh mục mặc định
-      if (user != null) {
-        await _createDefaultCategories();
+      // Debug log về offline session
+      if (kDebugMode && EnvironmentService.isDevelopment) {
+        print('🔍 OFFLINE SESSION CHECK:');
+        print('  - Has offline session: $hasOfflineSession');
+        if (hasOfflineSession) {
+          final session = await offlineService.getOfflineUserSession();
+          print('  - Offline userId: ${session['userId']}');
+          print('  - Offline userName: ${session['userName']}');
+        }
       }
-    }
-  }
-
-  Future<void> _createDefaultCategories() async {
-    try {
-      final categoryService = serviceLocator<CategoryService>();
-      await categoryService.createDefaultCategories();
-    } catch (e) {
-      // Lỗi tạo danh mục mặc định - không quan trọng lắm
     }
   }
 
@@ -71,11 +70,63 @@ class _SplashWrapperState extends State<SplashWrapper> {
       return const SplashScreen();
     }
 
-    // Chuyển đến màn hình phù hợp
-    if (_currentUser != null) {
-      return const HomeScreen();
-    } else {
-      return const AuthScreen();
-    }
+    // Sử dụng StreamBuilder để lắng nghe auth state changes trong thời gian thực
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+
+        // Debug logging để track auth state
+        if (kDebugMode && EnvironmentService.isDevelopment) {
+          print('🔍 DEBUG AUTH STATE:');
+          print('  - Has data: ${snapshot.hasData}');
+          print('  - User: ${snapshot.data?.uid}');
+          print('  - Is Anonymous: ${snapshot.data?.isAnonymous}');
+          print('  - Email: ${snapshot.data?.email}');
+          print('  - Display Name: ${snapshot.data?.displayName}');
+        }
+
+        // Chuyển đến màn hình phù hợp
+        final user = snapshot.data;
+
+        if (user != null) {
+          // Có Firebase user (cả anonymous và registered) -> vào HomeScreen
+          // HomeScreen sẽ tự xử lý hiển thị UI phù hợp cho từng loại user
+          if (kDebugMode && EnvironmentService.isDevelopment) {
+            print(
+                '✅ Navigating to HomeScreen - User type: ${user.isAnonymous ? "Anonymous" : "Registered"}');
+          }
+          return const HomeScreen();
+        } else {
+          // Không có Firebase user - kiểm tra offline sessions
+          return FutureBuilder<bool>(
+            future: GetIt.instance<OfflineService>().hasOfflineSession(),
+            builder: (context, offlineSnapshot) {
+              if (offlineSnapshot.connectionState == ConnectionState.waiting) {
+                return const SplashScreen();
+              }
+
+              final hasOfflineSession = offlineSnapshot.data ?? false;
+
+              if (hasOfflineSession) {
+                // Có offline session -> vào HomeScreen
+                if (kDebugMode && EnvironmentService.isDevelopment) {
+                  print('✅ Navigating to HomeScreen - Offline anonymous user');
+                }
+                return const HomeScreen();
+              } else {
+                // Không có user nào (cả Firebase và offline) -> vào AuthScreen
+                if (kDebugMode && EnvironmentService.isDevelopment) {
+                  print('➡️ Navigating to AuthScreen - No user found');
+                }
+                return const AuthScreen();
+              }
+            },
+          );
+        }
+      },
+    );
   }
 }

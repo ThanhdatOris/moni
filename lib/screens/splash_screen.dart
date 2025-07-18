@@ -14,17 +14,19 @@ class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late AnimationController _fadeController;
   late AnimationController _scaleController;
-  late AnimationController _rotationController;
+  late AnimationController _loadingController;
+  late AnimationController _pulseController;
 
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
-  late Animation<double> _rotationAnimation;
+  late Animation<double> _loadingAnimation;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
 
-    // Cấu hình màu thanh trạng thái cho splash screen
+    // Configure status bar for splash screen
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -33,7 +35,7 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    // Khởi tạo animation controllers
+    // Initialize animation controllers
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
@@ -44,12 +46,17 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    _rotationController = AnimationController(
-      duration: const Duration(milliseconds: 3000),
+    _loadingController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
-    );
+    )..repeat();
 
-    // Khởi tạo animations
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    // Initialize animations
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -66,28 +73,40 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.elasticOut,
     ));
 
-    _rotationAnimation = Tween<double>(
+    _loadingAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
     ).animate(CurvedAnimation(
-      parent: _rotationController,
+      parent: _loadingController,
+      curve: Curves.linear,
+    ));
+
+    _pulseAnimation = Tween<double>(
+      begin: 0.9,
+      end: 1.1,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
       curve: Curves.easeInOut,
     ));
 
-    // Bắt đầu animations
+    // Start animations
     _startAnimations();
   }
 
   void _startAnimations() {
-    // Animation sequence
-    _fadeController.forward();
-
+    if (mounted) {
+      _fadeController.forward();
+    }
     Future.delayed(const Duration(milliseconds: 300), () {
-      _scaleController.forward();
+      if (mounted) {
+        _scaleController.forward();
+      }
     });
-
     Future.delayed(const Duration(milliseconds: 800), () {
-      _rotationController.repeat();
+      if (mounted) {
+        _loadingController.forward();
+        _pulseController.forward();
+      }
     });
   }
 
@@ -95,7 +114,8 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _fadeController.dispose();
     _scaleController.dispose();
-    _rotationController.dispose();
+    _loadingController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -104,37 +124,29 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // Background image
-          Container(
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/images/Background.png'),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-
-          // Gradient overlay để làm tối background một chút
+          // Background image with gradient
           Container(
             decoration: BoxDecoration(
+              image: const DecorationImage(
+                image: AssetImage('assets/images/splash_bg.png'),
+                fit: BoxFit.cover,
+              ),
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
-                  Colors.black.withValues(alpha: 0.3),
-                  Colors.black.withValues(alpha: 0.1),
-                  Colors.black.withValues(alpha: 0.4),
+                  AppColors.primary.withValues(alpha: 0.2),
+                  AppColors.primaryDark.withValues(alpha: 0.4),
                 ],
               ),
             ),
           ),
-
           // Content
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo với animation
+                // Animated logo
                 AnimatedBuilder(
                   animation: Listenable.merge([
                     _fadeAnimation,
@@ -146,113 +158,67 @@ class _SplashScreenState extends State<SplashScreen>
                       child: FadeTransition(
                         opacity: _fadeAnimation,
                         child: Container(
-                          width: 120,
-                          height: 120,
+                          width: 200,
+                          height: 100,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.3),
-                                blurRadius: 30,
+                                color: AppColors.primary.withValues(alpha: 0.5),
+                                blurRadius: 15,
                                 offset: const Offset(0, 10),
                               ),
                             ],
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(60),
-                            child: Image.asset(
-                              'assets/images/logo.png',
-                              fit: BoxFit.cover,
-                            ),
+                          child: Image.asset(
+                            'assets/images/splash_logo.png',
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
                     );
                   },
                 ),
-
-                // Slogan với animation
+                const SizedBox(height: 20),
+                // Slogan
                 FadeTransition(
                   opacity: _fadeAnimation,
-                  child: Column(
-                    children: [
-                      Text(
-                        'Quản lý tài chính thông minh',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontWeight: FontWeight.w300,
-                          letterSpacing: 1,
+                  child: Text(
+                    'Smart Finance for the Young',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textWhite.withValues(alpha: 0.95),
+                      letterSpacing: 1.5,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                      ],
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-
-                const SizedBox(height: 80),
-
-                // Loading indicator với animation
+                const SizedBox(height: 20),
+                // New loading indicator
                 AnimatedBuilder(
-                  animation: _rotationAnimation,
+                  animation:
+                      Listenable.merge([_loadingAnimation, _pulseAnimation]),
                   builder: (context, child) {
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Column(
-                        children: [
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Loading circle background
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.2),
-                                    width: 3,
-                                  ),
-                                ),
-                              ),
-
-                              // Rotating loading indicator
-                              Transform.rotate(
-                                angle: _rotationAnimation.value * 2 * 3.14159,
-                                child: Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    gradient: SweepGradient(
-                                      colors: [
-                                        Colors.transparent,
-                                        AppColors.primary,
-                                        Colors.transparent,
-                                      ],
-                                      stops: const [0.0, 0.5, 1.0],
-                                    ),
-                                  ),
-                                  child: Container(
-                                    margin: const EdgeInsets.all(3),
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.transparent,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            'Đang khởi tạo...',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontWeight: FontWeight.w300,
-                            ),
-                          ),
-                        ],
+                    return Transform.scale(
+                      scale: _pulseAnimation.value,
+                      child: CustomPaint(
+                        painter: LoadingPainter(
+                          progress: _loadingAnimation.value,
+                          primaryColor: AppColors.primary,
+                          darkColor: AppColors.primaryDark,
+                        ),
+                        child: const SizedBox(
+                          width: 60,
+                          height: 60,
+                        ),
                       ),
                     );
                   },
@@ -264,4 +230,54 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
+}
+
+// Custom Painter for Loading Animation
+class LoadingPainter extends CustomPainter {
+  final double progress;
+  final Color primaryColor;
+  final Color darkColor;
+
+  LoadingPainter({
+    required this.progress,
+    required this.primaryColor,
+    required this.darkColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    final strokeWidth = 6.0;
+
+    // Draw background circle
+    final backgroundPaint = Paint()
+      ..color = darkColor.withValues(alpha: 0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+
+    canvas.drawCircle(center, radius - strokeWidth / 2, backgroundPaint);
+
+    // Draw progress arc (reverse rotation)
+    final progressPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [AppColors.textWhite, AppColors.textWhite],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Rect.fromCircle(center: center, radius: radius))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
+      -3.14 / 2,
+      -2 * 3.14 * progress, // Reverse direction by using negative sweep angle
+      false,
+      progressPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

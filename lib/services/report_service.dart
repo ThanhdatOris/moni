@@ -4,14 +4,18 @@ import 'package:logger/logger.dart';
 
 import '../models/report_model.dart';
 import '../models/transaction_model.dart';
+import 'offline_service.dart';
 import 'transaction_service.dart';
 
 /// Service tạo và quản lý báo cáo tài chính
 class ReportService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final TransactionService _transactionService = TransactionService();
+  final TransactionService _transactionService;
   final Logger _logger = Logger();
+
+  ReportService({TransactionService? transactionService})
+      : _transactionService = transactionService ?? TransactionService(offlineService: OfflineService());
 
   /// Tạo báo cáo mới
   Future<String> generateReport({

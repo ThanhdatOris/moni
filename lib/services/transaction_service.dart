@@ -1,42 +1,87 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
 import '../models/transaction_model.dart';
+import 'offline_service.dart';
 
 /// Service quản lý giao dịch tài chính
 class TransactionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _logger = Logger();
+  final OfflineService _offlineService;
+
+  TransactionService({
+    required OfflineService offlineService,
+  }) : _offlineService = offlineService;
 
   /// Tạo giao dịch mới
   Future<String> createTransaction(TransactionModel transaction) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('Người dùng chưa đăng nhập');
+      // Kiểm tra kết nối internet
+      final connectivity = await Connectivity().checkConnectivity();
+      final isOnline = !connectivity.contains(ConnectivityResult.none);
+
+      if (isOnline) {
+        return await _createTransactionOnline(transaction);
+      } else {
+        return await _createTransactionOffline(transaction);
       }
-
-      final now = DateTime.now();
-      final transactionData = transaction.copyWith(
-        userId: user.uid,
-        createdAt: now,
-        updatedAt: now,
-      );
-
-      final docRef = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('transactions')
-          .add(transactionData.toMap());
-
-      _logger.i('Tạo giao dịch thành công: ${docRef.id}');
-      return docRef.id;
     } catch (e) {
       _logger.e('Lỗi tạo giao dịch: $e');
       throw Exception('Không thể tạo giao dịch: $e');
     }
+  }
+
+  /// Tạo giao dịch online
+  Future<String> _createTransactionOnline(TransactionModel transaction) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Người dùng chưa đăng nhập');
+    }
+
+    final now = DateTime.now();
+    final transactionData = transaction.copyWith(
+      userId: user.uid,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    final docRef = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('transactions')
+        .add(transactionData.toMap());
+
+    _logger.i('Tạo giao dịch online thành công: ${docRef.id}');
+    return docRef.id;
+  }
+
+  /// Tạo giao dịch offline
+  Future<String> _createTransactionOffline(TransactionModel transaction) async {
+    final userSession = await _offlineService.getOfflineUserSession();
+    final userId = userSession['userId'];
+
+    if (userId == null) {
+      throw Exception('Không có session offline');
+    }
+
+    final transactionId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
+    final now = DateTime.now();
+
+    final transactionData = transaction.copyWith(
+      transactionId: transactionId,
+      userId: userId,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await _offlineService.saveOfflineTransaction(transactionData);
+
+    _logger.i('Tạo giao dịch offline thành công: $transactionId');
+    return transactionId;
   }
 
   /// Cập nhật giao dịch
@@ -138,10 +183,11 @@ class TransactionService {
             isLessThanOrEqualTo: Timestamp.fromDate(endDate));
       }
 
-      // Chỉ orderBy khi không có date filter để tránh composite index
-      if (startDate == null && endDate == null) {
-        query = query.orderBy('date', descending: true);
-      }
+      // Tạm thời bỏ orderBy để tránh composite index error
+      // Sẽ sort trong client thay vì server
+      // if (startDate == null && endDate == null) {
+      //   query = query.orderBy('date', descending: true);
+      // }
 
       if (limit != null) {
         query = query.limit(limit);
@@ -163,10 +209,8 @@ class TransactionService {
               doc.data() as Map<String, dynamic>, doc.id);
         }).toList();
 
-        // Sắp xếp trong client nếu cần
-        if (startDate != null || endDate != null) {
-          transactions.sort((a, b) => b.date.compareTo(a.date));
-        }
+        // Luôn sắp xếp trong client vì không dùng orderBy server
+        transactions.sort((a, b) => b.date.compareTo(a.date));
 
         return transactions;
       });
@@ -329,8 +373,19 @@ class TransactionService {
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        total += data['amount'] as double;
+        final data = doc.data();
+        if (data != null) {
+          final map = data as Map<String, dynamic>;
+          final amount = map['amount'] ?? 0;
+          // Handle both int and double from Firestore
+          if (amount is int) {
+            total += amount.toDouble();
+          } else if (amount is double) {
+            total += amount;
+          } else if (amount is num) {
+            total += amount.toDouble();
+          }
+        }
       }
 
       return total;
@@ -367,26 +422,29 @@ class TransactionService {
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final transaction = TransactionModel.fromMap(data, doc.id);
+        final data = doc.data();
+        if (data != null) {
+          final map = data as Map<String, dynamic>;
+          final transaction = TransactionModel.fromMap(map, doc.id);
 
-        // Filter trong client
-        bool shouldInclude = true;
+          // Filter trong client
+          bool shouldInclude = true;
 
-        if (startDate != null && transaction.date.isBefore(startDate)) {
-          shouldInclude = false;
-        }
+          if (startDate != null && transaction.date.isBefore(startDate)) {
+            shouldInclude = false;
+          }
 
-        if (endDate != null && transaction.date.isAfter(endDate)) {
-          shouldInclude = false;
-        }
+          if (endDate != null && transaction.date.isAfter(endDate)) {
+            shouldInclude = false;
+          }
 
-        if (categoryId != null && transaction.categoryId != categoryId) {
-          shouldInclude = false;
-        }
+          if (categoryId != null && transaction.categoryId != categoryId) {
+            shouldInclude = false;
+          }
 
-        if (shouldInclude) {
-          total += transaction.amount;
+          if (shouldInclude) {
+            total += transaction.amount;
+          }
         }
       }
 
@@ -432,8 +490,19 @@ class TransactionService {
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        total += data['amount'] as double;
+        final data = doc.data();
+        if (data != null) {
+          final map = data as Map<String, dynamic>;
+          final amount = map['amount'] ?? 0;
+          // Handle both int and double from Firestore
+          if (amount is int) {
+            total += amount.toDouble();
+          } else if (amount is double) {
+            total += amount;
+          } else if (amount is num) {
+            total += amount.toDouble();
+          }
+        }
       }
 
       return total;
@@ -470,26 +539,29 @@ class TransactionService {
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        final transaction = TransactionModel.fromMap(data, doc.id);
+        final data = doc.data();
+        if (data != null) {
+          final map = data as Map<String, dynamic>;
+          final transaction = TransactionModel.fromMap(map, doc.id);
 
-        // Filter trong client
-        bool shouldInclude = true;
+          // Filter trong client
+          bool shouldInclude = true;
 
-        if (startDate != null && transaction.date.isBefore(startDate)) {
-          shouldInclude = false;
-        }
+          if (startDate != null && transaction.date.isBefore(startDate)) {
+            shouldInclude = false;
+          }
 
-        if (endDate != null && transaction.date.isAfter(endDate)) {
-          shouldInclude = false;
-        }
+          if (endDate != null && transaction.date.isAfter(endDate)) {
+            shouldInclude = false;
+          }
 
-        if (categoryId != null && transaction.categoryId != categoryId) {
-          shouldInclude = false;
-        }
+          if (categoryId != null && transaction.categoryId != categoryId) {
+            shouldInclude = false;
+          }
 
-        if (shouldInclude) {
-          total += transaction.amount;
+          if (shouldInclude) {
+            total += transaction.amount;
+          }
         }
       }
 

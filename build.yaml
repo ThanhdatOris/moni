@@ -1,0 +1,51 @@
+targets:
+  $default:
+    builders:
+      # JSON serialization
+      json_annotation|json_serializable:
+        options:
+          any_map: false
+          checked: false
+          create_factory: true
+          create_to_json: true
+          disallow_unrecognized_keys: false
+          explicit_to_json: false
+          field_rename: none
+          generic_argument_factories: false
+          include_if_null: true
+        generate_for:
+          - lib/features/**/*_model.dart
+          - lib/features/**/*_entity.dart
+
+      # Riverpod code generation
+      riverpod_generator|riverpod_generator:
+        options:
+          public_members: true
+        generate_for:
+          - lib/features/**/*_provider.dart
+          - lib/features/**/*_controller.dart
+
+      # Build runner configuration
+      build_runner|entrypoint:
+        generate_for:
+          - bin/**
+          - lib/**
+          - test/**
+          - integration_test/**
+
+global_options:
+  # Performance optimizations
+  build_runner:
+    options:
+      delete_conflicting_outputs: true
+      
+  # JSON annotation settings
+  json_annotation|json_serializable:
+    options:
+      # Enable for better type safety
+      checked: true
+      # Better error messages
+      any_map: false
+      # Generate both toJson and fromJson
+      create_factory: true
+      create_to_json: true 

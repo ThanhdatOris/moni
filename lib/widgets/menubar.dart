@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_colors.dart';
+
 class Menubar extends StatelessWidget {
   final int selectedIndex;
   final Function(int) onItemTapped;
@@ -14,7 +16,7 @@ class Menubar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 80,
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(20),
       child: Stack(
         alignment: Alignment.center,
         clipBehavior: Clip.none,
@@ -25,9 +27,8 @@ class Menubar extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [
-                  Color(0xFFFF6B35),
-                  Color(0xFFFF8E53),
-                  Color(0xFFFFAB40),
+                  AppColors.primary,
+                  AppColors.primaryDark,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,

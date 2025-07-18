@@ -4,8 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
+import 'package:moni/constants/app_colors.dart';
 
 import '../services/services.dart';
+import '../utils/currency_formatter.dart';
 
 /// A widget that displays financial overview as modern bank cards with glassmorphism effect.
 class FinancialOverviewCards extends StatefulWidget {
@@ -72,8 +74,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
   }
 
   String _formatCurrency(double amount) {
-    final formatter = NumberFormat('#,###', 'vi_VN');
-    return '${formatter.format(amount)}đ';
+    return CurrencyFormatter.formatAmountWithCurrency(amount);
   }
 
   String _getUserName() {
@@ -177,7 +178,7 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
+            color: AppColors.primary.withValues(alpha: 0.8),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

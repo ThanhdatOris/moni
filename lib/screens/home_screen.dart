@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/anonymous_user_banner.dart';
+import '../widgets/category_quick_access.dart';
 import '../widgets/expense_chart.dart';
 import '../widgets/financial_overview.dart';
+import '../widgets/home_banner.dart';
 import '../widgets/home_header.dart';
+import '../widgets/home_recent_transactions.dart';
 import '../widgets/menubar.dart';
-import '../widgets/recent_transactions.dart';
-import 'add_transaction_screen.dart';
+import '../widgets/simple_offline_status_banner.dart';
 import 'chatbot_screen.dart';
-import 'profile_screen.dart';
+import 'profile/profile_screen.dart';
+import 'transaction/add_transaction_screen.dart';
 import 'transaction_calendar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -71,7 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class HomeTabContent extends StatefulWidget {
-  const HomeTabContent({Key? key}) : super(key: key);
+  const HomeTabContent({super.key});
 
   @override
   State<HomeTabContent> createState() => _HomeTabContentState();
@@ -99,6 +103,12 @@ class _HomeTabContentState extends State<HomeTabContent> {
           // Header Section với gradient background
           const ModernHomeHeader(),
 
+          // Offline Status Banner (hiển thị trạng thái kết nối)
+          const SimpleOfflineStatusBanner(),
+
+          // Anonymous User Banner (chỉ hiển thị cho anonymous user)
+          const AnonymousUserBanner(),
+
           const SizedBox(height: 20),
 
           // Financial Overview Cards
@@ -111,10 +121,20 @@ class _HomeTabContentState extends State<HomeTabContent> {
 
           const SizedBox(height: 20),
 
-          // Recent Transactions
-          RecentTransactions(key: _recentTransactionsKey),
+          // Category Quick Access
+          const CategoryQuickAccess(),
 
-          const SizedBox(height: 100), // Space for bottom menu
+          const SizedBox(height: 20),
+
+          // Recent Transactions
+          HomeRecentTransactions(key: _recentTransactionsKey),
+
+          const SizedBox(height: 20),
+
+          // Home Banner Slider
+          const HomeBanner(),
+
+          const SizedBox(height: 120), // Space for bottom menu
         ],
       ),
     );

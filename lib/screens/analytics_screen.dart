@@ -5,6 +5,7 @@ import 'package:pie_chart/pie_chart.dart' as pie;
 
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
+import '../utils/currency_formatter.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -526,7 +527,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                 ),
               ),
               Text(
-                '${NumberFormat('#,###').format(current)}đ',
+                '${CurrencyFormatter.formatAmountWithCurrency(current)}',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,

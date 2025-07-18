@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
+import '../utils/currency_formatter.dart';
 
 class TransactionListScreen extends StatefulWidget {
   const TransactionListScreen({super.key});
@@ -401,10 +402,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   }
 
   String _formatCurrency(double amount) {
-    return '${amount.abs().toStringAsFixed(0).replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (Match m) => '${m[1]}.',
-        )}đ';
+    return CurrencyFormatter.formatAmountWithCurrency(amount);
   }
 
   String _formatDate(DateTime date) {
