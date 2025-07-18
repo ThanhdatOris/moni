@@ -1,29 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../constants/app_colors.dart';
 
 class TransactionDateSelector extends StatelessWidget {
   final DateTime selectedDate;
   final Function(DateTime) onDateChanged;
+  final String? Function(DateTime?)? validator;
 
   const TransactionDateSelector({
     super.key,
     required this.selectedDate,
     required this.onDateChanged,
+    this.validator,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -33,7 +36,7 @@ class TransactionDateSelector extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -41,26 +44,42 @@ class TransactionDateSelector extends StatelessWidget {
                       AppColors.primary.withValues(alpha: 0.8),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Icon(
                   Icons.calendar_today,
                   color: Colors.white,
-                  size: 20,
+                  size: 16,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Text(
                 'Ngày giao dịch',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
               ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _getDateLabel(selectedDate),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           GestureDetector(
             onTap: () => _selectDate(context),
             child: Container(
@@ -68,7 +87,7 @@ class TransactionDateSelector extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: const Color(0xFFE2E8F0),
                   width: 1,
@@ -76,44 +95,24 @@ class TransactionDateSelector extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.event,
-                      color: AppColors.primary,
-                      size: 18,
-                    ),
+                  Icon(
+                    Icons.event,
+                    color: AppColors.primary,
+                    size: 18,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _formatVietnameseDate(selectedDate),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _getRelativeDate(),
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      DateFormat('EEEE, dd/MM/yyyy', 'vi').format(selectedDate),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ),
                   Icon(
-                    Icons.keyboard_arrow_down,
+                    Icons.arrow_drop_down,
                     color: AppColors.textSecondary,
                     size: 20,
                   ),
@@ -121,78 +120,79 @@ class TransactionDateSelector extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickDateButton(
+                  context,
+                  'Hôm nay',
+                  DateTime.now(),
+                  selectedDate.day == DateTime.now().day &&
+                      selectedDate.month == DateTime.now().month &&
+                      selectedDate.year == DateTime.now().year,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildQuickDateButton(
+                  context,
+                  'Hôm qua',
+                  DateTime.now().subtract(const Duration(days: 1)),
+                  selectedDate.day ==
+                          DateTime.now()
+                              .subtract(const Duration(days: 1))
+                              .day &&
+                      selectedDate.month ==
+                          DateTime.now()
+                              .subtract(const Duration(days: 1))
+                              .month &&
+                      selectedDate.year ==
+                          DateTime.now().subtract(const Duration(days: 1)).year,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: AppColors.textPrimary,
-            ),
-            dialogBackgroundColor: Colors.white,
-            // Custom text style for Vietnamese
-            textTheme: Theme.of(context).textTheme.copyWith(
-              headlineSmall: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-              titleMedium: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-              bodyLarge: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 14,
-              ),
-            ),
+  Widget _buildQuickDateButton(
+    BuildContext context,
+    String label,
+    DateTime date,
+    bool isSelected,
+  ) {
+    return GestureDetector(
+      onTap: () => onDateChanged(date),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : const Color(0xFFE2E8F0),
+            width: 1,
           ),
-          child: child!,
-        );
-      },
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+          ),
+        ),
+      ),
     );
-
-    if (picked != null && picked != selectedDate) {
-      onDateChanged(picked);
-    }
   }
 
-  String _formatVietnameseDate(DateTime date) {
-    final List<String> weekdays = [
-      '', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'
-    ];
-    
-    final List<String> months = [
-      '', 'tháng 1', 'tháng 2', 'tháng 3', 'tháng 4', 'tháng 5', 'tháng 6',
-      'tháng 7', 'tháng 8', 'tháng 9', 'tháng 10', 'tháng 11', 'tháng 12'
-    ];
-
-    final weekday = weekdays[date.weekday];
-    final day = date.day;
-    final month = months[date.month];
-    final year = date.year;
-
-    return '$weekday, $day $month $year';
-  }
-
-  String _getRelativeDate() {
+  String _getDateLabel(DateTime date) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final selectedDateOnly =
-        DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+    final selectedDateOnly = DateTime(date.year, date.month, date.day);
 
     final difference = today.difference(selectedDateOnly).inDays;
 
@@ -202,10 +202,39 @@ class TransactionDateSelector extends StatelessWidget {
       return 'Hôm qua';
     } else if (difference == -1) {
       return 'Ngày mai';
-    } else if (difference > 1) {
+    } else if (difference > 1 && difference <= 7) {
       return '$difference ngày trước';
+    } else if (difference < -1 && difference >= -7) {
+      return '${difference.abs()} ngày nữa';
     } else {
-      return '${difference.abs()} ngày sau';
+      return DateFormat('dd/MM').format(date);
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('vi', 'VN'),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != selectedDate) {
+      onDateChanged(picked);
     }
   }
 }

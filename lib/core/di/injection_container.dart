@@ -12,6 +12,7 @@ import '../../services/category_service.dart';
 import '../../services/chat_log_service.dart';
 import '../../services/environment_service.dart';
 import '../../services/firebase_service.dart';
+import '../../services/ocr_service.dart';
 import '../../services/offline_service.dart';
 import '../../services/offline_sync_service.dart';
 import '../../services/report_service.dart';
@@ -25,14 +26,15 @@ Future<void> init() async {
   // ==========================================================================
   // EXTERNAL DEPENDENCIES
   // ==========================================================================
-  
+
   // Firebase
   getIt.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
-  getIt.registerLazySingleton<FirebaseFirestore>(() => FirebaseFirestore.instance);
+  getIt.registerLazySingleton<FirebaseFirestore>(
+      () => FirebaseFirestore.instance);
   getIt.registerLazySingleton<Connectivity>(() => Connectivity());
 
   // ==========================================================================
-  // CORE SERVICES 
+  // CORE SERVICES
   // ==========================================================================
 
   getIt.registerLazySingleton<EnvironmentService>(() => EnvironmentService());
@@ -46,34 +48,36 @@ Future<void> init() async {
   getIt.registerLazySingleton<OfflineService>(() => OfflineService());
   getIt.registerLazySingleton<AuthService>(() => AuthService());
   getIt.registerLazySingleton<CategoryService>(() => CategoryService());
-  
+
   // Transaction service with offline support
   getIt.registerLazySingleton<TransactionService>(() => TransactionService(
-    offlineService: getIt<OfflineService>(),
-  ));
-  
+        offlineService: getIt<OfflineService>(),
+      ));
+
   // Services that depend on TransactionService
   getIt.registerLazySingleton<BudgetAlertService>(() => BudgetAlertService(
-    transactionService: getIt<TransactionService>(),
-  ));
+        transactionService: getIt<TransactionService>(),
+      ));
   getIt.registerLazySingleton<ReportService>(() => ReportService(
-    transactionService: getIt<TransactionService>(),
-  ));
-  
+        transactionService: getIt<TransactionService>(),
+      ));
+
   // Sync service
   getIt.registerLazySingleton<OfflineSyncService>(() => OfflineSyncService(
-    offlineService: getIt<OfflineService>(),
-    transactionService: getIt<TransactionService>(),
-    categoryService: getIt<CategoryService>(),
-  ));
-  
+        offlineService: getIt<OfflineService>(),
+        transactionService: getIt<TransactionService>(),
+        categoryService: getIt<CategoryService>(),
+      ));
+
   // Anonymous conversion service
-  getIt.registerLazySingleton<AnonymousConversionService>(() => AnonymousConversionService(
-    offlineService: getIt<OfflineService>(),
-    syncService: getIt<OfflineSyncService>(),
-  ));
-  
+  getIt.registerLazySingleton<AnonymousConversionService>(
+      () => AnonymousConversionService(
+            offlineService: getIt<OfflineService>(),
+            syncService: getIt<OfflineSyncService>(),
+          ));
+
   // Other services
+  getIt.registerLazySingleton<OCRService>(() => OCRService());
   getIt.registerLazySingleton<AIProcessorService>(() => AIProcessorService());
   getIt.registerLazySingleton<ChatLogService>(() => ChatLogService());
 }
@@ -102,5 +106,6 @@ TransactionService get transactionService => getIt<TransactionService>();
 CategoryService get categoryService => getIt<CategoryService>();
 BudgetAlertService get budgetAlertService => getIt<BudgetAlertService>();
 ReportService get reportService => getIt<ReportService>();
+OCRService get ocrService => getIt<OCRService>();
 AIProcessorService get aiProcessorService => getIt<AIProcessorService>();
-ChatLogService get chatLogService => getIt<ChatLogService>(); 
+ChatLogService get chatLogService => getIt<ChatLogService>();

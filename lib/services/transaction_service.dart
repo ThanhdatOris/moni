@@ -584,8 +584,78 @@ class TransactionService {
     }
   }
 
-  /// Lấy giao dịch gần đây
+  /// Lấy giao dịch gần đây - tối ưu cho việc hiển thị trên home
   Stream<List<TransactionModel>> getRecentTransactions({int limit = 10}) {
-    return getTransactions(limit: limit);
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return Stream.value([]);
+      }
+
+      // Query đơn giản với orderBy để lấy giao dịch mới nhất
+      // Chỉ dùng is_deleted filter để tránh composite index
+      Query query = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('transactions')
+          .where('is_deleted', isEqualTo: false)
+          .orderBy('date', descending: true) // Sắp xếp trên server
+          .limit(limit);
+
+      return query.snapshots().handleError((error) {
+        _logger.e('Lỗi stream giao dịch gần đây: $error');
+        // Nếu lỗi index, fallback về method không order
+        if (error.toString().contains('failed-precondition') ||
+            error.toString().contains('index')) {
+          _logger.w('Sử dụng fallback query cho giao dịch gần đây');
+          return _getRecentTransactionsFallback(limit);
+        }
+        return Stream.value(<TransactionModel>[]);
+      }).map((snapshot) {
+        return snapshot.docs.map((doc) {
+          return TransactionModel.fromMap(
+              doc.data() as Map<String, dynamic>, doc.id);
+        }).toList();
+      });
+    } catch (e) {
+      _logger.e('Lỗi lấy giao dịch gần đây: $e');
+      return _getRecentTransactionsFallback(limit);
+    }
+  }
+
+  /// Fallback method cho getRecentTransactions khi gặp lỗi index
+  Stream<List<TransactionModel>> _getRecentTransactionsFallback(int limit) {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return Stream.value([]);
+      }
+
+      // Query đơn giản nhất - không order trên server
+      Query query = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('transactions')
+          .where('is_deleted', isEqualTo: false);
+
+      return query.snapshots().map((snapshot) {
+        var transactions = snapshot.docs.map((doc) {
+          return TransactionModel.fromMap(
+              doc.data() as Map<String, dynamic>, doc.id);
+        }).toList();
+
+        // Sắp xếp theo ngày mới nhất và limit trong client
+        transactions.sort((a, b) => b.date.compareTo(a.date));
+
+        if (transactions.length > limit) {
+          transactions = transactions.take(limit).toList();
+        }
+
+        return transactions;
+      });
+    } catch (e) {
+      _logger.e('Lỗi fallback giao dịch gần đây: $e');
+      return Stream.value([]);
+    }
   }
 }

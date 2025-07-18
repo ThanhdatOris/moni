@@ -28,15 +28,15 @@ class TransactionCategorySelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -46,7 +46,7 @@ class TransactionCategorySelector extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -54,19 +54,19 @@ class TransactionCategorySelector extends StatelessWidget {
                       AppColors.primary.withValues(alpha: 0.8),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Icon(
                   Icons.category_outlined,
                   color: Colors.white,
-                  size: 20,
+                  size: 16,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Text(
                 'Danh mục',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
@@ -75,15 +75,15 @@ class TransactionCategorySelector extends StatelessWidget {
               if (!isLoading && errorMessage == null)
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     '${categories.length} danh mục',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       color: AppColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
@@ -91,7 +91,7 @@ class TransactionCategorySelector extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           if (errorMessage != null)
             _buildErrorState()
           else if (isLoading)
@@ -112,10 +112,10 @@ class TransactionCategorySelector extends StatelessWidget {
 
   Widget _buildErrorState() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: AppColors.error.withValues(alpha: 0.3),
           width: 1,
@@ -126,15 +126,15 @@ class TransactionCategorySelector extends StatelessWidget {
           Icon(
             Icons.error_outline,
             color: AppColors.error,
-            size: 32,
+            size: 24,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             'Lỗi tải danh mục',
             style: TextStyle(
               color: AppColors.error,
               fontWeight: FontWeight.w600,
-              fontSize: 16,
+              fontSize: 14,
             ),
           ),
           const SizedBox(height: 4),
@@ -142,21 +142,21 @@ class TransactionCategorySelector extends StatelessWidget {
             errorMessage!,
             style: TextStyle(
               color: AppColors.error.withValues(alpha: 0.8),
-              fontSize: 14,
+              fontSize: 12,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           ElevatedButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh, size: 18),
+            icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Thử lại'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
             ),
           ),
@@ -167,10 +167,10 @@ class TransactionCategorySelector extends StatelessWidget {
 
   Widget _buildLoadingState() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: const Color(0xFFE2E8F0),
           width: 1,
@@ -179,18 +179,18 @@ class TransactionCategorySelector extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 20,
-            height: 20,
+            width: 16,
+            height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
               valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Text(
             'Đang tải danh mục...',
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               color: AppColors.textSecondary,
               fontWeight: FontWeight.w500,
             ),
@@ -202,10 +202,10 @@ class TransactionCategorySelector extends StatelessWidget {
 
   Widget _buildEmptyState() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.orange.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: Colors.orange.withValues(alpha: 0.3),
           width: 1,
@@ -216,15 +216,15 @@ class TransactionCategorySelector extends StatelessWidget {
           Icon(
             Icons.info_outline,
             color: Colors.orange,
-            size: 20,
+            size: 16,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Chưa có danh mục nào. Vui lòng tạo danh mục trước.',
               style: TextStyle(
                 color: Colors.orange,
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -245,35 +245,35 @@ class TransactionCategorySelector extends StatelessWidget {
               color: AppColors.textSecondary.withValues(alpha: 0.7),
             ),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(
                 color: Color(0xFFE2E8F0),
                 width: 1,
               ),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(
                 color: Color(0xFFE2E8F0),
                 width: 1,
               ),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               borderSide: BorderSide(
                 color: AppColors.primary,
                 width: 2,
               ),
             ),
             errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(
                 color: AppColors.error,
                 width: 2,
               ),
             ),
             focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(
                 color: AppColors.error,
                 width: 2,
@@ -282,7 +282,7 @@ class TransactionCategorySelector extends StatelessWidget {
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           ),
           items: categories.map((category) {
             return DropdownMenuItem<CategoryModel>(
@@ -292,16 +292,16 @@ class TransactionCategorySelector extends StatelessWidget {
                   // Icon hiển thị bằng CategoryIconHelper
                   CategoryIconHelper.buildIcon(
                     category,
-                    size: 20,
+                    size: 16,
                     color: Color(category.color),
                     showBackground: true,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       category.name,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary,
                       ),
@@ -310,17 +310,17 @@ class TransactionCategorySelector extends StatelessWidget {
                   // Hiển thị badge cho parent/child category
                   if (category.isChildCategory)
                     Container(
-                      margin: const EdgeInsets.only(left: 8),
+                      margin: const EdgeInsets.only(left: 6),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                          horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(
                         color: Color(category.color).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         'Con',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 9,
                           color: Color(category.color),
                           fontWeight: FontWeight.w600,
                         ),
@@ -345,14 +345,14 @@ class TransactionCategorySelector extends StatelessWidget {
   Widget _buildManageCategoriesButton(BuildContext context) {
     return Column(
       children: [
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: () => _navigateToCategoryManagement(context),
             icon: Icon(
               Icons.settings,
-              size: 18,
+              size: 16,
               color: AppColors.primary,
             ),
             label: Text(
@@ -365,9 +365,9 @@ class TransactionCategorySelector extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               side: BorderSide(color: AppColors.primary),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 8),
             ),
           ),
         ),

@@ -25,8 +25,17 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   Key _homeTabKey = UniqueKey();
 
+  void _navigateToHistoryTab() {
+    setState(() {
+      _selectedIndex = 1; // Tab History
+    });
+  }
+
   List<Widget> get _widgetOptions => [
-        HomeTabContent(key: _homeTabKey),
+        HomeTabContent(
+          key: _homeTabKey,
+          onNavigateToHistory: _navigateToHistoryTab,
+        ),
         const TransactionHistoryScreen(),
         const Center(),
         const ChatbotPage(),
@@ -75,7 +84,12 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class HomeTabContent extends StatefulWidget {
-  const HomeTabContent({super.key});
+  final VoidCallback? onNavigateToHistory;
+
+  const HomeTabContent({
+    super.key,
+    this.onNavigateToHistory,
+  });
 
   @override
   State<HomeTabContent> createState() => _HomeTabContentState();
@@ -127,7 +141,10 @@ class _HomeTabContentState extends State<HomeTabContent> {
           const SizedBox(height: 20),
 
           // Recent Transactions
-          HomeRecentTransactions(key: _recentTransactionsKey),
+          HomeRecentTransactions(
+            key: _recentTransactionsKey,
+            onNavigateToHistory: widget.onNavigateToHistory,
+          ),
 
           const SizedBox(height: 20),
 

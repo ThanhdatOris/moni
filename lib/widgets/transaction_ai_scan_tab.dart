@@ -1,10 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:get_it/get_it.dart';
 
 import '../constants/app_colors.dart';
+import '../models/category_model.dart';
+import '../models/transaction_model.dart';
+import '../services/ai_processor_service.dart';
+import '../services/category_service.dart';
+import 'transaction_image_picker.dart';
+import 'transaction_scan_result.dart';
 
 class TransactionAiScanTab extends StatefulWidget {
   final Function(Map<String, dynamic>) onScanComplete;
@@ -24,6 +29,66 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
   String? _selectedImagePath;
   bool _isProcessingImage = false;
   Map<String, dynamic>? _scanResults;
+  List<CategoryModel> _categories = [];
+  String? _errorMessage;
+  bool _isCategoriesLoading = true;
+
+  final GetIt _getIt = GetIt.instance;
+  late final AIProcessorService _aiProcessorService;
+  late final CategoryService _categoryService;
+
+  @override
+  void initState() {
+    super.initState();
+    _aiProcessorService = _getIt<AIProcessorService>();
+    _categoryService = _getIt<CategoryService>();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      // Load categories with proper stream handling
+      final List<CategoryModel> allCategories = [];
+      
+      // Load expense categories
+      try {
+        final expenseStream = _categoryService.getCategories(type: TransactionType.expense);
+        await for (final expenseCategories in expenseStream.take(1)) {
+          allCategories.addAll(expenseCategories.where((cat) => !cat.isDeleted));
+          break;
+        }
+      } catch (e) {
+        print('Error loading expense categories: $e');
+      }
+
+      // Load income categories  
+      try {
+        final incomeStream = _categoryService.getCategories(type: TransactionType.income);
+        await for (final incomeCategories in incomeStream.take(1)) {
+          allCategories.addAll(incomeCategories.where((cat) => !cat.isDeleted));
+          break;
+        }
+      } catch (e) {
+        print('Error loading income categories: $e');
+      }
+
+      if (mounted) {
+        setState(() {
+          _categories = allCategories;
+          _isCategoriesLoading = false;
+        });
+        print('Loaded ${allCategories.length} categories for scan tab');
+      }
+    } catch (e) {
+      print('Error in _loadCategories: $e');
+      if (mounted) {
+        setState(() {
+          _categories = [];
+          _isCategoriesLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,10 +99,24 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
         children: [
           _buildAiHeader(),
           const SizedBox(height: 24),
-          if (_selectedImagePath == null) ...[
-            _buildImageSelection(),
-          ] else ...[
-            _buildImagePreview(),
+          if (_isCategoriesLoading) ...[
+            _buildCategoriesLoadingCard(),
+          ] else if (_selectedImagePath == null) ...[
+            TransactionImagePicker(
+              onImagePicked: _handleImagePicked,
+            ),
+          ] else if (_isProcessingImage) ...[
+            _buildProcessingCard(),
+          ] else if (_scanResults != null) ...[
+            TransactionScanResult(
+              scanResult: _scanResults!,
+              categories: _categories,
+              onResultEdited: _handleResultEdited,
+              onSave: widget.onScanSaved,
+              onRescan: _resetScan,
+            ),
+          ] else if (_errorMessage != null) ...[
+            _buildErrorCard(),
           ],
         ],
       ),
@@ -110,142 +189,9 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
     );
   }
 
-  Widget _buildImageSelection() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: _buildImageButton(
-                'Chụp ảnh',
-                Icons.camera_alt_outlined,
-                () => _pickImageForScan(ImageSource.camera),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildImageButton(
-                'Chọn từ thư viện',
-                Icons.photo_library_outlined,
-                () => _pickImageForScan(ImageSource.gallery),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        _buildScanInstructions(),
-      ],
-    );
-  }
-
-  Widget _buildImageButton(String title, IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            width: 2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: AppColors.primary,
-              size: 32,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: TextStyle(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScanInstructions() {
+  Widget _buildCategoriesLoadingCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.blue.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.tips_and_updates,
-                color: Colors.blue,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Mẹo để scan hiệu quả:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildTip('📄', 'Đặt hóa đơn trên bề mặt phẳng'),
-          _buildTip('💡', 'Đảm bảo ánh sáng đầy đủ'),
-          _buildTip('📸', 'Chụp rõ nét, không bị mờ'),
-          _buildTip('📐', 'Đặt máy vuông góc với hóa đơn'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTip(String emoji, String tip) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 16)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              tip,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.blue.withValues(alpha: 0.8),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImagePreview() {
-    return Container(
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -257,59 +203,23 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: FileImage(File(_selectedImagePath!)),
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                if (_isProcessingImage) ...[
-                  _buildProcessingState(),
-                ] else if (_scanResults != null) ...[
-                  _buildScanResults(),
-                  const SizedBox(height: 20),
-                  _buildActionButtons(),
-                ] else ...[
-                  _buildProcessingState(),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProcessingState() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-      ),
       child: Row(
         children: [
-          CircularProgressIndicator(color: AppColors.primary),
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              color: AppColors.primary,
+              strokeWidth: 3,
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Đang phân tích hóa đơn...',
+                  'Đang tải danh mục...',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -318,7 +228,7 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'AI đang trích xuất thông tin từ ảnh',
+                  'Vui lòng đợi để load danh mục giao dịch',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -332,160 +242,255 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
     );
   }
 
-  Widget _buildScanResults() {
+  Widget _buildProcessingCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Image preview
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: double.infinity,
+              height: 150,
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: FileImage(File(_selectedImagePath!)),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Processing animation
           Row(
             children: [
-              Icon(Icons.check_circle, color: AppColors.success),
-              const SizedBox(width: 8),
-              Text(
-                'Đã phân tích thành công!',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.success,
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                  strokeWidth: 3,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Đang phân tích hóa đơn...',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'OCR + AI đang đọc và phân tích',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
+
           const SizedBox(height: 16),
-          _buildExtractedInfo('Số tiền:', '${_scanResults!['amount']} VNĐ'),
-          _buildExtractedInfo('Loại:', _scanResults!['type']),
-          _buildExtractedInfo('Danh mục:', _scanResults!['category']),
-          _buildExtractedInfo('Ghi chú:', _scanResults!['note']),
-          _buildExtractedInfo('Ngày:', _scanResults!['date']),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildExtractedInfo(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {
-              setState(() {
-                _selectedImagePath = null;
-                _scanResults = null;
-                _isProcessingImage = false;
-              });
-            },
-            icon: const Icon(Icons.refresh, size: 18),
-            label: const Text('Chụp lại'),
+          // Cancel button
+          OutlinedButton(
+            onPressed: _resetScan,
+            child: const Text('Hủy'),
             style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               side: BorderSide(color: AppColors.textSecondary),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: widget.onScanSaved,
-            icon: const Icon(Icons.save, size: 18),
-            label: const Text('Lưu giao dịch'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.all(16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Future<void> _pickImageForScan(ImageSource source) async {
+  Widget _buildErrorCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.error.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.error_outline,
+                color: AppColors.error,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Không thể xử lý ảnh',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _errorMessage ?? 'Có lỗi xảy ra khi xử lý ảnh',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _resetScan,
+                  child: const Text('Chọn ảnh khác'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.all(12),
+                    side: BorderSide(color: AppColors.textSecondary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _processCurrentImage,
+                  child: const Text('Thử lại'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.all(12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleImagePicked(File imageFile) async {
     try {
-      final XFile? image = await ImagePicker().pickImage(source: source);
-      if (image != null) {
+      // Check if categories are loaded
+      if (_categories.isEmpty) {
+        throw Exception('Chưa có danh mục khả dụng. Vui lòng tạo danh mục trước khi scan.');
+      }
+
+      // Validate image first
+      await _aiProcessorService.validateImageForProcessing(imageFile);
+
+      setState(() {
+        _selectedImagePath = imageFile.path;
+        _isProcessingImage = true;
+        _scanResults = null;
+        _errorMessage = null;
+      });
+
+      await _processCurrentImage();
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isProcessingImage = false;
+      });
+    }
+  }
+
+  Future<void> _processCurrentImage() async {
+    if (_selectedImagePath == null) return;
+
+    setState(() {
+      _isProcessingImage = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final imageFile = File(_selectedImagePath!);
+      final result = await _aiProcessorService
+          .extractTransactionFromImageWithOCR(imageFile);
+
+      if (mounted) {
         setState(() {
-          _selectedImagePath = image.path;
-          _isProcessingImage = true;
-          _scanResults = null;
+          _isProcessingImage = false;
+          if (result['success'] == true) {
+            _scanResults = result;
+            widget.onScanComplete(result);
+          } else {
+            _errorMessage =
+                result['error'] ?? 'Không thể đọc được thông tin từ ảnh';
+          }
         });
-
-        // Simulate AI processing
-        await Future.delayed(const Duration(seconds: 3));
-
-        // Mock scan results
-        final mockResults = {
-          'amount': '125,000',
-          'type': 'Chi tiêu',
-          'category': 'Ăn uống',
-          'note': 'Cơm tấm Sài Gòn',
-          'date': DateFormat('dd/MM/yyyy').format(DateTime.now()),
-        };
-
-        if (mounted) {
-          setState(() {
-            _isProcessingImage = false;
-            _scanResults = mockResults;
-          });
-
-          widget.onScanComplete(mockResults);
-        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi chọn ảnh: $e'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        setState(() {
+          _isProcessingImage = false;
+          _errorMessage = 'Lỗi xử lý ảnh: $e';
+        });
       }
     }
+  }
+
+  void _handleResultEdited(Map<String, dynamic> updatedResult) {
+    setState(() {
+      _scanResults = updatedResult;
+    });
+    widget.onScanComplete(updatedResult);
+  }
+
+  void _resetScan() {
+    setState(() {
+      _selectedImagePath = null;
+      _isProcessingImage = false;
+      _scanResults = null;
+      _errorMessage = null;
+    });
   }
 }

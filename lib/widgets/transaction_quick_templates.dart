@@ -18,15 +18,15 @@ class TransactionQuickTemplates extends StatelessWidget {
     final templates = _getTemplatesForType();
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -35,45 +35,33 @@ class TransactionQuickTemplates extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primary.withValues(alpha: 0.8),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.flash_on,
-                  color: Colors.white,
-                  size: 20,
-                ),
+              Icon(
+                Icons.flash_on,
+                color: AppColors.primary,
+                size: 16,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Text(
                 'Mẫu nhanh',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   transactionType == TransactionType.expense
                       ? 'Chi tiêu'
                       : 'Thu nhập',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
                   ),
@@ -81,15 +69,15 @@ class TransactionQuickTemplates extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           if (templates.isEmpty)
             _buildEmptyState()
           else
             Wrap(
-              spacing: 12,
-              runSpacing: 12,
+              spacing: 8,
+              runSpacing: 8,
               children: templates
-                  .map((template) => _buildTemplateChip(template))
+                  .map((template) => _buildCompactTemplateChip(template))
                   .toList(),
             ),
         ],
@@ -99,10 +87,10 @@ class TransactionQuickTemplates extends StatelessWidget {
 
   Widget _buildEmptyState() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: const Color(0xFFE2E8F0),
           width: 1,
@@ -113,14 +101,14 @@ class TransactionQuickTemplates extends StatelessWidget {
           Icon(
             Icons.info_outline,
             color: AppColors.textSecondary,
-            size: 20,
+            size: 16,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               'Chưa có mẫu nhanh nào',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 color: AppColors.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
@@ -131,72 +119,47 @@ class TransactionQuickTemplates extends StatelessWidget {
     );
   }
 
-  Widget _buildTemplateChip(Map<String, dynamic> template) {
+  Widget _buildCompactTemplateChip(Map<String, dynamic> template) {
     return GestureDetector(
       onTap: () => onTemplateSelected(template),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primary.withValues(alpha: 0.1),
-              AppColors.primary.withValues(alpha: 0.05),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(25),
+          color: AppColors.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.primary.withValues(alpha: 0.3),
+            color: AppColors.primary.withValues(alpha: 0.2),
             width: 1,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                template['icon'],
-                size: 16,
+            Icon(
+              template['icon'],
+              size: 14,
+              color: AppColors.primary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              template['name'],
+              style: TextStyle(
                 color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
               ),
             ),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  template['name'],
-                  style: TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+            if (template['amount'] != null) ...[
+              const SizedBox(width: 4),
+              Text(
+                _formatAmount(template['amount']),
+                style: TextStyle(
+                  color: AppColors.primary.withValues(alpha: 0.7),
+                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
                 ),
-                if (template['amount'] != null)
-                  Text(
-                    '${_formatAmount(template['amount'])} VNĐ',
-                    style: TextStyle(
-                      color: AppColors.primary.withValues(alpha: 0.7),
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ],
         ),
       ),
@@ -231,7 +194,7 @@ class TransactionQuickTemplates extends StatelessWidget {
           'note': 'Đổ xăng',
         },
         {
-          'name': 'Grab/Taxi',
+          'name': 'Grab',
           'amount': '50000',
           'icon': Icons.directions_car,
           'note': 'Di chuyển',

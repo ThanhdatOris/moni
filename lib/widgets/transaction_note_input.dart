@@ -5,25 +5,29 @@ import '../constants/app_colors.dart';
 class TransactionNoteInput extends StatelessWidget {
   final TextEditingController controller;
   final String? Function(String?)? validator;
+  final String? hintText;
+  final int maxLines;
 
   const TransactionNoteInput({
     super.key,
     required this.controller,
     this.validator,
+    this.hintText,
+    this.maxLines = 3,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -33,7 +37,7 @@ class TransactionNoteInput extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -41,87 +45,88 @@ class TransactionNoteInput extends StatelessWidget {
                       AppColors.primary.withValues(alpha: 0.8),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Icon(
                   Icons.note_outlined,
                   color: Colors.white,
-                  size: 20,
+                  size: 16,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Text(
                 'Ghi chú',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
                 ),
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.textSecondary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   'Tùy chọn',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 10,
                     color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           TextFormField(
             controller: controller,
-            maxLines: 3,
+            maxLines: maxLines,
+            textInputAction: TextInputAction.done,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               color: AppColors.textPrimary,
-              fontWeight: FontWeight.w500,
+              height: 1.4,
             ),
             decoration: InputDecoration(
-              hintText: 'Thêm mô tả chi tiết cho giao dịch...',
+              hintText: hintText ?? 'Nhập ghi chú cho giao dịch (tùy chọn)...',
               hintStyle: TextStyle(
-                color: AppColors.textSecondary.withValues(alpha: 0.7),
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
+                color: AppColors.textSecondary.withValues(alpha: 0.6),
+                fontSize: 14,
+                height: 1.4,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(
                   color: Color(0xFFE2E8F0),
                   width: 1,
                 ),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(
                   color: Color(0xFFE2E8F0),
                   width: 1,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: BorderSide(
                   color: AppColors.primary,
                   width: 2,
                 ),
               ),
               errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(
                   color: AppColors.error,
                   width: 2,
                 ),
               ),
               focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
                 borderSide: const BorderSide(
                   color: AppColors.error,
                   width: 2,
@@ -137,4 +142,4 @@ class TransactionNoteInput extends StatelessWidget {
       ),
     );
   }
-} 
+}
