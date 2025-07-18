@@ -10,6 +10,7 @@ import '../../constants/app_colors.dart';
 import '../../core/di/injection_container.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
+import '../utils/category_icon_helper.dart';
 
 class AddTransactionScreenClean extends ConsumerStatefulWidget {
   const AddTransactionScreenClean({super.key});
@@ -372,35 +373,7 @@ class _AddTransactionScreenCleanState
                 ),
                 isExpanded: true,
                 items: _categories.map((category) {
-                  return DropdownMenuItem<CategoryModel>(
-                    value: category,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: _getCategoryColor(category)
-                                .withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            _getCategoryIcon(category),
-                            color: _getCategoryColor(category),
-                            size: 18,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          category.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                  return _buildCategoryItem(category);
                 }).toList(),
                 onChanged: (category) {
                   setState(() {
@@ -630,31 +603,28 @@ class _AddTransactionScreenCleanState
     }
   }
 
-  IconData _getCategoryIcon(CategoryModel category) {
-    switch (category.icon) {
-      case 'restaurant':
-        return Icons.restaurant;
-      case 'shopping_cart':
-        return Icons.shopping_cart;
-      case 'local_gas_station':
-        return Icons.local_gas_station;
-      case 'home':
-        return Icons.home;
-      case 'work':
-        return Icons.work;
-      case 'school':
-        return Icons.school;
-      case 'health':
-        return Icons.local_hospital;
-      case 'entertainment':
-        return Icons.movie;
-      default:
-        return Icons.category;
-    }
-  }
-
-  Color _getCategoryColor(CategoryModel category) {
-    return Color(category.color);
+  DropdownMenuItem<CategoryModel> _buildCategoryItem(CategoryModel category) {
+    return DropdownMenuItem<CategoryModel>(
+      value: category,
+      child: Row(
+        children: [
+          CategoryIconHelper.buildIcon(
+            category,
+            size: 18,
+            color: Color(category.color),
+            showBackground: true,
+          ),
+          const SizedBox(width: 12),
+          Text(
+            category.name,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

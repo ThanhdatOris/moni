@@ -42,20 +42,21 @@ class AIProcessorService {
     final List<FunctionDeclaration> functions = [
       FunctionDeclaration(
         'addTransaction',
-        'Add new transaction to system with correct category and type',
+        'Add new transaction with intelligent emoji-based categorization',
         Schema(
           SchemaType.object,
           properties: {
             'amount': Schema(SchemaType.string,
-                description: 'Transaction amount (preserve k/tr format: "18k", "1tr", or plain number)'),
+                description:
+                    'Transaction amount (preserve k/tr format: "18k", "1tr", or plain number)'),
             'description': Schema(SchemaType.string,
                 description: 'Transaction description'),
             'category': Schema(SchemaType.string,
                 description:
-                    'Category: "Ăn uống" (food), "Đi lại" (transport), "Mua sắm" (shopping), "Giải trí" (entertainment), "Thu nhập" (general income), "Lương" (salary), "Sức khỏe" (health), "Học tập" (education)'),
+                    'Smart category with auto-emoji assignment: "Ăn uống" (🍽️), "Di chuyển" (🚗), "Mua sắm" (🛒), "Giải trí" (🎬), "Y tế" (🏥), "Học tập" (🏫), "Hóa đơn" (🧾), "Lương" (💼), "Đầu tư" (📈), "Thưởng" (🎁), "Freelance" (💻), "Bán hàng" (💸), or create new category with appropriate name'),
             'type': Schema(SchemaType.string,
                 description:
-                    'Transaction type: "income" for salary/allowance/earning, "expense" for spending/buying'),
+                    'Transaction type: "income" for salary/bonus/earning/selling, "expense" for spending/buying/payments'),
             'date': Schema(SchemaType.string,
                 description: 'Transaction date (YYYY-MM-DD), optional'),
           },
@@ -143,32 +144,84 @@ class AIProcessorService {
       _logger.i('Processing chat input: $input');
 
       final prompt = '''
-You are Moni AI, a smart financial assistant. Analyze user input and:
+You are Moni AI, a smart financial assistant with advanced category management. Analyze user input and:
 
-1. If user inputs transaction info, IMMEDIATELY call addTransaction function with correct categorization:
+1. If user inputs transaction info, IMMEDIATELY call addTransaction function with intelligent categorization:
 
 IMPORTANT: For amount parsing, preserve the original format including k/tr suffixes:
 - "18k" should be passed as "18k" not 18
 - "1tr" should be passed as "1tr" not 1
 - "500000" can be passed as 500000
 
+CATEGORY SYSTEM:
+- Each category now has smart emoji icons (🍽️ for food, 🚗 for transport, etc.)
+- Categories support parent-child hierarchy
+- Auto-create categories with appropriate emojis based on context
+- Vietnamese and English names supported
+
 INCOME examples:
 - "trợ cấp 1tr" → amount: "1tr", category: "Thu nhập", type: "income"  
 - "lương 10tr" → amount: "10tr", category: "Lương", type: "income"
-- "bán hàng 500k" → amount: "500k", category: "Thu nhập", type: "income"
+- "bán hàng 500k" → amount: "500k", category: "Bán hàng", type: "income"
+- "freelance 800k" → amount: "800k", category: "Freelance", type: "income"
 
-EXPENSE examples:  
-- "cơm sườn 20k" → amount: "20k", category: "Ăn uống", type: "expense"
-- "taxi 50k" → amount: "50k", category: "Đi lại", type: "expense"
-- "mua áo 200k" → amount: "200k", category: "Mua sắm", type: "expense"
+EXPENSE examples:
+- "ăn cơm 50k" → amount: "50k", category: "Ăn uống", type: "expense"
+- "xăng xe 200k" → amount: "200k", category: "Xăng xe", type: "expense"  
+- "mua áo 300k" → amount: "300k", category: "Mua sắm", type: "expense"
+- "xem phim 120k" → amount: "120k", category: "Giải trí", type: "expense"
+- "thuốc cảm 80k" → amount: "80k", category: "Y tế", type: "expense"
+- "học phí 2tr" → amount: "2tr", category: "Học tập", type: "expense"
 
-2. If financial question, provide helpful answer.
+SMART CATEGORIZATION:
+- Food/Dining: "Ăn uống" (🍽️) - cơm, phở, ăn, uống, food, eat, restaurant
+- Transport: "Di chuyển" (🚗) - xe, xăng, grab, transport, taxi, bus
+- Shopping: "Mua sắm" (🛒) - mua, shopping, áo, giày, đồ
+- Entertainment: "Giải trí" (🎬) - phim, game, giải trí, movie, entertainment
+- Health: "Y tế" (🏥) - thuốc, bác sĩ, hospital, health, doctor
+- Education: "Học tập" (🏫) - học, school, course, education
+- Bills: "Hóa đơn" (🧾) - điện, nước, internet, phone, utilities
+- Work Income: "Lương" (💼) - lương, salary, work
+- Investment: "Đầu tư" (📈) - đầu tư, stock, investment
+- Bonus: "Thưởng" (🎁) - thưởng, bonus, gift
 
-3. ALWAYS respond in Vietnamese naturally and friendly.
+2. If asking about transactions/finances, provide helpful insights
+3. If asking about categories, explain the new emoji system and management features
+4. Always respond in Vietnamese, friendly and helpful
+
+Current system features:
+- ✨ Emoji-based category icons
+- 🗂️ Hierarchical category organization  
+- 🎨 Smart auto-categorization
+- 📱 Easy category management interface
+- 🔄 Real-time category updates
+
+Guidelines:
+- Be conversational and helpful
+- Use emojis appropriately in responses
+- Explain financial concepts simply
+- Encourage good financial habits
 
 User input: "$input"
 ''';
 
+      // Update token usage
+      _dailyTokenCount += estimatedTokens;
+      _logger.i('Token usage: $estimatedTokens (daily total: $_dailyTokenCount)');
+
+      // Check if user is asking about categories or financial help
+      final inputLower = input.toLowerCase();
+      if (inputLower.contains('danh mục') || inputLower.contains('category') || 
+          inputLower.contains('emoji') || inputLower.contains('icon')) {
+        return _handleCategoryHelp();
+      }
+
+      if (inputLower.contains('help') || inputLower.contains('hướng dẫn') || 
+          inputLower.contains('làm sao') || inputLower.contains('cách')) {
+        return _handleGeneralHelp();
+      }
+
+      // Process with AI model for transaction extraction or general chat
       final response = await _model.generateContent([Content.text(prompt)]);
 
       // Update token count (estimate response tokens too)
@@ -258,15 +311,19 @@ User input: "$input"
         }
       }
 
-      // If category not found, create new one
+      // If category not found, create new one with intelligent emoji selection
       if (categoryId == 'other') {
+        final iconData =
+            _getSmartIconForCategory(categoryName, transactionType);
+
         final newCategory = CategoryModel(
           categoryId: '',
           userId: '',
           name: categoryName,
           type: transactionType,
-          icon: 'restaurant',
-          color: 0xFFFF9800, // Orange color
+          icon: iconData['icon'],
+          iconType: iconData['iconType'],
+          color: iconData['color'],
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         );
@@ -296,14 +353,23 @@ User input: "$input"
       _logger.i(
           'Transaction added successfully: $description - ${amount.toStringAsFixed(0)}đ');
 
+      // Find category to get its emoji for display
+      final category = await categoryService.getCategory(categoryId);
+      final categoryDisplay = category != null 
+          ? '${category.icon} ${category.name}'
+          : categoryName;
+
       return '''✅ **Đã thêm giao dịch thành công!**
 
 💰 **Số tiền:** ${CurrencyFormatter.formatAmountWithCurrency(amount)}
 📝 **Mô tả:** $description
-📁 **Danh mục:** $categoryName
+📁 **Danh mục:** $categoryDisplay
 📅 **Ngày:** ${transactionDate.day}/${transactionDate.month}/${transactionDate.year}
+${transactionType == TransactionType.expense ? '📉' : '📈'} **Loại:** ${transactionType == TransactionType.expense ? 'Chi tiêu' : 'Thu nhập'}
 
-🎉 Giao dịch đã được lưu vào hệ thống của bạn!
+🎉 Giao dịch đã được lưu với emoji phù hợp!
+
+💡 **Mẹo:** Bạn có thể quản lý danh mục và thay đổi emoji trong phần "Quản lý danh mục" của app.
 
 [EDIT_BUTTON]''';
     } catch (e) {
@@ -396,6 +462,70 @@ Data: ${transactionData.toString()}
     }
   }
 
+  /// Handle category-related questions
+  String _handleCategoryHelp() {
+    return '''🗂️ **Hệ thống Danh mục với Emoji**
+
+**✨ Tính năng mới:**
+📱 **Emoji Icons:** Mỗi danh mục có emoji riêng (🍽️, 🚗, 🛒...)
+🗂️ **Phân cấp:** Danh mục cha-con để tổ chức tốt hơn  
+🎨 **Tự động:** AI tự chọn emoji phù hợp khi tạo danh mục mới
+⚡ **Real-time:** Cập nhật ngay lập tức
+
+**📂 Danh mục phổ biến:**
+🍽️ **Ăn uống** - Cơm, phở, cà phê, nhà hàng
+🚗 **Di chuyển** - Xăng xe, taxi, grab, xe bus
+🛒 **Mua sắm** - Áo quần, giày dép, đồ gia dụng
+🎬 **Giải trí** - Xem phim, game, du lịch
+🏥 **Y tế** - Thuốc, bác sĩ, bệnh viện
+🏫 **Học tập** - Học phí, sách vở, khóa học
+🧾 **Hóa đơn** - Điện, nước, internet, điện thoại
+
+💼 **Thu nhập:**
+💼 Lương • 🎁 Thưởng • 📈 Đầu tư • 💻 Freelance
+
+**🔧 Quản lý danh mục:**
+- Vào "Quản lý danh mục" để tạo, sửa, xóa
+- Chọn emoji từ bàn phím hoặc Material Icons
+- Tạo danh mục con để tổ chức chi tiết hơn
+- Thay đổi màu sắc cho từng danh mục
+
+💡 **Mẹo:** Chỉ cần nhập giao dịch, AI sẽ tự chọn danh mục và emoji phù hợp!''';
+  }
+
+  /// Handle general help questions
+  String _handleGeneralHelp() {
+    return '''🤖 **Moni AI - Trợ lý Tài chính Thông minh**
+
+**💬 Cách sử dụng:**
+Chỉ cần chat bình thường, tôi sẽ hiểu và thêm giao dịch cho bạn!
+
+**📝 Ví dụ nhập giao dịch:**
+• "Ăn cơm 50k" 
+• "Xăng xe 200k"
+• "Lương tháng 10tr"
+• "Mua áo 300k"
+• "Freelance 800k"
+
+**🎯 Tôi có thể:**
+✅ Thêm giao dịch tự động với emoji
+✅ Phân loại danh mục thông minh  
+✅ Tư vấn tài chính cá nhân
+✅ Giải thích các tính năng app
+✅ Phân tích chi tiêu theo danh mục
+
+**💡 Tính năng đặc biệt:**
+🎨 **Smart Categorization** - Tự động chọn danh mục và emoji
+📊 **Financial Insights** - Phân tích thói quen chi tiêu
+🗂️ **Category Management** - Quản lý danh mục với emoji
+📱 **Natural Chat** - Chat tự nhiên như với bạn bè
+
+**🚀 Thử ngay:**
+Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn phở 45k"
+
+❓ Cần hỗ trợ gì khác không?''';
+  }
+
   /// Add item to cache with size limit
   void _addToCache(Map<String, String> cache, String key, String value) {
     if (cache.length >= _cacheMaxSize) {
@@ -411,20 +541,22 @@ Data: ${transactionData.toString()}
     if (rawAmount is num) {
       return rawAmount.toDouble();
     }
-    
+
     if (rawAmount is String) {
       // Remove spaces and convert to lowercase
       String cleanAmount = rawAmount.trim().toLowerCase();
-      
+
       // Remove currency symbols
       cleanAmount = cleanAmount.replaceAll(RegExp(r'[đvndđồng,.]'), '');
-      
+
       // Handle Vietnamese format: k = 1000, tr = 1000000
       if (cleanAmount.endsWith('k')) {
         final number = double.tryParse(cleanAmount.replaceAll('k', '')) ?? 0;
         return number * 1000;
       } else if (cleanAmount.endsWith('tr') || cleanAmount.endsWith('triệu')) {
-        final number = double.tryParse(cleanAmount.replaceAll(RegExp(r'(tr|triệu)'), '')) ?? 0;
+        final number = double.tryParse(
+                cleanAmount.replaceAll(RegExp(r'(tr|triệu)'), '')) ??
+            0;
         return number * 1000000;
       } else if (cleanAmount.endsWith('tỷ')) {
         final number = double.tryParse(cleanAmount.replaceAll('tỷ', '')) ?? 0;
@@ -434,7 +566,7 @@ Data: ${transactionData.toString()}
         return double.tryParse(cleanAmount) ?? 0;
       }
     }
-    
+
     return 0;
   }
 
@@ -489,5 +621,207 @@ Data: ${transactionData.toString()}
   int _estimateTokens(String text) {
     // Rough estimation: 1 token ≈ 4 characters for English, 2-3 for Vietnamese
     return (text.length / 3).ceil();
+  }
+
+  /// Get smart icon for category based on name and type
+  Map<String, dynamic> _getSmartIconForCategory(
+      String categoryName, TransactionType type) {
+    final name = categoryName.toLowerCase();
+
+    // Expense categories with specific emojis
+    if (type == TransactionType.expense) {
+      if (name.contains('ăn') ||
+          name.contains('uống') ||
+          name.contains('food') ||
+          name.contains('eat')) {
+        return {
+          'icon': '🍽️',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFFFF6B35
+        };
+      } else if (name.contains('di chuyển') ||
+          name.contains('xe') ||
+          name.contains('transport') ||
+          name.contains('travel')) {
+        return {
+          'icon': '🚗',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF2196F3
+        };
+      } else if (name.contains('mua sắm') ||
+          name.contains('shopping') ||
+          name.contains('shop')) {
+        return {
+          'icon': '🛒',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF9C27B0
+        };
+      } else if (name.contains('giải trí') ||
+          name.contains('phim') ||
+          name.contains('entertainment') ||
+          name.contains('movie')) {
+        return {
+          'icon': '🎬',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFFFF9800
+        };
+      } else if (name.contains('hóa đơn') ||
+          name.contains('bill') ||
+          name.contains('utilities')) {
+        return {
+          'icon': '🧾',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFFF44336
+        };
+      } else if (name.contains('y tế') ||
+          name.contains('health') ||
+          name.contains('hospital') ||
+          name.contains('doctor')) {
+        return {
+          'icon': '🏥',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF4CAF50
+        };
+      } else if (name.contains('học') ||
+          name.contains('education') ||
+          name.contains('school')) {
+        return {
+          'icon': '🏫',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF673AB7
+        };
+      } else if (name.contains('thể thao') ||
+          name.contains('gym') ||
+          name.contains('sport')) {
+        return {
+          'icon': '⚽',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF009688
+        };
+      } else if (name.contains('nhà') ||
+          name.contains('home') ||
+          name.contains('house')) {
+        return {
+          'icon': '🏠',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF795548
+        };
+      } else if (name.contains('xăng') ||
+          name.contains('gas') ||
+          name.contains('fuel')) {
+        return {
+          'icon': '⛽',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF607D8B
+        };
+      } else if (name.contains('bay') ||
+          name.contains('flight') ||
+          name.contains('plane')) {
+        return {
+          'icon': '✈️',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF00BCD4
+        };
+      } else if (name.contains('khách sạn') || name.contains('hotel')) {
+        return {
+          'icon': '🏨',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFFFF5722
+        };
+      } else if (name.contains('thú cưng') || name.contains('pet')) {
+        return {
+          'icon': '🐕',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFFFFB74D
+        };
+      } else if (name.contains('con') ||
+          name.contains('child') ||
+          name.contains('baby')) {
+        return {
+          'icon': '👶',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFFE91E63
+        };
+      } else if (name.contains('cà phê') ||
+          name.contains('coffee') ||
+          name.contains('cafe')) {
+        return {
+          'icon': '☕',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF8D6E63
+        };
+      } else {
+        // Default expense emoji
+        return {
+          'icon': '💸',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFFFF6B35
+        };
+      }
+    } else {
+      // Income categories with specific emojis
+      if (name.contains('lương') ||
+          name.contains('salary') ||
+          name.contains('work')) {
+        return {
+          'icon': '💼',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF4CAF50
+        };
+      } else if (name.contains('thưởng') ||
+          name.contains('bonus') ||
+          name.contains('gift')) {
+        return {
+          'icon': '🎁',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFFFFD700
+        };
+      } else if (name.contains('đầu tư') ||
+          name.contains('investment') ||
+          name.contains('stock')) {
+        return {
+          'icon': '📈',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF00BCD4
+        };
+      } else if (name.contains('bán') ||
+          name.contains('sell') ||
+          name.contains('sale')) {
+        return {
+          'icon': '💸',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF9C27B0
+        };
+      } else if (name.contains('tiết kiệm') ||
+          name.contains('saving') ||
+          name.contains('bank')) {
+        return {
+          'icon': '🏦',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF2196F3
+        };
+      } else if (name.contains('freelance') || name.contains('tự do')) {
+        return {
+          'icon': '💻',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF673AB7
+        };
+      } else if (name.contains('cho thuê') ||
+          name.contains('rent') ||
+          name.contains('rental')) {
+        return {
+          'icon': '🏢',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF795548
+        };
+      } else {
+        // Default income emoji
+        return {
+          'icon': '💰',
+          'iconType': CategoryIconType.emoji,
+          'color': 0xFF4CAF50
+        };
+      }
+    }
   }
 }

@@ -8,6 +8,7 @@ import '../models/transaction_model.dart';
 import '../services/category_service.dart';
 import '../services/transaction_service.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/category_icon_helper.dart';
 
 class HomeRecentTransactions extends StatefulWidget {
   const HomeRecentTransactions({super.key});
@@ -215,20 +216,29 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions> {
       ),
       child: Row(
         children: [
-          // Icon danh mục
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: isExpense ? Colors.red[50] : Colors.green[50],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              _getCategoryIcon(category?.icon),
-              color: isExpense ? Colors.red[600] : Colors.green[600],
+          // Icon danh mục với CategoryIconHelper
+          if (category != null)
+            CategoryIconHelper.buildIcon(
+              category,
               size: 20,
+              color: isExpense ? Colors.red[600] : Colors.green[600],
+              showBackground: true,
+              backgroundColor: isExpense ? Colors.red[50] : Colors.green[50],
+            )
+          else
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                Icons.category,
+                color: Colors.grey[600],
+                size: 20,
+              ),
             ),
-          ),
 
           const SizedBox(width: 12),
 
@@ -249,7 +259,7 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions> {
                 Text(
                   transaction.note?.isNotEmpty == true
                       ? transaction.note!
-                      : 'Không có mô tả',
+                      : DateFormat('dd/MM/yyyy').format(transaction.date),
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.grey[600],
@@ -257,23 +267,17 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  DateFormat('dd/MM/yyyy HH:mm').format(transaction.date),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey[500],
-                  ),
-                ),
               ],
             ),
           ),
 
+          const SizedBox(width: 12),
+
           // Số tiền
           Text(
-            '${isExpense ? '-' : '+'}${CurrencyFormatter.formatAmountWithCurrency(transaction.amount)}',
+            CurrencyFormatter.formatAmountWithCurrency(transaction.amount),
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: isExpense ? Colors.red[600] : Colors.green[600],
             ),
@@ -281,30 +285,5 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions> {
         ],
       ),
     );
-  }
-
-  IconData _getCategoryIcon(String? iconName) {
-    switch (iconName) {
-      case 'restaurant':
-        return Icons.restaurant;
-      case 'shopping_cart':
-        return Icons.shopping_cart;
-      case 'directions_car':
-        return Icons.directions_car;
-      case 'movie':
-        return Icons.movie;
-      case 'receipt':
-        return Icons.receipt;
-      case 'local_hospital':
-        return Icons.local_hospital;
-      case 'work':
-        return Icons.work;
-      case 'card_giftcard':
-        return Icons.card_giftcard;
-      case 'trending_up':
-        return Icons.trending_up;
-      default:
-        return Icons.category;
-    }
   }
 }

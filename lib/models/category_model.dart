@@ -2,6 +2,29 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'transaction_model.dart';
 
+/// Enum định nghĩa các loại icon cho danh mục
+enum CategoryIconType {
+  material('material'),
+  emoji('emoji'),
+  custom('custom');
+
+  const CategoryIconType(this.value);
+  final String value;
+
+  static CategoryIconType fromString(String value) {
+    switch (value) {
+      case 'material':
+        return CategoryIconType.material;
+      case 'emoji':
+        return CategoryIconType.emoji;
+      case 'custom':
+        return CategoryIconType.custom;
+      default:
+        return CategoryIconType.material;
+    }
+  }
+}
+
 /// Model đại diện cho danh mục giao dịch
 class CategoryModel {
   final String categoryId;
@@ -10,6 +33,8 @@ class CategoryModel {
   final String name;
   final TransactionType type;
   final String icon;
+  final CategoryIconType iconType;
+  final String? customIconUrl;
   final int color;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -24,6 +49,8 @@ class CategoryModel {
     required this.name,
     required this.type,
     required this.icon,
+    this.iconType = CategoryIconType.material,
+    this.customIconUrl,
     required this.color,
     required this.createdAt,
     required this.updatedAt,
@@ -31,6 +58,11 @@ class CategoryModel {
     this.isSuggested = false,
     this.isDeleted = false,
   });
+
+  /// Kiểm tra loại icon
+  bool get isEmoji => iconType == CategoryIconType.emoji;
+  bool get isMaterialIcon => iconType == CategoryIconType.material;
+  bool get isCustomIcon => iconType == CategoryIconType.custom;
 
   /// Tạo CategoryModel từ Map
   factory CategoryModel.fromMap(Map<String, dynamic> map, String id) {
@@ -41,6 +73,8 @@ class CategoryModel {
       name: map['name'] ?? '',
       type: TransactionType.fromString(map['type'] ?? 'EXPENSE'),
       icon: map['icon'] ?? 'category',
+      iconType: CategoryIconType.fromString(map['icon_type'] ?? 'material'),
+      customIconUrl: map['custom_icon_url'],
       color: map['color'] ?? 0xFF607D8B,
       createdAt: (map['created_at'] as Timestamp).toDate(),
       updatedAt: (map['updated_at'] as Timestamp).toDate(),
@@ -58,6 +92,8 @@ class CategoryModel {
       'name': name,
       'type': type.value,
       'icon': icon,
+      'icon_type': iconType.value,
+      'custom_icon_url': customIconUrl,
       'color': color,
       'created_at': Timestamp.fromDate(createdAt),
       'updated_at': Timestamp.fromDate(updatedAt),
@@ -75,6 +111,8 @@ class CategoryModel {
     String? name,
     TransactionType? type,
     String? icon,
+    CategoryIconType? iconType,
+    String? customIconUrl,
     int? color,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -89,6 +127,8 @@ class CategoryModel {
       name: name ?? this.name,
       type: type ?? this.type,
       icon: icon ?? this.icon,
+      iconType: iconType ?? this.iconType,
+      customIconUrl: customIconUrl ?? this.customIconUrl,
       color: color ?? this.color,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -106,7 +146,7 @@ class CategoryModel {
 
   @override
   String toString() {
-    return 'CategoryModel(categoryId: $categoryId, userId: $userId, parentId: $parentId, name: $name, type: $type, icon: $icon, color: $color, createdAt: $createdAt, updatedAt: $updatedAt, isDefault: $isDefault, isSuggested: $isSuggested, isDeleted: $isDeleted)';
+    return 'CategoryModel(categoryId: $categoryId, userId: $userId, parentId: $parentId, name: $name, type: $type, icon: $icon, iconType: $iconType, customIconUrl: $customIconUrl, color: $color, createdAt: $createdAt, updatedAt: $updatedAt, isDefault: $isDefault, isSuggested: $isSuggested, isDeleted: $isDeleted)';
   }
 
   @override
@@ -120,6 +160,8 @@ class CategoryModel {
         other.name == name &&
         other.type == type &&
         other.icon == icon &&
+        other.iconType == iconType &&
+        other.customIconUrl == customIconUrl &&
         other.color == color &&
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt &&
@@ -136,6 +178,8 @@ class CategoryModel {
         name.hashCode ^
         type.hashCode ^
         icon.hashCode ^
+        iconType.hashCode ^
+        customIconUrl.hashCode ^
         color.hashCode ^
         createdAt.hashCode ^
         updatedAt.hashCode ^

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/anonymous_user_banner.dart';
+import '../widgets/category_quick_access.dart';
 import '../widgets/expense_chart.dart';
 import '../widgets/financial_overview.dart';
 import '../widgets/home_banner.dart';
 import '../widgets/home_header.dart';
-import '../widgets/menubar.dart';
 import '../widgets/home_recent_transactions.dart';
+import '../widgets/menubar.dart';
 import '../widgets/simple_offline_status_banner.dart';
 import 'chatbot_screen.dart';
 import 'profile/profile_screen.dart';
@@ -117,6 +118,11 @@ class _HomeTabContentState extends State<HomeTabContent> {
 
           // Expense Chart
           ExpenseChart(key: _expenseChartKey),
+
+          const SizedBox(height: 20),
+
+          // Category Quick Access
+          const CategoryQuickAccess(),
 
           const SizedBox(height: 20),
 
