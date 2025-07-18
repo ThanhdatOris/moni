@@ -420,14 +420,6 @@ class AIBudgetAgentService extends BaseService {
     return weekdays[weekday - 1];
   }
 
-  String _getTimeOfDay(int hour) {
-    if (hour < 6) return 'Early Morning';
-    if (hour < 12) return 'Morning';
-    if (hour < 17) return 'Afternoon';
-    if (hour < 21) return 'Evening';
-    return 'Night';
-  }
-
   Future<void> _sendIntelligentAlert(
     AIBudgetModel budget,
     SpendingAnalysis analysis,
