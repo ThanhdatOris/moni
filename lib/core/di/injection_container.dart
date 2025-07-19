@@ -13,6 +13,7 @@ import '../../services/anonymous_conversion_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/budget_alert_service.dart';
 import '../../services/category_service.dart';
+import '../../services/chart_data_service.dart';
 import '../../services/chat_log_service.dart';
 import '../../services/conversation_service.dart';
 import '../../services/duplicate_detection_service.dart';
@@ -59,6 +60,12 @@ Future<void> init() async {
   // Transaction service with offline support
   getIt.registerLazySingleton<TransactionService>(() => TransactionService(
         offlineService: getIt<OfflineService>(),
+      ));
+
+  // Chart Data Service
+  getIt.registerLazySingleton<ChartDataService>(() => ChartDataService(
+        transactionService: getIt<TransactionService>(),
+        categoryService: getIt<CategoryService>(),
       ));
 
   // Services that depend on TransactionService
@@ -131,6 +138,7 @@ FirebaseService get firebaseService => getIt<FirebaseService>();
 AuthService get authService => getIt<AuthService>();
 TransactionService get transactionService => getIt<TransactionService>();
 CategoryService get categoryService => getIt<CategoryService>();
+ChartDataService get chartDataService => getIt<ChartDataService>();
 BudgetAlertService get budgetAlertService => getIt<BudgetAlertService>();
 ReportService get reportService => getIt<ReportService>();
 OCRService get ocrService => getIt<OCRService>();
