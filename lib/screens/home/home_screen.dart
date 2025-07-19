@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 
-import 'widgets/anonymous_user_banner.dart';
-import 'widgets/category_quick_access.dart';
-import 'widgets/expense_chart.dart';
-import 'widgets/financial_overview.dart';
-import 'widgets/home_banner.dart';
-import 'widgets/home_header.dart';
-import 'widgets/home_recent_transactions.dart';
-import 'widgets/simple_offline_status_banner.dart';
+import '../../widgets/expense_chart_section.dart';
 import '../../widgets/menubar.dart';
 import '../chatbot_screen.dart';
 import '../history/transaction_history_screen.dart';
 import '../profile/profile_screen.dart';
 import '../transaction/add_transaction_screen.dart';
+import 'widgets/anonymous_user_banner.dart';
+import 'widgets/category_quick_access.dart';
+import 'widgets/financial_overview.dart';
+import 'widgets/home_banner.dart';
+import 'widgets/home_header.dart';
+import 'widgets/home_recent_transactions.dart';
+import 'widgets/simple_offline_status_banner.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -97,7 +97,6 @@ class HomeTabContent extends StatefulWidget {
 
 class _HomeTabContentState extends State<HomeTabContent> {
   Key _financialOverviewKey = UniqueKey();
-  Key _expenseChartKey = UniqueKey();
   Key _recentTransactionsKey = UniqueKey();
 
   @override
@@ -105,8 +104,22 @@ class _HomeTabContentState extends State<HomeTabContent> {
     super.didUpdateWidget(oldWidget);
     // Khi widget được rebuild, tạo key mới để refresh các widget con
     _financialOverviewKey = UniqueKey();
-    _expenseChartKey = UniqueKey();
     _recentTransactionsKey = UniqueKey();
+  }
+
+  /// Handle category tap
+  void _onCategoryTap() {
+    // Có thể thêm navigation hoặc action khác ở đây
+    debugPrint('Category tapped from home screen');
+  }
+
+  /// Handle refresh
+  void _onRefresh() {
+    // Refresh các widget khác nếu cần
+    setState(() {
+      _financialOverviewKey = UniqueKey();
+      _recentTransactionsKey = UniqueKey();
+    });
   }
 
   @override
@@ -130,8 +143,11 @@ class _HomeTabContentState extends State<HomeTabContent> {
 
           const SizedBox(height: 20),
 
-          // Expense Chart
-          ExpenseChart(key: _expenseChartKey),
+          // Expense Chart Section - Sử dụng widget mới
+          ExpenseChartSection(
+            onCategoryTap: _onCategoryTap,
+            onRefresh: _onRefresh,
+          ),
 
           const SizedBox(height: 20),
 

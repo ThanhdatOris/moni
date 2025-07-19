@@ -153,10 +153,10 @@ abstract class ChartBaseState<T extends ChartBase> extends State<T>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (widget.config.chart.title.isNotEmpty) _buildTitle(theme),
-          if (widget.config.chart.subtitle?.isNotEmpty == true)
-            _buildSubtitle(theme),
-          const SizedBox(height: 16),
+          // if (widget.config.chart.title.isNotEmpty) _buildTitle(theme),
+          // if (widget.config.chart.subtitle?.isNotEmpty == true)
+          //   _buildSubtitle(theme),
+          // const SizedBox(height: 16),
           Flexible(
             child: _buildContent(theme),
           ),
@@ -293,15 +293,7 @@ abstract class ChartBaseState<T extends ChartBase> extends State<T>
 
   /// Build legend (can be overridden by subclasses)
   Widget _buildLegend(ChartTheme theme) {
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      child: Text(
-        'Legend placeholder',
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-        ),
-      ),
-    );
+    return const SizedBox.shrink(); // Empty legend by default
   }
 
   /// Utility method to handle data point taps

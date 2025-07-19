@@ -455,7 +455,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             height: 300,
             child: IncomeExpenseChart(
               config: config,
-              showComparison: true,
+              // showComparison: true,
               showTrends: true,
               onDataPointTap: (dataPoint) {
                 _showDataPointDetails(dataPoint);

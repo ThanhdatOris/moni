@@ -27,10 +27,7 @@ class ChartLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     final chartTheme = theme ?? ChartThemeProvider.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: _buildLegendContent(chartTheme),
-    );
+    return _buildLegendContent(chartTheme);
   }
 
   Widget _buildLegendContent(ChartTheme theme) {
@@ -51,7 +48,7 @@ class ChartLegend extends StatelessWidget {
 
   Widget _buildHorizontalLegend(ChartTheme theme) {
     return Wrap(
-      spacing: 16,
+      spacing: 12,
       runSpacing: 8,
       children:
           series.map((series) => _buildLegendItem(series, theme)).toList(),
@@ -70,7 +67,7 @@ class ChartLegend extends StatelessWidget {
     return Align(
       alignment: _getCornerAlignment(),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 200),
+        constraints: const BoxConstraints(maxWidth: 180),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children:
@@ -102,42 +99,67 @@ class ChartLegend extends StatelessWidget {
     return GestureDetector(
       onTap: () => onSeriesTap?.call(),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           color: theme.colorScheme.surface,
           border: Border.all(
-            color: theme.colorScheme.outline.withValues(alpha: 0.2),
+            color: theme.colorScheme.outline.withValues(alpha: 0.1),
           ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 12,
-              height: 12,
+              width: 10,
+              height: 10,
               decoration: BoxDecoration(
                 color: series.color,
                 borderRadius: BorderRadius.circular(2),
+                boxShadow: [
+                  BoxShadow(
+                    color: series.color.withValues(alpha: 0.3),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),
             Flexible(
               child: Text(
                 series.name,
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 12,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             if (showValues) ...[
-              const SizedBox(width: 8),
-              Text(
-                _formatValue(total),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w500,
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: series.color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _formatValue(total),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: series.color,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                  ),
                 ),
               ),
             ],
@@ -147,6 +169,7 @@ class ChartLegend extends StatelessWidget {
                 '(${_calculatePercentage(total)}%)',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
+                  fontSize: 10,
                 ),
               ),
             ],

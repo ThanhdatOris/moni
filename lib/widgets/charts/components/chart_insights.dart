@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+
+import '../../../constants/enums.dart';
 import '../core/chart_theme.dart';
 import '../models/chart_data_models.dart';
-import '../../../constants/enums.dart';
 
 /// AI insights panel for chart analysis
 class ChartInsights extends StatelessWidget {
@@ -23,13 +24,13 @@ class ChartInsights extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final chartTheme = theme ?? ChartThemeProvider.of(context);
-    
+
     if (insights.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: chartTheme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
@@ -41,7 +42,7 @@ class ChartInsights extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(chartTheme),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _buildInsightsList(chartTheme),
         ],
       ),
@@ -54,14 +55,15 @@ class ChartInsights extends StatelessWidget {
         Icon(
           Icons.psychology,
           color: theme.colorScheme.primary,
-          size: 20,
+          size: 18,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Text(
           'Phân tích AI',
-          style: theme.textTheme.titleMedium?.copyWith(
+          style: theme.textTheme.titleSmall?.copyWith(
             color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.w600,
+            fontSize: 14,
           ),
         ),
         const Spacer(),
@@ -69,6 +71,7 @@ class ChartInsights extends StatelessWidget {
           '${insights.length} insights',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
+            fontSize: 11,
           ),
         ),
       ],
@@ -77,7 +80,8 @@ class ChartInsights extends StatelessWidget {
 
   Widget _buildInsightsList(ChartTheme theme) {
     return Column(
-      children: insights.map((insight) => _buildInsightCard(insight, theme)).toList(),
+      children:
+          insights.map((insight) => _buildInsightCard(insight, theme)).toList(),
     );
   }
 
@@ -85,8 +89,8 @@ class ChartInsights extends StatelessWidget {
     return GestureDetector(
       onTap: () => onInsightTap?.call(insight),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: _getInsightBackgroundColor(insight.type, theme),
           borderRadius: BorderRadius.circular(8),
@@ -98,10 +102,8 @@ class ChartInsights extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildInsightHeader(insight, theme),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             _buildInsightContent(insight, theme),
-            // Note: trend and recommendations are not available in ChartInsight
-            // They would be available in the parent analysis object
           ],
         ),
       ),
@@ -116,20 +118,19 @@ class ChartInsights extends StatelessWidget {
           color: _getInsightIconColor(insight.type, theme),
           size: 16,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Expanded(
           child: Text(
             insight.title,
-            style: theme.textTheme.titleSmall?.copyWith(
+            style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurface,
               fontWeight: FontWeight.w600,
+              fontSize: 13,
             ),
           ),
         ),
-        // Note: confidence is not available in ChartInsight
-        // Using priority instead
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
           decoration: BoxDecoration(
             color: theme.colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(4),
@@ -139,6 +140,7 @@ class ChartInsights extends StatelessWidget {
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onPrimaryContainer,
               fontWeight: FontWeight.w500,
+              fontSize: 10,
             ),
           ),
         ),
@@ -149,8 +151,9 @@ class ChartInsights extends StatelessWidget {
   Widget _buildInsightContent(ChartInsight insight, ChartTheme theme) {
     return Text(
       insight.description,
-      style: theme.textTheme.bodyMedium?.copyWith(
-        color: theme.colorScheme.onSurface,
+      style: theme.textTheme.bodySmall?.copyWith(
+        color: theme.colorScheme.onSurfaceVariant,
+        fontSize: 12,
       ),
     );
   }
@@ -235,7 +238,7 @@ class CompactChartInsights extends StatelessWidget {
   Widget build(BuildContext context) {
     final chartTheme = theme ?? ChartThemeProvider.of(context);
     final displayInsights = insights.take(maxInsights).toList();
-    
+
     if (displayInsights.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -279,7 +282,8 @@ class CompactChartInsights extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          ...displayInsights.map((insight) => _buildCompactInsight(insight, chartTheme)),
+          ...displayInsights
+              .map((insight) => _buildCompactInsight(insight, chartTheme)),
         ],
       ),
     );
@@ -342,4 +346,4 @@ class CompactChartInsights extends StatelessWidget {
         return Icons.info;
     }
   }
-} 
+}

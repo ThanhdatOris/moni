@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../core/chart_theme.dart';
-import '../models/chart_config_models.dart';
+
 import '../../../constants/enums.dart';
 import '../../../models/category_model.dart';
+import '../core/chart_theme.dart';
+import '../models/chart_config_models.dart';
 
 /// Chart filters component for time period and category selection
 class ChartFilters extends StatefulWidget {
@@ -61,7 +62,7 @@ class _ChartFiltersState extends State<ChartFilters> {
     final theme = widget.theme ?? ChartThemeProvider.of(context);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
@@ -74,11 +75,11 @@ class _ChartFiltersState extends State<ChartFilters> {
         children: [
           if (widget.showTimeFilter) ...[
             _buildTimeFilter(theme),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
           ],
           if (widget.showCategoryFilter) ...[
             _buildCategoryFilter(theme),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
           ],
           _buildAmountFilter(theme),
         ],
@@ -95,18 +96,20 @@ class _ChartFiltersState extends State<ChartFilters> {
           style: theme.textTheme.titleSmall?.copyWith(
             color: theme.colorScheme.onSurface,
             fontWeight: FontWeight.w600,
+            fontSize: 14,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 6,
+          runSpacing: 6,
           children: ChartTimePeriod.values.map((period) {
-            // Note: ChartFilterConfig doesn't have timePeriod, using a default
-            final isSelected =
-                period == ChartTimePeriod.monthly; // Default selection
+            final isSelected = period == ChartTimePeriod.monthly;
             return FilterChip(
-              label: Text(period.displayName),
+              label: Text(
+                period.displayName,
+                style: TextStyle(fontSize: 12),
+              ),
               selected: isSelected,
               onSelected: (selected) {
                 if (selected) {
@@ -119,7 +122,9 @@ class _ChartFiltersState extends State<ChartFilters> {
                 color: isSelected
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurface,
+                fontSize: 12,
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             );
           }).toList(),
         ),
@@ -139,25 +144,31 @@ class _ChartFiltersState extends State<ChartFilters> {
               style: theme.textTheme.titleSmall?.copyWith(
                 color: theme.colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
+                fontSize: 14,
               ),
             ),
             TextButton(
               onPressed: _toggleAllCategories,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(0, 0),
+              ),
               child: Text(
                 _selectedCategories.length == widget.availableCategories.length
                     ? 'Bỏ chọn tất cả'
                     : 'Chọn tất cả',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.primary,
+                  fontSize: 12,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 6,
+          runSpacing: 6,
           children: widget.availableCategories.map((category) {
             final isSelected = _selectedCategories.contains(category);
             return FilterChip(
@@ -167,13 +178,16 @@ class _ChartFiltersState extends State<ChartFilters> {
                   Icon(
                     IconData(int.parse(category.icon),
                         fontFamily: 'MaterialIcons'),
-                    size: 16,
+                    size: 14,
                     color: isSelected
                         ? theme.colorScheme.onPrimaryContainer
                         : (category.color as Color),
                   ),
                   const SizedBox(width: 4),
-                  Text(category.name),
+                  Text(
+                    category.name,
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ],
               ),
               selected: isSelected,
@@ -186,7 +200,9 @@ class _ChartFiltersState extends State<ChartFilters> {
                 color: isSelected
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurface,
+                fontSize: 12,
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             );
           }).toList(),
         ),
