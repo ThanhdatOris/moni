@@ -8,12 +8,12 @@ import '../../models/transaction_model.dart';
 import '../../services/transaction_service.dart';
 import '../../utils/currency_formatter.dart';
 import '../../widgets/custom_page_header.dart';
+import 'transaction_detail_screen.dart';
 import 'widgets/history_calendar_grid.dart';
 import 'widgets/history_empty_state.dart';
 import 'widgets/history_grouped_transactions_list.dart';
 import 'widgets/history_summary_item.dart';
 import 'widgets/history_transaction_item.dart';
-import 'transaction_detail_screen.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
   const TransactionHistoryScreen({super.key});
@@ -320,7 +320,6 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                 ],
               ),
             ),
-
           ],
         ),
       ),
@@ -418,6 +417,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                 childCount: _selectedDayTransactions.length,
               ),
             ),
+          ),
+
+        // Bottom spacing for calendar view when transactions exist
+        if (!_isLoading && _selectedDayTransactions.isNotEmpty)
+          const SliverToBoxAdapter(
+            child: SizedBox(height: 100),
           ),
       ],
     );

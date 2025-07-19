@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../models/transaction_model.dart';
@@ -55,6 +54,9 @@ class HistoryCalendarGrid extends StatelessWidget {
 
           // Calendar days
           _buildCalendarDays(firstWeekday, daysInMonth),
+
+          // Calendar Footer
+          _buildCalendarFooter(isCurrentMonth),
         ],
       ),
     );
@@ -62,12 +64,12 @@ class HistoryCalendarGrid extends StatelessWidget {
 
   Widget _buildCalendarHeader(bool isCurrentMonth, DateTime now) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primary.withValues(alpha: 0.1),
-            AppColors.primary.withValues(alpha: 0.05)
+            AppColors.primary.withValues(alpha: 0.8),
+            AppColors.primaryDark.withValues(alpha: 0.8)
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -77,83 +79,109 @@ class HistoryCalendarGrid extends StatelessWidget {
           topRight: Radius.circular(16),
         ),
       ),
-      child: Column(
+      child: Row(
         children: [
-          // Navigation Row
-          Row(
-            children: [
-              // Previous Month Button
-              IconButton(
-                onPressed: () => onMonthChanged(-1),
-                icon: Icon(
-                  Icons.chevron_left,
-                  color: AppColors.primary,
-                  size: 28,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.8),
-                  padding: const EdgeInsets.all(8),
-                ),
-              ),
-
-              // Month/Year Display (Clickable)
-              Expanded(
-                child: GestureDetector(
-                  onTap: onMonthYearPicker,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          DateFormat('MMMM yyyy', 'vi_VN').format(focusedDay),
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.calendar_today,
-                          size: 16,
-                          color: AppColors.primary,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // Next Month Button
-              IconButton(
-                onPressed: () => onMonthChanged(1),
-                icon: Icon(
-                  Icons.chevron_right,
-                  color: AppColors.primary,
-                  size: 28,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.8),
-                  padding: const EdgeInsets.all(8),
-                ),
-              ),
-            ],
+          // Previous Month Button
+          IconButton(
+            onPressed: () => onMonthChanged(-1),
+            icon: Icon(
+              Icons.chevron_left,
+              color: Colors.white,
+              size: 24,
+            ),
+            style: IconButton.styleFrom(
+              padding: const EdgeInsets.all(6),
+              minimumSize: const Size(32, 32),
+            ),
           ),
 
-          // Month Stats & Quick Actions
-          Container(
-            padding: const EdgeInsets.only(top: 8),
+          const SizedBox(width: 8),
+
+          // Month/Year Display
+          Expanded(
+            child: GestureDetector(
+              onTap: onMonthYearPicker,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Tháng ${focusedDay.month} - ${focusedDay.year}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Icon(
+                        Icons.calendar_today,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
+          // Next Month Button
+          IconButton(
+            onPressed: () => onMonthChanged(1),
+            icon: Icon(
+              Icons.chevron_right,
+              color: Colors.white,
+              size: 24,
+            ),
+            style: IconButton.styleFrom(
+              padding: const EdgeInsets.all(6),
+              minimumSize: const Size(32, 32),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarFooter(bool isCurrentMonth) {
+    final now = DateTime.now();
+    final isTodaySelected = selectedDay.year == now.year &&
+        selectedDay.month == now.month &&
+        selectedDay.day == now.day;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+        border: Border(
+          top: BorderSide(
+            color: Colors.grey.withValues(alpha: 0.1),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Interactive Buttons Section
+          Expanded(
             child: Row(
               children: [
-                // Current Month Indicator
+                // Current Month Indicator or Navigation Button
                 if (isCurrentMonth)
                   Container(
                     padding:
@@ -186,46 +214,62 @@ class HistoryCalendarGrid extends StatelessWidget {
                         ),
                       ],
                     ),
+                  )
+                else
+                  // Navigation to Current Month Button
+                  GestureDetector(
+                    onTap: () {
+                      final currentMonth = DateTime(now.year, now.month, 1);
+                      // Trigger month change to current month
+                      final monthDiff = (now.year - focusedDay.year) * 12 +
+                          (now.month - focusedDay.month);
+                      onMonthChanged(monthDiff);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 4, horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.home,
+                            size: 12,
+                            color: AppColors.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Về tháng hiện tại',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
 
                 const Spacer(),
 
-                // Transaction Count
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.receipt,
-                        size: 12,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${transactions.values.fold(0, (sum, list) => sum + list.length)} giao dịch',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(width: 8),
-
-                // Today Button
-                if (!isCurrentMonth)
+                // Today Button (show when not today is selected)
+                if (!isTodaySelected)
                   GestureDetector(
                     onTap: () {
                       final today = DateTime.now();
+                      // First navigate to current month if not already there
+                      if (!isCurrentMonth) {
+                        final monthDiff = (today.year - focusedDay.year) * 12 +
+                            (today.month - focusedDay.month);
+                        onMonthChanged(monthDiff);
+                      }
+                      // Then select today's date
                       onDaySelected(today);
                     },
                     child: Container(
@@ -262,6 +306,45 @@ class HistoryCalendarGrid extends StatelessWidget {
               ],
             ),
           ),
+
+          // Vertical Divider
+          if (transactions.values.fold(0, (sum, list) => sum + list.length) >
+              0) ...[
+            Container(
+              width: 1,
+              height: 24,
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              color: Colors.grey.withValues(alpha: 0.2),
+            ),
+
+            // Transaction Count Info
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.receipt,
+                    size: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${transactions.values.fold(0, (sum, list) => sum + list.length)} giao dịch',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
