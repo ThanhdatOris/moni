@@ -457,7 +457,7 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
             spacing: 12,
             runSpacing: 12,
             children: _availableColors.map((color) {
-              final isSelected = _selectedColor.value == color.value;
+              final isSelected = _selectedColor == color;
               return GestureDetector(
                 onTap: () {
                   setState(() {

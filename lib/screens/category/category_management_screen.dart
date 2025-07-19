@@ -8,8 +8,11 @@ import '../../constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/category_service.dart';
-import '../../utils/category_icon_helper.dart';
 import 'add_edit_category_screen.dart';
+import 'widgets/animated_category_list.dart';
+import 'widgets/animated_floating_action_button.dart';
+import 'widgets/animated_search_bar.dart';
+import 'widgets/animated_type_selector.dart';
 
 class CategoryManagementScreen extends StatefulWidget {
   const CategoryManagementScreen({super.key});
@@ -31,6 +34,9 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
   List<CategoryModel> _filteredCategories = [];
   bool _isLoading = false;
   String _searchQuery = '';
+  bool _isSwipeInProgress = false;
+  double _swipeOffset = 0.0;
+  bool _isAnimating = false;
 
   // Controllers
   final _searchController = TextEditingController();
@@ -138,6 +144,34 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     _loadCategories();
   }
 
+  Future<void> _performSwipeAnimation(TransactionType newType) async {
+    setState(() {
+      _isAnimating = true;
+    });
+
+    // Animate to full swipe position with easing
+    await Future.delayed(const Duration(milliseconds: 80));
+    setState(() {
+      _swipeOffset = newType == TransactionType.expense ? 60.0 : -60.0;
+    });
+
+    // Brief pause before changing tab
+    await Future.delayed(const Duration(milliseconds: 120));
+    _onTypeChanged(newType);
+
+    // Smooth reset animation
+    await Future.delayed(const Duration(milliseconds: 80));
+    setState(() {
+      _swipeOffset = 0.0;
+    });
+    
+    await Future.delayed(const Duration(milliseconds: 100));
+    setState(() {
+      _isAnimating = false;
+      _isSwipeInProgress = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -145,18 +179,96 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          _buildTypeSelector(),
-          _buildSearchBar(),
+          Transform.translate(
+            offset: Offset(_swipeOffset * 0.2, 0),
+            child: AnimatedTypeSelector(
+              selectedType: _selectedType,
+              onTypeChanged: _onTypeChanged,
+              swipeOffset: _swipeOffset,
+              isAnimating: _isAnimating,
+            ),
+          ),
+          Transform.translate(
+            offset: Offset(_swipeOffset * 0.1, 0),
+            child: AnimatedSearchBar(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              searchQuery: _searchQuery,
+              swipeOffset: _swipeOffset,
+              isAnimating: _isAnimating,
+            ),
+          ),
           Expanded(
-            child: _isLoading
-                ? _buildLoadingState()
-                : _filteredCategories.isEmpty
-                    ? _buildEmptyState()
-                    : _buildCategoryList(),
+            child: GestureDetector(
+              onPanStart: (details) {
+                if (!_isAnimating) {
+                  _isSwipeInProgress = false;
+                  _swipeOffset = 0.0;
+                }
+              },
+              onPanUpdate: (details) {
+                if (!_isAnimating) {
+                  setState(() {
+                    _swipeOffset += details.delta.dx;
+                    // Limit swipe offset to reasonable bounds
+                    _swipeOffset = _swipeOffset.clamp(-100.0, 100.0);
+                  });
+
+                  // Detect horizontal swipe with minimum threshold
+                  if (!_isSwipeInProgress && details.delta.dx.abs() > 20) {
+                    if (details.delta.dx > 0) {
+                      // Swipe right - switch to expense (previous tab)
+                      if (_selectedType != TransactionType.expense) {
+                        _isSwipeInProgress = true;
+                        _performSwipeAnimation(TransactionType.expense);
+                      }
+                    } else {
+                      // Swipe left - switch to income (next tab)
+                      if (_selectedType != TransactionType.income) {
+                        _isSwipeInProgress = true;
+                        _performSwipeAnimation(TransactionType.income);
+                      }
+                    }
+                  }
+                }
+              },
+              onPanEnd: (details) {
+                if (!_isAnimating && !_isSwipeInProgress) {
+                  // Reset swipe offset if no tab change occurred
+                  setState(() {
+                    _swipeOffset = 0.0;
+                  });
+                }
+              },
+              child: AnimatedOpacity(
+                opacity: _isAnimating ? 0.7 : 1.0,
+                duration: const Duration(milliseconds: 150),
+                child: Transform.translate(
+                  offset: Offset(_swipeOffset * 0.5, 0),
+                  child: _isLoading
+                      ? _buildLoadingState()
+                      : _filteredCategories.isEmpty
+                          ? _buildEmptyState()
+                          : AnimatedCategoryList(
+                              categories: _categories,
+                              filteredCategories: _filteredCategories,
+                              swipeOffset: _swipeOffset,
+                              isAnimating: _isAnimating,
+                              onAddCategory: _addCategory,
+                              onEditCategory: _editCategory,
+                              onDeleteCategory: _deleteCategory,
+                            ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      floatingActionButton: _buildFloatingActionButton(),
+      floatingActionButton: AnimatedFloatingActionButton(
+        onPressed: _addCategory,
+        swipeOffset: _swipeOffset,
+        isAnimating: _isAnimating,
+      ),
     );
   }
 
@@ -175,150 +287,6 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
       leading: IconButton(
         icon: const Icon(Icons.arrow_back_ios_new),
         onPressed: () => Navigator.pop(context),
-      ),
-    );
-  }
-
-  Widget _buildTypeSelector() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildTypeButton(
-              'Chi tiêu',
-              TransactionType.expense,
-              Icons.remove_circle_outline,
-              AppColors.expense,
-            ),
-          ),
-          Expanded(
-            child: _buildTypeButton(
-              'Thu nhập',
-              TransactionType.income,
-              Icons.add_circle_outline,
-              AppColors.income,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTypeButton(
-    String title,
-    TransactionType type,
-    IconData icon,
-    Color color,
-  ) {
-    final isSelected = _selectedType == type;
-
-    return GestureDetector(
-      onTap: () => _onTypeChanged(type),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-                  colors: [color, color.withValues(alpha:0.8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: isSelected ? null : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              color: isSelected ? Colors.white : color,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(
-                color: isSelected ? Colors.white : color,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.search,
-            color: AppColors.textSecondary,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Tìm kiếm danh mục...',
-                hintStyle: TextStyle(
-                  color: AppColors.textSecondary.withValues(alpha:0.7),
-                  fontSize: 16,
-                ),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-              ),
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          if (_searchQuery.isNotEmpty)
-            GestureDetector(
-              onTap: () {
-                _searchController.clear();
-                _onSearchChanged('');
-              },
-              child: Icon(
-                Icons.clear,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-            ),
-        ],
       ),
     );
   }
@@ -378,156 +346,6 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
             textAlign: TextAlign.center,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryList() {
-    // Group categories by parent-child relationship
-    final parentCategories = _filteredCategories
-        .where((category) => category.isParentCategory)
-        .toList();
-
-    final childCategories = _filteredCategories
-        .where((category) => category.isChildCategory)
-        .toList();
-
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        // Parent categories
-        ...parentCategories.map((category) {
-          final children = childCategories
-              .where((child) => child.parentId == category.categoryId)
-              .toList();
-
-          return _buildCategoryGroup(category, children);
-        }),
-
-        // Orphaned child categories (parent not found)
-        ...childCategories
-            .where((child) => !parentCategories
-                .any((parent) => parent.categoryId == child.parentId))
-            .map((category) => _buildCategoryItem(category, isChild: true)),
-
-        const SizedBox(height: 80), // Space for FAB
-      ],
-    );
-  }
-
-  Widget _buildCategoryGroup(
-      CategoryModel parent, List<CategoryModel> children) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          _buildCategoryItem(parent, isParent: true),
-          if (children.isNotEmpty) ...[
-            const Divider(height: 1),
-            ...children
-                .map((child) => _buildCategoryItem(child, isChild: true)),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryItem(
-    CategoryModel category, {
-    bool isParent = false,
-    bool isChild = false,
-  }) {
-    return ListTile(
-      contentPadding: EdgeInsets.only(
-        left: isChild ? 32 : 16,
-        right: 16,
-        top: 8,
-        bottom: 8,
-      ),
-      leading: CategoryIconHelper.buildIcon(
-        category,
-        size: 24,
-        color: Color(category.color),
-        showBackground: true,
-      ),
-      title: Row(
-        children: [
-          Expanded(
-            child: Text(
-              category.name,
-              style: TextStyle(
-                fontSize: isParent ? 16 : 15,
-                fontWeight: isParent ? FontWeight.w600 : FontWeight.w500,
-                color: AppColors.textPrimary,
-              ),
-            ),
-          ),
-          if (category.isDefault)
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha:0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                'Mặc định',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-        ],
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Edit button
-          IconButton(
-            icon: Icon(
-              Icons.edit_outlined,
-              size: 20,
-              color: AppColors.textSecondary,
-            ),
-            onPressed: () => _editCategory(category),
-          ),
-          // Delete button (only for non-default categories)
-          if (!category.isDefault)
-            IconButton(
-              icon: Icon(
-                Icons.delete_outline,
-                size: 20,
-                color: AppColors.error,
-              ),
-              onPressed: () => _deleteCategory(category),
-            ),
-        ],
-      ),
-      onTap: () => _editCategory(category),
-    );
-  }
-
-  Widget _buildFloatingActionButton() {
-    return FloatingActionButton(
-      onPressed: _addCategory,
-      backgroundColor: AppColors.primary,
-      child: const Icon(
-        Icons.add,
-        color: Colors.white,
-        size: 28,
       ),
     );
   }

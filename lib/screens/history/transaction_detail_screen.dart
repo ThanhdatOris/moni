@@ -12,11 +12,11 @@ import '../../services/category_service.dart';
 import '../../services/transaction_service.dart';
 import '../../utils/category_icon_helper.dart';
 import '../../utils/currency_formatter.dart';
-import '../../widgets/transaction_amount_input.dart';
-import '../../widgets/transaction_category_selector.dart';
-import '../../widgets/transaction_date_selector.dart';
-import '../../widgets/transaction_note_input.dart';
-import '../../widgets/transaction_type_selector.dart';
+import '../transaction/widgets/transaction_amount_input.dart';
+import '../transaction/widgets/transaction_category_selector.dart';
+import '../transaction/widgets/transaction_date_selector.dart';
+import '../transaction/widgets/transaction_note_input.dart';
+import '../transaction/widgets/transaction_type_selector.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final TransactionModel transaction;

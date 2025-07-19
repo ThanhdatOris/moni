@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:pie_chart/pie_chart.dart' as pie;
 
 import '../../../constants/app_colors.dart';
-import '../../../utils/currency_formatter.dart';
+// import '../../../utils/currency_formatter.dart';
 
 class AnalyticsChartsTab extends StatefulWidget {
   final String selectedPeriod;

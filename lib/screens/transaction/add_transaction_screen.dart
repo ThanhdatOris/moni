@@ -20,12 +20,12 @@ import '../../widgets/duplicate_warning_dialog.dart';
 import '../../widgets/enhanced_category_selector.dart';
 import '../../widgets/enhanced_save_button.dart';
 import '../../widgets/spending_limit_widgets.dart';
-import '../../widgets/transaction_ai_scan_tab.dart';
-import '../../widgets/transaction_amount_input.dart';
-import '../../widgets/transaction_date_selector.dart';
-import '../../widgets/transaction_note_input.dart';
-import '../../widgets/transaction_template_widget.dart';
-import '../../widgets/transaction_type_selector.dart';
+import 'widgets/transaction_ai_scan_tab.dart';
+import 'widgets/transaction_amount_input.dart';
+import 'widgets/transaction_date_selector.dart';
+import 'widgets/transaction_note_input.dart';
+import 'widgets/transaction_template_widget.dart';
+import 'widgets/transaction_type_selector.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({super.key});

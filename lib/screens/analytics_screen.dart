@@ -5,7 +5,14 @@ import 'package:pie_chart/pie_chart.dart' as pie;
 
 import '../constants/app_colors.dart';
 import '../constants/app_strings.dart';
+import '../constants/enums.dart';
 import '../utils/currency_formatter.dart';
+import '../widgets/charts/components/chart_insights.dart';
+import '../widgets/charts/core/chart_theme.dart';
+import '../widgets/charts/models/chart_config_models.dart';
+import '../widgets/charts/models/chart_data_models.dart';
+import '../widgets/charts/types/category_analysis_chart.dart';
+import '../widgets/charts/types/income_expense_chart.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -24,12 +31,22 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_handleTabChange);
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        // Force rebuild when tab changes
+      });
+    }
   }
 
   @override
@@ -96,6 +113,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                 onChanged: (value) {
                   setState(() {
                     _selectedPeriod = value!;
+                    // Trigger rebuild for all tabs
+                    _rebuildAllTabs();
                   });
                 },
                 items: _periods.map((period) {
@@ -116,6 +135,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
         ],
       ),
     );
+  }
+
+  void _rebuildAllTabs() {
+    // Force rebuild of all tabs when period changes
+    setState(() {
+      // This will trigger rebuild of all tabs
+    });
   }
 
   Widget _buildOverviewTab() {
@@ -257,10 +283,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             ),
           ),
           const SizedBox(height: 16),
-          _buildQuickStatItem('Số dư hiện tại', '6.500.000đ', AppColors.primary),
-          _buildQuickStatItem('Giao dịch trong ngày', '3 giao dịch', AppColors.info),
+          _buildQuickStatItem(
+              'Số dư hiện tại', '6.500.000đ', AppColors.primary),
+          _buildQuickStatItem(
+              'Giao dịch trong ngày', '3 giao dịch', AppColors.info),
           _buildQuickStatItem('Chi nhiều nhất', 'Ăn uống', AppColors.food),
-          _buildQuickStatItem('Mục tiêu tiết kiệm', '65% đạt được', AppColors.success),
+          _buildQuickStatItem(
+              'Mục tiêu tiết kiệm', '65% đạt được', AppColors.success),
         ],
       ),
     );
@@ -337,17 +366,216 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   }
 
   Widget _buildChartsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          _buildExpensePieChart(),
-          const SizedBox(height: 24),
-          _buildMonthlyBarChart(),
-          const SizedBox(height: 24),
-          _buildCategoryComparison(),
+    final chartTheme = Theme.of(context).brightness == Brightness.dark
+        ? ChartTheme.dark()
+        : ChartTheme.light();
+
+    return ChartThemeProvider(
+      theme: chartTheme,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _buildIncomeExpenseChart(),
+            const SizedBox(height: 24),
+            _buildCategoryAnalysisChart(),
+            const SizedBox(height: 24),
+            _buildChartInsights(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIncomeExpenseChart() {
+    final config = CompleteChartConfig(
+      chart: ChartConfiguration(
+        title: 'Thu chi theo thời gian',
+        type: ChartType.bar,
+        timePeriod: _getTimePeriodFromString(_selectedPeriod),
+        showLegend: true,
+        isInteractive: true,
+        animationType: ChartAnimationType.fade,
+        animationDuration: const Duration(milliseconds: 800),
+      ),
+      filter: ChartFilterConfig(
+        startDate: _getStartDateFromPeriod(_selectedPeriod),
+        endDate: DateTime.now(),
+        includeIncome: true,
+        includeExpense: true,
+      ),
+      legend: const ChartLegendConfig(
+        show: true,
+        position: LegendPosition.bottom,
+        maxColumns: 2,
+      ),
+      tooltip: const ChartTooltipConfig(
+        enabled: true,
+        backgroundColor: Colors.black87,
+        textColor: Colors.white,
+      ),
+      style: ChartStyleConfig(
+        backgroundColor: Colors.transparent,
+        colorPalette: [
+          AppColors.income,
+          AppColors.expense,
+          AppColors.food,
+          AppColors.transport,
+          AppColors.shopping,
+          AppColors.entertainment,
         ],
       ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Thu chi theo thời gian',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 300,
+            child: IncomeExpenseChart(
+              config: config,
+              showComparison: true,
+              showTrends: true,
+              onDataPointTap: (dataPoint) {
+                _showDataPointDetails(dataPoint);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryAnalysisChart() {
+    final config = CompleteChartConfig(
+      chart: ChartConfiguration(
+        title: 'Phân tích danh mục',
+        type: ChartType.pie,
+        timePeriod: _getTimePeriodFromString(_selectedPeriod),
+        showLegend: true,
+        isInteractive: true,
+        animationType: ChartAnimationType.fade,
+        animationDuration: const Duration(milliseconds: 800),
+      ),
+      filter: ChartFilterConfig(
+        startDate: _getStartDateFromPeriod(_selectedPeriod),
+        endDate: DateTime.now(),
+        includeIncome: false,
+        includeExpense: true,
+      ),
+      legend: const ChartLegendConfig(
+        show: true,
+        position: LegendPosition.right,
+        maxColumns: 1,
+      ),
+      tooltip: const ChartTooltipConfig(
+        enabled: true,
+        backgroundColor: Colors.black87,
+        textColor: Colors.white,
+      ),
+      style: ChartStyleConfig(
+        backgroundColor: Colors.transparent,
+        colorPalette: [
+          AppColors.food,
+          AppColors.transport,
+          AppColors.shopping,
+          AppColors.entertainment,
+          AppColors.bills,
+          AppColors.health,
+        ],
+      ),
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundLight,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Phân bố chi tiêu theo danh mục',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            height: 300,
+            child: CategoryAnalysisChart(
+              config: config,
+              showPieChart: true,
+              showBarChart: true,
+              showTrends: false,
+              onCategoryTap: (category) {
+                _showCategoryDetails(category);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChartInsights() {
+    // Mock insights data - trong thực tế sẽ lấy từ AI service
+    final insights = [
+      ChartInsight(
+        title: 'Chi tiêu tăng cao',
+        description:
+            'Chi tiêu tháng này tăng 15% so với tháng trước. Cần kiểm soát chi tiêu tốt hơn.',
+        type: InsightType.warning,
+        priority: 0.8,
+        generated: DateTime.now(),
+      ),
+      ChartInsight(
+        title: 'Tiết kiệm tốt',
+        description:
+            'Bạn đã tiết kiệm được 25% thu nhập. Hãy duy trì thói quen này!',
+        type: InsightType.positive,
+        priority: 0.9,
+        generated: DateTime.now(),
+      ),
+    ];
+
+    return ChartInsights(
+      insights: insights,
+      showTrends: true,
+      showRecommendations: true,
+      onInsightTap: (insight) {
+        _showInsightDetails(insight);
+      },
     );
   }
 
@@ -483,10 +711,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             ),
           ),
           const SizedBox(height: 20),
-          _buildCategoryComparisonItem('Ăn uống', 2500000, 3000000, AppColors.food),
-          _buildCategoryComparisonItem('Di chuyển', 800000, 1000000, AppColors.transport),
-          _buildCategoryComparisonItem('Mua sắm', 1200000, 1500000, AppColors.shopping),
-          _buildCategoryComparisonItem('Giải trí', 600000, 800000, AppColors.entertainment),
+          _buildCategoryComparisonItem(
+              'Ăn uống', 2500000, 3000000, AppColors.food),
+          _buildCategoryComparisonItem(
+              'Di chuyển', 800000, 1000000, AppColors.transport),
+          _buildCategoryComparisonItem(
+              'Mua sắm', 1200000, 1500000, AppColors.shopping),
+          _buildCategoryComparisonItem(
+              'Giải trí', 600000, 800000, AppColors.entertainment),
         ],
       ),
     );
@@ -628,7 +860,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     );
   }
 
-  Widget _buildAlertItem(String title, String message, Color color, IconData icon) {
+  Widget _buildAlertItem(
+      String title, String message, Color color, IconData icon) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.all(16),
@@ -773,7 +1006,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.primary.withValues(alpha: 0.1), AppColors.primaryLight.withValues(alpha: 0.1)],
+          colors: [
+            AppColors.primary.withValues(alpha: 0.1),
+            AppColors.primaryLight.withValues(alpha: 0.1)
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -815,7 +1051,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                     LinearProgressIndicator(
                       value: progress,
                       backgroundColor: AppColors.grey200,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primary),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -901,13 +1138,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
             showTitles: true,
             getTitlesWidget: (value, meta) {
               switch (value.toInt()) {
-                case 0: return const Text('T1', style: TextStyle(fontSize: 10));
-                case 1: return const Text('T2', style: TextStyle(fontSize: 10));
-                case 2: return const Text('T3', style: TextStyle(fontSize: 10));
-                case 3: return const Text('T4', style: TextStyle(fontSize: 10));
-                case 4: return const Text('T5', style: TextStyle(fontSize: 10));
-                case 5: return const Text('T6', style: TextStyle(fontSize: 10));
-                default: return const Text('');
+                case 0:
+                  return const Text('T1', style: TextStyle(fontSize: 10));
+                case 1:
+                  return const Text('T2', style: TextStyle(fontSize: 10));
+                case 2:
+                  return const Text('T3', style: TextStyle(fontSize: 10));
+                case 3:
+                  return const Text('T4', style: TextStyle(fontSize: 10));
+                case 4:
+                  return const Text('T5', style: TextStyle(fontSize: 10));
+                case 5:
+                  return const Text('T6', style: TextStyle(fontSize: 10));
+                default:
+                  return const Text('');
               }
             },
           ),
@@ -940,6 +1184,89 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
           BarChartRodData(toY: 7, color: AppColors.expense, width: 20),
         ]),
       ],
+    );
+  }
+
+  // Helper methods for chart integration
+  ChartTimePeriod _getTimePeriodFromString(String period) {
+    switch (period) {
+      case 'Tuần này':
+        return ChartTimePeriod.weekly;
+      case 'Tháng này':
+        return ChartTimePeriod.monthly;
+      case 'Quý này':
+        return ChartTimePeriod.quarterly;
+      case 'Năm nay':
+        return ChartTimePeriod.yearly;
+      default:
+        return ChartTimePeriod.monthly;
+    }
+  }
+
+  DateTime _getStartDateFromPeriod(String period) {
+    final now = DateTime.now();
+    switch (period) {
+      case 'Tuần này':
+        return now.subtract(Duration(days: now.weekday - 1));
+      case 'Tháng này':
+        return DateTime(now.year, now.month, 1);
+      case 'Quý này':
+        final quarter = ((now.month - 1) / 3).floor();
+        return DateTime(now.year, quarter * 3 + 1, 1);
+      case 'Năm nay':
+        return DateTime(now.year, 1, 1);
+      default:
+        return DateTime(now.year, now.month, 1);
+    }
+  }
+
+  void _showDataPointDetails(ChartDataPoint dataPoint) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Chi tiết: ${dataPoint.label}'),
+        content: Text(
+            'Số tiền: ${CurrencyFormatter.formatAmountWithCurrency(dataPoint.value)}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCategoryDetails(CategoryAnalysisData category) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Chi tiết: ${category.categoryName}'),
+        content: Text(
+            'Tổng chi: ${CurrencyFormatter.formatAmountWithCurrency(category.totalAmount)}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showInsightDetails(ChartInsight insight) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(insight.title),
+        content: Text(insight.description),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng'),
+          ),
+        ],
+      ),
     );
   }
 }

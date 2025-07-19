@@ -6,8 +6,8 @@ import 'package:get_it/get_it.dart';
 import '../services/environment_service.dart';
 import '../services/offline_service.dart';
 import 'auth_screen.dart';
-import 'home_screen.dart';
 import 'splash_screen.dart';
+import 'home/home_screen.dart';
 
 class SplashWrapper extends StatefulWidget {
   const SplashWrapper({super.key});
