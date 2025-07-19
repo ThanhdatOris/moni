@@ -18,8 +18,6 @@ class FinancialOverviewCards extends StatefulWidget {
 }
 
 class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
-  double totalIncome = 0.0;
-  double totalExpense = 0.0;
   double balance = 0.0;
   bool isLoading = true;
 
@@ -38,27 +36,10 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
 
       final transactionService = _getIt<TransactionService>();
 
-      // Lấy dữ liệu tháng hiện tại
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      final endOfMonth = DateTime(now.year, now.month + 1, 0);
-
-      final income = await transactionService.getTotalIncome(
-        startDate: startOfMonth,
-        endDate: endOfMonth,
-      );
-
-      final expense = await transactionService.getTotalExpense(
-        startDate: startOfMonth,
-        endDate: endOfMonth,
-      );
-
       final currentBalance = await transactionService.getCurrentBalance();
 
       if (mounted) {
         setState(() {
-          totalIncome = income;
-          totalExpense = expense;
           balance = currentBalance;
           isLoading = false;
         });
@@ -117,60 +98,13 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          // Main Bank Card
-          _buildMainBankCard(),
-
-          const SizedBox(height: 20),
-
-          // Income & Expense Cards
-          Row(
-            children: [
-              Expanded(
-                child: _buildSmallCard(
-                  title: 'Thu nhập',
-                  amount: _formatCurrency(totalIncome),
-                  icon: Icons.trending_up,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF4CAF50),
-                      Color(0xFF66BB6A),
-                      Color(0xFF81C784),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildSmallCard(
-                  title: 'Chi tiêu',
-                  amount: _formatCurrency(totalExpense),
-                  icon: Icons.trending_down,
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFf44336),
-                      Color(0xFFef5350),
-                      Color(0xFFe57373),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      child: _buildMainBankCard(),
     );
   }
 
   Widget _buildMainBankCard() {
     // Kiểm tra nếu người dùng chưa có giao dịch nào
-    final hasNoTransactions =
-        totalIncome == 0.0 && totalExpense == 0.0 && balance == 0.0;
+    final hasNoTransactions = balance == 0.0;
 
     return Container(
       height: 200,
@@ -413,115 +347,6 @@ class _FinancialOverviewCardsState extends State<FinancialOverviewCards> {
                         ],
                       ),
                     ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmallCard({
-    required String title,
-    required String amount,
-    required IconData icon,
-    required Gradient gradient,
-  }) {
-    return Container(
-      height: 80, // Giảm height xuống 80 để tránh overflow
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            // Gradient Background
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: gradient,
-                ),
-              ),
-            ),
-
-            // Glassmorphism Overlay
-            Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
-                ),
-              ),
-            ),
-
-            // Content
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 14), // Padding đồng nhất
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          title,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                offset: const Offset(1, 1),
-                                blurRadius: 2,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 4), // Giảm khoảng cách
-                        Text(
-                          amount,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15, // Giảm size một chút
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: 0.4),
-                                offset: const Offset(1, 1),
-                                blurRadius: 3,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      icon,
-                      color: Colors.white,
-                      size: 18, // Giảm size icon một chút
-                    ),
                   ),
                 ],
               ),
