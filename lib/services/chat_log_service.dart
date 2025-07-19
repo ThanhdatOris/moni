@@ -14,9 +14,20 @@ class ChatLogService {
   Future<String> createLog({
     required String question,
     required String response,
+    required String conversationId,
+    String? transactionId,
+    Map<String, dynamic>? transactionData,
   }) async {
     try {
       final user = _auth.currentUser;
+
+      // Nếu conversationId bắt đầu bằng 'temp_', không lưu vào Firestore
+      if (conversationId.startsWith('temp_')) {
+        _logger.i(
+            'Bỏ qua lưu chat log cho conversation tạm thời: $conversationId');
+        return 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      }
+
       if (user == null) {
         throw Exception('Người dùng chưa đăng nhập');
       }
@@ -25,10 +36,13 @@ class ChatLogService {
       final chatLog = ChatLogModel(
         interactionId: '', // Sẽ được Firestore tự tạo
         userId: user.uid,
+        conversationId: conversationId,
         question: question,
         response: response,
         createdAt: now,
         updatedAt: now,
+        transactionId: transactionId,
+        transactionData: transactionData,
       );
 
       final docRef = await _firestore
@@ -50,10 +64,18 @@ class ChatLogService {
     int? limit,
     DateTime? startDate,
     DateTime? endDate,
+    String? conversationId,
   }) {
     try {
       final user = _auth.currentUser;
       if (user == null) {
+        return Stream.value([]);
+      }
+
+      // Nếu conversationId bắt đầu bằng 'temp_', trả về list rỗng
+      if (conversationId != null && conversationId.startsWith('temp_')) {
+        _logger.i(
+            'Trả về chat logs rỗng cho conversation tạm thời: $conversationId');
         return Stream.value([]);
       }
 
@@ -62,6 +84,11 @@ class ChatLogService {
           .doc(user.uid)
           .collection('chat_logs')
           .orderBy('created_at', descending: true);
+
+      // Lọc theo conversationId nếu có
+      if (conversationId != null) {
+        query = query.where('conversation_id', isEqualTo: conversationId);
+      }
 
       if (startDate != null) {
         query = query.where('created_at',
@@ -90,8 +117,69 @@ class ChatLogService {
   }
 
   /// Lấy lịch sử chat gần đây (10 log gần nhất)
-  Stream<List<ChatLogModel>> getRecentLogs({int limit = 10}) {
-    return getLogs(limit: limit);
+  Stream<List<ChatLogModel>> getRecentLogs({
+    int limit = 10,
+    String? conversationId,
+  }) {
+    return getLogs(limit: limit, conversationId: conversationId);
+  }
+
+  /// Lấy chat log có chứa giao dịch theo transactionId
+  Future<ChatLogModel?> getLogByTransactionId(String transactionId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return null;
+      }
+
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('chat_logs')
+          .where('transaction_id', isEqualTo: transactionId)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final doc = snapshot.docs.first;
+        return ChatLogModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+      }
+
+      return null;
+    } catch (e) {
+      _logger.e('Lỗi lấy chat log theo transactionId: $e');
+      return null;
+    }
+  }
+
+  /// Cập nhật chat log với thông tin giao dịch
+  Future<void> updateLogWithTransaction({
+    required String interactionId,
+    required String transactionId,
+    required Map<String, dynamic> transactionData,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('Người dùng chưa đăng nhập');
+      }
+
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('chat_logs')
+          .doc(interactionId)
+          .update({
+        'transaction_id': transactionId,
+        'transaction_data': transactionData,
+        'updated_at': Timestamp.fromDate(DateTime.now()),
+      });
+
+      _logger.i('Cập nhật chat log với transaction thành công: $interactionId');
+    } catch (e) {
+      _logger.e('Lỗi cập nhật chat log với transaction: $e');
+      throw Exception('Không thể cập nhật chat log: $e');
+    }
   }
 
   /// Xóa tất cả lịch sử chat

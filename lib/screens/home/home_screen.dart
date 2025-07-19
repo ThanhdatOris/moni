@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/expense_chart_section.dart';
 import '../../widgets/menubar.dart';
-import '../chatbot_screen.dart';
+import '../chatbot/chatbot_screen.dart';
 import '../history/transaction_history_screen.dart';
 import '../profile/profile_screen.dart';
 import '../transaction/add_transaction_screen.dart';

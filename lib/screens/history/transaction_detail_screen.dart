@@ -27,13 +27,14 @@ class TransactionDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<TransactionDetailScreen> createState() => _TransactionDetailScreenState();
+  State<TransactionDetailScreen> createState() =>
+      _TransactionDetailScreenState();
 }
 
 class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   // Services
   final GetIt _getIt = GetIt.instance;
   late final TransactionService _transactionService;
@@ -49,7 +50,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   CategoryModel? _selectedCategory;
   late DateTime _selectedDate;
   List<CategoryModel> _categories = [];
-  
+
   // UI state
   bool _isLoading = false;
   bool _isCategoriesLoading = false;
@@ -102,29 +103,30 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         _categoriesError = null;
       });
 
-      _categoriesSubscription = _categoryService
-          .getCategories(type: _selectedType)
-          .listen(
+      _categoriesSubscription =
+          _categoryService.getCategories(type: _selectedType).listen(
         (categories) {
           if (mounted) {
             setState(() {
               _categories = categories;
               _isCategoriesLoading = false;
-              
+
               // Find and set current category
               _selectedCategory = categories.firstWhere(
                 (cat) => cat.categoryId == widget.transaction.categoryId,
-                orElse: () => categories.isNotEmpty ? categories.first : CategoryModel(
-                  categoryId: 'other',
-                  userId: '',
-                  name: 'Khác',
-                  type: _selectedType,
-                  icon: '📝',
-                  iconType: CategoryIconType.emoji,
-                  color: 0xFF9E9E9E,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                ),
+                orElse: () => categories.isNotEmpty
+                    ? categories.first
+                    : CategoryModel(
+                        categoryId: 'other',
+                        userId: '',
+                        name: 'Khác',
+                        type: _selectedType,
+                        icon: '📝',
+                        iconType: CategoryIconType.emoji,
+                        color: 0xFF9E9E9E,
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
+                      ),
               );
             });
           }
@@ -159,13 +161,15 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
 
     try {
       final amount = double.tryParse(_amountController.text) ?? 0.0;
-      
+
       final updatedTransaction = widget.transaction.copyWith(
         amount: amount,
         type: _selectedType,
         categoryId: _selectedCategory!.categoryId,
         date: _selectedDate,
-        note: _noteController.text.trim().isEmpty ? null : _noteController.text.trim(),
+        note: _noteController.text.trim().isEmpty
+            ? null
+            : _noteController.text.trim(),
         updatedAt: DateTime.now(),
       );
 
@@ -178,6 +182,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             backgroundColor: Colors.green,
           ),
         );
+        Navigator.pop(
+            context, true); // Return true to indicate successful update
       }
     } catch (e) {
       if (mounted) {
@@ -224,8 +230,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     });
 
     try {
-      await _transactionService.deleteTransaction(widget.transaction.transactionId);
-      
+      await _transactionService
+          .deleteTransaction(widget.transaction.transactionId);
+
       if (mounted) {
         Navigator.pop(context, true); // Return true to indicate deletion
         ScaffoldMessenger.of(context).showSnackBar(
@@ -320,7 +327,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                       ),
                     ),
                     Text(
-                      DateFormat('dd/MM/yyyy HH:mm').format(widget.transaction.date),
+                      DateFormat('dd/MM/yyyy HH:mm')
+                          .format(widget.transaction.date),
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,
@@ -349,9 +357,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
               ),
             ],
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Tab bar
           Container(
             height: 45,
@@ -403,7 +411,10 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: widget.transaction.type == TransactionType.income
-                    ? [AppColors.success, AppColors.success.withValues(alpha: 0.8)]
+                    ? [
+                        AppColors.success,
+                        AppColors.success.withValues(alpha: 0.8)
+                      ]
                     : [AppColors.error, AppColors.error.withValues(alpha: 0.8)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -423,7 +434,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             child: Column(
               children: [
                 Text(
-                  widget.transaction.type == TransactionType.income ? 'Thu nhập' : 'Chi tiêu',
+                  widget.transaction.type == TransactionType.income
+                      ? 'Thu nhập'
+                      : 'Chi tiêu',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -458,7 +471,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           _buildDetailCard(
             icon: Icons.calendar_today_outlined,
             title: 'Ngày',
-            value: DateFormat('EEEE, dd/MM/yyyy', 'vi_VN').format(widget.transaction.date),
+            value: DateFormat('EEEE, dd/MM/yyyy', 'vi_VN')
+                .format(widget.transaction.date),
           ),
 
           const SizedBox(height: 16),
@@ -484,7 +498,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           _buildDetailCard(
             icon: Icons.update_outlined,
             title: 'Cập nhật lần cuối',
-            value: DateFormat('dd/MM/yyyy HH:mm').format(widget.transaction.updatedAt),
+            value: DateFormat('dd/MM/yyyy HH:mm')
+                .format(widget.transaction.updatedAt),
           ),
         ],
       ),
@@ -514,7 +529,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         ],
       ),
       child: Row(
-        crossAxisAlignment: isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment:
+            isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
           Container(
             padding: const EdgeInsets.all(8),
@@ -692,4 +708,4 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       ),
     );
   }
-} 
+}

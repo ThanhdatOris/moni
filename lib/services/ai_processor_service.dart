@@ -554,16 +554,29 @@ User input: "$input"
         updatedAt: DateTime.now(),
       );
 
-      // Save transaction
-      await transactionService.createTransaction(transaction);
+      // Save transaction and get transactionId
+      final transactionId =
+          await transactionService.createTransaction(transaction);
 
       _logger.i(
-          'Transaction added successfully: $description - ${amount.toStringAsFixed(0)}đ');
+          'Transaction added successfully: $description - ${amount.toStringAsFixed(0)}đ - ID: $transactionId');
 
       // Find category to get its emoji for display
       final category = await categoryService.getCategory(categoryId);
       final categoryDisplay =
           category != null ? '${category.icon} ${category.name}' : categoryName;
+
+      // Prepare transaction data for chat log
+      final transactionData = {
+        'transactionId': transactionId,
+        'amount': amount,
+        'description': description,
+        'categoryName': categoryDisplay,
+        'categoryId': categoryId,
+        'type': transactionType.value,
+        'date': transactionDate.toIso8601String(),
+        'createdAt': DateTime.now().toIso8601String(),
+      };
 
       return '''✅ **Đã thêm giao dịch thành công!**
 
@@ -577,7 +590,7 @@ ${transactionType == TransactionType.expense ? '📉' : '📈'} **Loại:** ${tr
 
 💡 **Mẹo:** Bạn có thể quản lý danh mục và thay đổi emoji trong phần "Quản lý danh mục" của app.
 
-[EDIT_BUTTON]''';
+[EDIT_BUTTON:$transactionId]''';
     } catch (e) {
       _logger.e('Error adding transaction: $e');
       return 'Xin lỗi, có lỗi xảy ra khi thêm giao dịch. Vui lòng thử lại.\n\nLỗi: ${e.toString()}';
