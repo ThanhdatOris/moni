@@ -1,3 +1,5 @@
+import '../../../models/category_model.dart';
+
 class ChartDataModel {
   final String category;
   final double amount;
@@ -5,6 +7,8 @@ class ChartDataModel {
   final String icon;
   final String color;
   final String type; // 'expense' hoặc 'income'
+  final CategoryModel?
+      categoryModel; // Thêm CategoryModel để lấy icon/emoji từ Firebase
 
   ChartDataModel({
     required this.category,
@@ -13,6 +17,7 @@ class ChartDataModel {
     required this.icon,
     required this.color,
     required this.type,
+    this.categoryModel,
   });
 
   factory ChartDataModel.fromJson(Map<String, dynamic> json) {
@@ -23,6 +28,10 @@ class ChartDataModel {
       icon: json['icon'] ?? '',
       color: json['color'] ?? '#000000',
       type: json['type'] ?? 'expense',
+      categoryModel: json['categoryModel'] != null
+          ? CategoryModel.fromMap(
+              json['categoryModel'], json['categoryId'] ?? '')
+          : null,
     );
   }
 
@@ -34,7 +43,27 @@ class ChartDataModel {
       'icon': icon,
       'color': color,
       'type': type,
+      'categoryModel': categoryModel?.toMap(),
+      'categoryId': categoryModel?.categoryId,
     };
+  }
+
+  /// Factory constructor từ CategoryModel
+  factory ChartDataModel.fromCategoryModel(
+    CategoryModel category,
+    double amount,
+    double percentage,
+  ) {
+    return ChartDataModel(
+      category: category.name,
+      amount: amount,
+      percentage: percentage,
+      icon: category.icon,
+      color:
+          '#${category.color.toRadixString(16).padLeft(6, '0').toUpperCase()}',
+      type: category.type.value,
+      categoryModel: category,
+    );
   }
 }
 

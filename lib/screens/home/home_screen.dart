@@ -143,7 +143,7 @@ class _HomeTabContentState extends State<HomeTabContent> {
 
           const SizedBox(height: 20),
 
-          // Expense Chart Section - Sử dụng widget mới
+          // Expense Chart Section
           ExpenseChartSection(
             onCategoryTap: _onCategoryTap,
             onRefresh: _onRefresh,

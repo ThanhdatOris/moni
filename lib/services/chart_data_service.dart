@@ -71,13 +71,10 @@ class ChartDataService {
         final amount = categoryTotals[category.categoryId] ?? 0;
         if (amount > 0) {
           final percentage = (amount / totalAmount) * 100;
-          chartData.add(ChartDataModel(
-            category: category.name,
-            amount: amount,
-            percentage: percentage,
-            icon: _getCategoryIcon(category.icon),
-            color: _getCategoryColor(category.color),
-            type: transactionType?.value ?? 'expense',
+          chartData.add(ChartDataModel.fromCategoryModel(
+            category,
+            amount,
+            percentage,
           ));
           processedCategories.add(category.categoryId);
         }
@@ -94,7 +91,7 @@ class ChartDataService {
           category: 'Còn lại',
           amount: unprocessedAmount,
           percentage: percentage,
-          icon: 'remaining',
+          icon: 'more_horiz',
           color: '#9E9E9E',
           type: transactionType?.value ?? 'expense',
         ));
@@ -117,7 +114,7 @@ class ChartDataService {
             category: 'Còn lại',
             amount: remainingAmount,
             percentage: remainingPercentage,
-            icon: 'remaining',
+            icon: 'more_horiz',
             color: '#9E9E9E',
             type: transactionType?.value ?? 'expense',
           ));
@@ -348,37 +345,6 @@ class ChartDataService {
       _logger.e('Lỗi lấy giao dịch trong khoảng thời gian: $e');
       return [];
     }
-  }
-
-  /// Helper method để lấy icon từ category
-  String _getCategoryIcon(String? icon) {
-    if (icon == null || icon.isEmpty) return 'category';
-
-    // Map emoji icons to icon names
-    switch (icon) {
-      case '🍽️':
-        return 'food';
-      case '🛍️':
-        return 'shopping';
-      case '🚗':
-        return 'transport';
-      case '🎮':
-        return 'entertainment';
-      case '📄':
-        return 'bills';
-      case '💊':
-        return 'health';
-      case '🎉':
-        return 'party';
-      default:
-        return 'category';
-    }
-  }
-
-  /// Helper method để lấy màu từ category
-  String _getCategoryColor(int color) {
-    // Convert int color to hex string
-    return '#${color.toRadixString(16).padLeft(6, '0').toUpperCase()}';
   }
 
   /// Helper method để lấy label tháng

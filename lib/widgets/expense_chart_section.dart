@@ -4,17 +4,25 @@ import 'package:get_it/get_it.dart';
 import '../constants/app_colors.dart';
 import '../models/transaction_model.dart';
 import '../services/chart_data_service.dart';
-import 'charts/index.dart';
+import 'charts/components/category_list.dart';
+import 'charts/components/donut_chart.dart';
+import 'charts/components/filter.dart';
+import 'charts/components/trend_bar_chart.dart';
+import 'charts/models/chart_data_model.dart';
 
-/// Widget cho expense chart section trong home screen - Phiên bản mới với real data
+/// Widget cho expense chart section trong home screen - Cấu trúc mới
+/// Header: Title + Chart type toggle
+/// Body: Filter + Main chart + Top 5 categories + Show more
 class ExpenseChartSection extends StatefulWidget {
   final VoidCallback? onCategoryTap;
   final VoidCallback? onRefresh;
+  final VoidCallback? onNavigateToHistory;
 
   const ExpenseChartSection({
     super.key,
     this.onCategoryTap,
     this.onRefresh,
+    this.onNavigateToHistory,
   });
 
   @override
@@ -25,7 +33,8 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
   bool _showTrendChart = false;
   bool _isLoading = false;
   String _errorMessage = '';
-  String _selectedTransactionType = 'all'; // 'all', 'expense', 'income'
+  String _selectedTransactionType = 'expense';
+  DateTime _selectedDate = DateTime.now();
 
   // Data
   List<ChartDataModel> _chartData = [];
@@ -52,12 +61,10 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
     });
 
     try {
-      // Lấy khoảng thời gian hiện tại (tháng này)
-      final now = DateTime.now();
-      final startDate = DateTime(now.year, now.month, 1);
-      final endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+      final startDate = DateTime(_selectedDate.year, _selectedDate.month, 1);
+      final endDate =
+          DateTime(_selectedDate.year, _selectedDate.month + 1, 0, 23, 59, 59);
 
-      // Load dữ liệu song song
       await Future.wait([
         _loadChartData(startDate, endDate),
         _loadTrendData(),
@@ -139,276 +146,366 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
       case 'income':
         return TransactionType.income;
       default:
-        return null; // 'all'
+        return null;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 600;
+        final isTablet = constraints.maxWidth > 900;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.white,
+                AppColors.backgroundLight.withValues(alpha: 0.3),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+                spreadRadius: 0,
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              // HEADER: Title + Chart Type Toggle
+              _buildHeader(isCompact),
+
+              // BODY: Filter + Main Chart + Categories
+              _buildBody(isCompact, isTablet),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Build header với title và chart type toggle
+  Widget _buildHeader(bool isCompact) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.05),
+            AppColors.primary.withValues(alpha: 0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Icon và Title
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.primary,
+                  AppColors.primaryDark,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.analytics_outlined,
+              color: Colors.white,
+              size: isCompact ? 20 : 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              'Tình hình thu chi',
+              style: TextStyle(
+                fontSize: isCompact ? 18 : 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+
+          // Chart Type Toggle
+          _buildChartTypeToggle(isCompact),
+        ],
+      ),
+    );
+  }
+
+  /// Build chart type toggle
+  Widget _buildChartTypeToggle(bool isCompact) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildToggleButton(
+            'Phân bổ',
+            Icons.pie_chart,
+            !_showTrendChart,
+            () => _switchChartType(false),
+            isCompact,
+          ),
+          _buildToggleButton(
+            'Xu hướng',
+            Icons.bar_chart,
+            _showTrendChart,
+            () => _switchChartType(true),
+            isCompact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildToggleButton(
+    String text,
+    IconData icon,
+    bool isActive,
+    VoidCallback onTap,
+    bool isCompact,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: EdgeInsets.symmetric(
+          horizontal: isCompact ? 12 : 16,
+          vertical: 10,
+        ),
+        decoration: BoxDecoration(
+          gradient: isActive
+              ? LinearGradient(
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primaryDark,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isActive ? null : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.4),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isActive ? Colors.white : AppColors.grey600,
+              size: isCompact ? 16 : 18,
+            ),
+            if (!isCompact) ...[
+              const SizedBox(width: 6),
+              Text(
+                text,
+                style: TextStyle(
+                  color: isActive ? Colors.white : AppColors.grey600,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build body với filter, main chart và categories
+  Widget _buildBody(bool isCompact, bool isTablet) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          // ROW 1: Filter (Date + Overview/Expense-Income Filter)
+          _buildFilterRow(isCompact),
+
+          const SizedBox(height: 20),
+
+          // ROW 2: Main Chart
+          _buildMainChart(isCompact, isTablet),
+
+          const SizedBox(height: 20),
+
+          // ROW 3: Top 5 Categories + Show More
+          _buildCategoriesRow(isCompact),
+        ],
+      ),
+    );
+  }
+
+  /// Build filter row
+  Widget _buildFilterRow(bool isCompact) {
+    return ChartFilter(
+      selectedDate: _selectedDate,
+      selectedTransactionType: _selectedTransactionType,
+      financialOverviewData: _financialOverviewData,
+      isLoading: _isLoading,
+      onDateChanged: (date) {
+        setState(() {
+          _selectedDate = date;
+        });
+        _loadData();
+      },
+      onTransactionTypeChanged: (type) {
+        setState(() {
+          _selectedTransactionType = type;
+        });
+        _loadData();
+      },
+    );
+  }
+
+  /// Build main chart
+  Widget _buildMainChart(bool isCompact, bool isTablet) {
+    if (_errorMessage.isNotEmpty) {
+      return _buildErrorState(isCompact, isTablet);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.white,
+            AppColors.grey100,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildChartHeader(),
-          const SizedBox(height: 16),
-          // Financial Overview Cards
-          FinancialOverviewCards(
-            data: _financialOverviewData,
-            isLoading: _isLoading,
-            selectedType: _selectedTransactionType,
-            onAllocationTap: _onAllocationTap,
-            onTrendTap: _onTrendTap,
-            onComparisonTap: _onComparisonTap,
-            onExpenseTap: _onExpenseTap,
-            onIncomeTap: _onIncomeTap,
-          ),
-          const SizedBox(height: 16),
-          _buildChartContent(),
-          const SizedBox(height: 16),
-          _buildDetailsLink(),
-        ],
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 300),
+        child: _showTrendChart
+            ? TrendBarChart(
+                key: const ValueKey('trend'),
+                data: _trendData,
+                height: isTablet ? 350 : (isCompact ? 200 : 250),
+                onTap: _onTrendDetailsTap,
+              )
+            : DonutChart(
+                key: const ValueKey('donut'),
+                data: _chartData,
+                size: isTablet ? 300 : (isCompact ? 200 : 250),
+                onCategoryTap: _onCategoryTap,
+              ),
       ),
     );
   }
 
-  /// Build header với title và toggle buttons
-  Widget _buildChartHeader() {
-    return Row(
-      children: [
-        const Text(
-          'Tình hình thu chi',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+  /// Build error state
+  Widget _buildErrorState(bool isCompact, bool isTablet) {
+    return Container(
+      height: isTablet ? 400 : (isCompact ? 250 : 300),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Colors.red.withValues(alpha: 0.05),
+            Colors.red.withValues(alpha: 0.02),
+          ],
         ),
-        const Spacer(),
-        // Toggle buttons container
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.grey100,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Phân bổ button
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _showTrendChart = false;
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: !_showTrendChart ? 16 : 8,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: !_showTrendChart
-                        ? AppColors.primary
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.pie_chart,
-                        color:
-                            !_showTrendChart ? Colors.white : AppColors.grey600,
-                        size: 16,
-                      ),
-                      if (!_showTrendChart) ...[
-                        const SizedBox(width: 4),
-                        const Text(
-                          'Phân bổ',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              // Biểu đồ cột button
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _showTrendChart = true;
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: _showTrendChart ? 16 : 8,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _showTrendChart
-                        ? AppColors.primary
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.bar_chart,
-                        color:
-                            _showTrendChart ? Colors.white : AppColors.grey600,
-                        size: 16,
-                      ),
-                      if (_showTrendChart) ...[
-                        const SizedBox(width: 4),
-                        const Text(
-                          'Biểu đồ cột',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Refresh button
-        if (_isLoading)
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
-          )
-        else
-          GestureDetector(
-            onTap: _loadData,
-            child: Icon(
-              Icons.refresh,
-              color: AppColors.grey600,
-              size: 20,
-            ),
-          ),
-      ],
-    );
-  }
-
-  /// Build chart content
-  Widget _buildChartContent() {
-    if (_isLoading) {
-      return Container(
-        height: 300,
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-              ),
-              SizedBox(height: 16),
-              Text('Đang tải dữ liệu...'),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_errorMessage.isNotEmpty) {
-      return Container(
-        height: 300,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.red),
-              const SizedBox(height: 16),
-              const Text(
-                'Lỗi tải dữ liệu',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _errorMessage,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _loadData,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Thử lại'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return _showTrendChart
-        ? TrendBarChart(
-            data: _trendData,
-            height: 200,
-            onTap: _onTrendDetailsTap,
-          )
-        : DonutChart(
-            data: _chartData,
-            size: 250,
-            onCategoryTap: _onCategoryTap,
-          );
-  }
-
-  /// Build details link
-  Widget _buildDetailsLink() {
-    return GestureDetector(
-      onTap: _onDetailsTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Center(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Chi tiết từng danh mục (${_chartData.length})',
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.red,
               ),
             ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.keyboard_arrow_down,
-              color: AppColors.primary,
-              size: 20,
+            const SizedBox(height: 16),
+            const Text(
+              'Lỗi tải dữ liệu',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: _loadData,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Thử lại'),
             ),
           ],
         ),
@@ -416,53 +513,41 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
     );
   }
 
-  // Event handlers
-  void _onAllocationTap() {
-    // TODO: Navigate to allocation screen
-    debugPrint('Allocation tapped');
+  /// Build categories row
+  Widget _buildCategoriesRow(bool isCompact) {
+    if (_chartData.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return CategoryList(
+      data: _chartData,
+      isCompact: isCompact,
+      onCategoryTap: _onCategoryItemTap,
+      onNavigateToHistory: widget.onNavigateToHistory,
+    );
   }
 
-  void _onTrendTap() {
+  // Helper methods
+  void _switchChartType(bool showTrend) {
     setState(() {
-      _showTrendChart = !_showTrendChart;
+      _showTrendChart = showTrend;
     });
   }
 
+  // Event handlers
   void _onCategoryTap() {
     widget.onCategoryTap?.call();
     debugPrint('Category tapped');
   }
 
+  void _onCategoryItemTap(ChartDataModel item) {
+    // Navigate to history with category filter
+    widget.onNavigateToHistory?.call();
+    debugPrint('Category item tapped: ${item.category}');
+  }
+
   void _onTrendDetailsTap() {
     // TODO: Navigate to trend details
     debugPrint('Trend details tapped');
-  }
-
-  void _onDetailsTap() {
-    // TODO: Navigate to detailed categories
-    debugPrint('Details tapped');
-  }
-
-  void _onComparisonTap() {
-    // TODO: Navigate to comparison screen
-    debugPrint('Comparison tapped');
-  }
-
-  void _onExpenseTap() {
-    setState(() {
-      _selectedTransactionType =
-          _selectedTransactionType == 'expense' ? 'all' : 'expense';
-    });
-    _loadData(); // Reload data với filter mới
-    debugPrint('Expense tapped: $_selectedTransactionType');
-  }
-
-  void _onIncomeTap() {
-    setState(() {
-      _selectedTransactionType =
-          _selectedTransactionType == 'income' ? 'all' : 'income';
-    });
-    _loadData(); // Reload data với filter mới
-    debugPrint('Income tapped: $_selectedTransactionType');
   }
 }

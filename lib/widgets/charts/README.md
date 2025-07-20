@@ -1,8 +1,8 @@
-# Module Charts - Phiên bản mới với Real Data
+# Module Charts - Cấu trúc mới
 
-Module charts mới được thiết kế theo bố cục từ hình ảnh mẫu, cung cấp giao diện đơn giản và trực quan cho việc hiển thị dữ liệu tài chính với real data từ Firebase.
+Module charts đã được tái cấu trúc theo yêu cầu mới với bố cục rõ ràng và tương tác tốt hơn.
 
-## Cấu trúc
+## Cấu trúc mới
 
 ```
 lib/widgets/charts/
@@ -11,17 +11,64 @@ lib/widgets/charts/
 ├── components/
 │   ├── donut_chart.dart               # Donut chart component
 │   ├── trend_bar_chart.dart           # Bar chart component
+│   ├── filter.dart                    # Filter component (date + transaction type)
+│   ├── category_list.dart             # Interactive category list
 │   └── financial_overview_cards.dart  # Financial overview cards
 ├── financial_charts_screen.dart       # Screen chính kết hợp tất cả
-├── test_charts.dart                   # Test screen để kiểm tra
 ├── index.dart                         # Export tất cả components
 └── README.md                          # Hướng dẫn sử dụng
 ```
 
+## Bố cục mới
+
+### ExpenseChartSection Container
+```
+┌─────────────────────────────────────┐
+│ HEADER: Title + Chart Type Toggle   │
+├─────────────────────────────────────┤
+│ BODY:                               │
+│ ┌─────────────────────────────────┐ │
+│ │ ROW 1: Filter                   │ │
+│ │ (Date + Transaction Type)       │ │
+│ └─────────────────────────────────┘ │
+│ ┌─────────────────────────────────┐ │
+│ │ ROW 2: Main Chart               │ │
+│ │ (Donut/Trend)                   │ │
+│ └─────────────────────────────────┘ │
+│ ┌─────────────────────────────────┐ │
+│ │ ROW 3: Top 5 Categories         │ │
+│ │ + Show More                     │ │
+│ └─────────────────────────────────┘ │
+└─────────────────────────────────────┘
+```
+
+## Components chính
+
+### 1. ExpenseChartSection (Container chính)
+- **Header**: Title + Chart type toggle (Phân bổ/Xu hướng)
+- **Body**: 
+  - Filter row (date + transaction type)
+  - Main chart row (donut/trend)
+  - Categories row (top 5 + show more)
+
+### 2. ChartFilter
+- **Date Filter**: Gradient cam với navigation tháng
+- **Transaction Type Filter**: Chi tiêu/Thu nhập với overview cards
+
+### 3. CategoryList
+- **Interactive Categories**: Có thể touch để expand/collapse
+- **Navigation**: Touch category để navigate đến history
+- **Show More**: Expand để xem tất cả categories
+
+### 4. DonutChart & TrendBarChart
+- **Real Data**: Tích hợp với ChartDataService
+- **Responsive**: Tự động điều chỉnh theo kích thước màn hình
+- **Interactive**: Touch để xem chi tiết
+
 ## Services
 
 ### ChartDataService
-Service mới được tạo để xử lý dữ liệu thực từ Firebase:
+Service xử lý dữ liệu thực từ Firebase:
 
 ```dart
 // Đăng ký trong dependency injection
@@ -39,221 +86,85 @@ final chartDataService = GetIt.instance<ChartDataService>();
 - `getTrendChartData()`: Lấy dữ liệu xu hướng thu chi theo thời gian
 - `getFinancialOverviewData()`: Lấy dữ liệu tổng quan tài chính
 
-## Components
+## Sử dụng
 
-### 1. DonutChart
-- Hiển thị phân bổ chi tiêu theo danh mục từ real data
-- Có labels hiển thị phần trăm và icon
-- Bao gồm danh sách chi tiết danh mục với tabs
-- Tự động fallback về mock data nếu không có dữ liệu thực
-
-### 2. TrendBarChart
-- Hiển thị xu hướng thu chi theo thời gian từ real data
-- Có thể chuyển đổi giữa các khoảng thời gian
-- Hiển thị cả thu và chi trong cùng một bar
-- Tự động fallback về mock data nếu không có dữ liệu thực
-
-### 3. FinancialOverviewCards
-- Hiển thị tổng thu chi từ real data
-- Có navigation để chuyển đổi tháng
-- Hiển thị so sánh với tháng trước
-- Tự động fallback về mock data nếu không có dữ liệu thực
-
-## Models
-
-### ChartDataModel
+### 1. Sử dụng ExpenseChartSection
 ```dart
-class ChartDataModel {
-  final String category;    // Tên danh mục
-  final double amount;      // Số tiền
-  final double percentage;  // Phần trăm
-  final String icon;        // Icon name
-  final String color;       // Màu sắc (hex)
-  final String type;        // 'expense' hoặc 'income'
-}
-```
-
-### FinancialOverviewData
-```dart
-class FinancialOverviewData {
-  final double totalExpense;    // Tổng chi tiêu
-  final double totalIncome;     // Tổng thu nhập
-  final double changeAmount;    // Số tiền thay đổi
-  final String changePeriod;    // Khoảng thời gian so sánh
-  final bool isIncrease;        // Tăng hay giảm
-}
-```
-
-### TrendData
-```dart
-class TrendData {
-  final String period;      // Khoảng thời gian
-  final double expense;     // Chi tiêu
-  final double income;      // Thu nhập
-  final String label;       // Label hiển thị
-}
-```
-
-## Cách sử dụng với Real Data
-
-### 1. Sử dụng trong ExpenseChartSection (Đã tích hợp)
-```dart
-import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
-import '../core/di/injection_container.dart';
-import '../services/chart_data_service.dart';
-import 'charts/index.dart';
-
-class ExpenseChartSection extends StatefulWidget {
-  // ...
-}
-
-class _ExpenseChartSectionState extends State<ExpenseChartSection> {
-  late final ChartDataService _chartDataService;
-  List<ChartDataModel> _chartData = [];
-  List<TrendData> _trendData = [];
-  FinancialOverviewData? _financialOverviewData;
-
-  @override
-  void initState() {
-    super.initState();
-    _chartDataService = GetIt.instance<ChartDataService>();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    final now = DateTime.now();
-    final startDate = DateTime(now.year, now.month, 1);
-    final endDate = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
-
-    await Future.wait([
-      _loadChartData(startDate, endDate),
-      _loadTrendData(),
-      _loadFinancialOverviewData(startDate, endDate),
-    ]);
-  }
-
-  Future<void> _loadChartData(DateTime startDate, DateTime endDate) async {
-    final data = await _chartDataService.getDonutChartData(
-      startDate: startDate,
-      endDate: endDate,
-    );
-    setState(() {
-      _chartData = data;
-    });
-  }
-}
-```
-
-### 2. Sử dụng DonutChart với Real Data
-```dart
-DonutChart(
-  data: _chartData, // Dữ liệu từ ChartDataService
-  size: 250,
+ExpenseChartSection(
   onCategoryTap: () {
     // Handle category tap
   },
-)
-```
-
-### 3. Sử dụng TrendBarChart với Real Data
-```dart
-TrendBarChart(
-  data: _trendData, // Dữ liệu từ ChartDataService
-  height: 200,
-  onTap: () {
-    // Handle chart tap
+  onNavigateToHistory: () {
+    // Navigate to history screen
+  },
+  onRefresh: () {
+    // Refresh data
   },
 )
 ```
 
-### 4. Sử dụng FinancialOverviewCards với Real Data
+### 2. Sử dụng ChartFilter
 ```dart
-FinancialOverviewCards(
-  data: _financialOverviewData, // Dữ liệu từ ChartDataService
+ChartFilter(
+  selectedDate: _selectedDate,
+  selectedTransactionType: _selectedTransactionType,
+  financialOverviewData: _financialOverviewData,
   isLoading: _isLoading,
-  onAllocationTap: () {
-    // Handle allocation tap
+  onDateChanged: (date) {
+    // Handle date change
   },
-  onTrendTap: () {
-    // Handle trend tap
-  },
-  onComparisonTap: () {
-    // Handle comparison tap
+  onTransactionTypeChanged: (type) {
+    // Handle transaction type change
   },
 )
 ```
 
-## Real Data Features
+### 3. Sử dụng CategoryList
+```dart
+CategoryList(
+  data: _chartData,
+  isCompact: isCompact,
+  onCategoryTap: (item) {
+    // Handle category item tap
+  },
+  onNavigateToHistory: () {
+    // Navigate to history
+  },
+)
+```
+
+## Features mới
 
 ### ✅ Đã tích hợp
-- **Real Data từ Firebase**: Lấy dữ liệu thực từ Firestore
-- **Fallback to Mock Data**: Tự động sử dụng mock data nếu không có dữ liệu thực
-- **Error Handling**: Xử lý lỗi khi không thể kết nối database
-- **Loading States**: Hiển thị loading khi đang tải dữ liệu
-- **Period Selection**: Hỗ trợ chọn khoảng thời gian (tháng, tuần, năm)
-- **Category Mapping**: Map emoji icons từ category sang icon names
-- **Color Conversion**: Convert int colors sang hex strings
-- **Data Aggregation**: Tính toán tổng, phần trăm, xu hướng
+- **Cấu trúc mới**: Header + Body với layout rõ ràng
+- **Interactive Categories**: Touch để expand/collapse và navigate
+- **Responsive Design**: Tự động điều chỉnh theo kích thước màn hình
+- **Real Data**: Tích hợp với Firebase thông qua ChartDataService
+- **Error Handling**: Xử lý lỗi và retry mechanism
+- **Loading States**: Hiển thị loading state khi tải dữ liệu
 
-### 🔄 Data Flow
-1. **User Authentication**: Kiểm tra user đã đăng nhập
-2. **Date Range**: Xác định khoảng thời gian cần lấy dữ liệu
-3. **Firestore Query**: Query giao dịch từ Firestore
-4. **Data Processing**: Tính toán và xử lý dữ liệu
-5. **Category Mapping**: Map categories và icons
-6. **UI Update**: Cập nhật giao diện với dữ liệu thực
+### 🎯 Tính năng chính
+- **Chart Type Toggle**: Chuyển đổi giữa Donut và Trend chart
+- **Date Navigation**: Điều hướng tháng với gradient cam
+- **Transaction Type Filter**: Lọc theo Chi tiêu/Thu nhập
+- **Category Expansion**: Show more/Thu gọn danh sách categories
+- **Category Navigation**: Touch category để xem chi tiết trong history
 
-### 📊 Data Sources
-- **Transactions**: Từ `TransactionService` và Firestore
-- **Categories**: Từ `CategoryService` và Firestore
-- **User Data**: Từ Firebase Auth
-- **Period Data**: Tính toán từ DateTime
+### 🔧 Technical Features
+- **Component Modularity**: Tách biệt các component để dễ maintain
+- **State Management**: Quản lý state local cho từng component
+- **Performance**: Lazy loading và caching dữ liệu
+- **Accessibility**: Hỗ trợ accessibility cho người dùng khuyết tật
 
-## Testing
+## Migration Guide
 
-### Test Screen
-Sử dụng `TestChartsScreen` để kiểm tra các components:
+### Từ cấu trúc cũ sang mới:
+1. **ExpenseChartSection**: Đã được tái cấu trúc hoàn toàn
+2. **ChartFilter**: Đơn giản hóa, loại bỏ overview cards
+3. **CategoryList**: Component mới thay thế phần categories cũ
+4. **Navigation**: Thêm callback `onNavigateToHistory`
 
-```dart
-// Navigate to test screen
-Navigator.push(
-  context,
-  MaterialPageRoute(builder: (context) => const TestChartsScreen()),
-);
-```
-
-### Mock Data
-Nếu không có dữ liệu thực, module sẽ tự động sử dụng mock data:
-- Donut chart: 5 danh mục chính với dữ liệu mẫu
-- Trend chart: 3 tháng gần nhất với dữ liệu mẫu
-- Financial overview: Tổng thu chi với so sánh tháng trước
-
-## Performance
-
-### ✅ Optimizations
-- **Parallel Loading**: Load dữ liệu song song với `Future.wait`
-- **Caching**: Sử dụng CategoryService cache
-- **Efficient Queries**: Tối ưu Firestore queries
-- **Memory Management**: Proper disposal và state management
-- **Error Recovery**: Fallback mechanisms
-
-### 📈 Scalability
-- **Pagination**: Có thể thêm pagination cho large datasets
-- **Real-time Updates**: Có thể thêm real-time listeners
-- **Offline Support**: Tích hợp với OfflineService
-- **Data Compression**: Có thể thêm data compression
-
-## TODO
-
-- [x] ✅ Kết nối với real data services
-- [x] ✅ Implement error handling và loading states
-- [x] ✅ Thêm fallback to mock data
-- [ ] Implement navigation đến các màn hình chi tiết
-- [ ] Thêm animations cho chart transitions
-- [ ] Implement period selection (tháng, tuần, năm)
-- [ ] Thêm export functionality
-- [ ] Implement real-time data updates
-- [ ] Thêm offline support
-- [ ] Implement data caching
-- [ ] Thêm analytics tracking 
+### Breaking Changes:
+- Thay đổi cấu trúc ExpenseChartSection
+- Thêm parameter `onNavigateToHistory` 
+- Loại bỏ một số method helper không cần thiết 
