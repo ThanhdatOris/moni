@@ -8,8 +8,8 @@ import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
 import '../../../services/category_service.dart';
-import '../../../utils/category_icon_helper.dart';
-import '../../../utils/logging_utils.dart';
+import '../../../utils/helpers/category_icon_helper.dart';
+import '../../../utils/logging/logging_utils.dart';
 import '../../category/category_management_screen.dart';
 
 class CategoryQuickAccess extends StatefulWidget {

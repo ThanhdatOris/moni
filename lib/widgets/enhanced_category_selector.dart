@@ -5,7 +5,7 @@ import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import '../screens/category/category_management_screen.dart';
 import '../services/category_usage_tracker.dart';
-import '../utils/category_icon_helper.dart';
+import '../utils/helpers/category_icon_helper.dart';
 
 /// Enhanced category selector với grid layout và smart suggestions
 class EnhancedCategorySelector extends StatefulWidget {
@@ -440,12 +440,11 @@ class _EnhancedCategorySelectorState extends State<EnhancedCategorySelector> {
         if (widget.categories.length > 6)
           _buildSearchBar(),
         
-        // Category grid
-        if (_isExpanded || widget.selectedCategory == null)
-          _buildCategoryGrid(),
+        // Category grid - always show, but limit when not expanded
+        _buildCategoryGrid(),
         
-        // Expand/Collapse button
-        if (widget.categories.length > 6)
+        // Expand/Collapse button - only show if more than 6 categories
+        if (_filteredCategories.length > 6)
           _buildToggleButton(),
         
         // Manage categories button
@@ -531,6 +530,11 @@ class _EnhancedCategorySelectorState extends State<EnhancedCategorySelector> {
   Widget _buildCategoryGrid() {
     final categories = _filteredCategories;
     
+    // Limit categories when not expanded
+    final displayCategories = _isExpanded 
+        ? categories 
+        : categories.take(6).toList();
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: GridView.builder(
@@ -542,9 +546,9 @@ class _EnhancedCategorySelectorState extends State<EnhancedCategorySelector> {
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
         ),
-        itemCount: categories.length,
+        itemCount: displayCategories.length,
         itemBuilder: (context, index) {
-          final category = categories[index];
+          final category = displayCategories[index];
           final isSelected = widget.selectedCategory?.categoryId == category.categoryId;
           
           return _buildCategoryItem(category, isSelected);
@@ -578,11 +582,16 @@ class _EnhancedCategorySelectorState extends State<EnhancedCategorySelector> {
                 color: Color(category.color),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: Icon(
-                CategoryIconHelper.getIconData(category.icon),
-                color: Colors.white,
-                size: 20,
-              ),
+              child: category.iconType == CategoryIconType.emoji
+                ? Text(
+                    category.icon,
+                    style: const TextStyle(fontSize: 20),
+                  )
+                : Icon(
+                    CategoryIconHelper.getIconData(category.icon),
+                    color: Colors.white,
+                    size: 20,
+                  ),
             ),
             const SizedBox(height: 4),
             Text(

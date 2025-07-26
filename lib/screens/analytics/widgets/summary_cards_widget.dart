@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../constants/app_colors.dart';
-import '../../../utils/currency_formatter.dart';
+import '../../../utils/formatting/currency_formatter.dart';
 
 class SummaryCardsWidget extends StatelessWidget {
   final double totalIncome;

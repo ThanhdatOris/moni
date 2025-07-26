@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-import '../services/logging_service.dart';
+import '../../services/logging_service.dart';
 
 /// Utility functions để dễ dàng logging trong toàn bộ app
 /// Đây là wrapper around LoggingService để có syntax ngắn gọn hơn

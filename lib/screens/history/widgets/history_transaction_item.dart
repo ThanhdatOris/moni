@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../models/transaction_model.dart';
-import '../../../utils/currency_formatter.dart';
+import '../../../utils/formatting/currency_formatter.dart';
 
 class HistoryTransactionItem extends StatelessWidget {
   final TransactionModel transaction;
@@ -157,4 +157,4 @@ class HistoryTransactionItem extends StatelessWidget {
       ],
     );
   }
-} 
+}

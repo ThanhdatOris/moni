@@ -109,8 +109,10 @@ class ChatMessageWidget extends StatelessWidget {
                           message.text.contains('[EDIT_BUTTON]') &&
                           message.transactionId != null)
                         TextButton.icon(
-                          onPressed: () =>
-                              _editTransaction(context, message.transactionId!),
+                          onPressed: () {
+                            print('🔧 DEBUG: Attempting to edit transaction: ${message.transactionId}');
+                            _editTransaction(context, message.transactionId!);
+                          },
                           icon: const Icon(Icons.edit, size: 16),
                           label: const Text('Chỉnh sửa'),
                           style: TextButton.styleFrom(
@@ -239,13 +241,19 @@ class ChatMessageWidget extends StatelessWidget {
   }
 
   void _editTransaction(BuildContext context, String transactionId) async {
+    print('🔧 DEBUG: Starting _editTransaction with ID: $transactionId');
+    
     try {
       // Lấy thông tin giao dịch từ service
       final transactionService = GetIt.instance<TransactionService>();
+      print('🔧 DEBUG: Got TransactionService instance');
+      
       final transaction =
           await transactionService.getTransaction(transactionId);
+      print('🔧 DEBUG: Retrieved transaction: ${transaction?.transactionId}');
 
       if (transaction == null) {
+        print('❌ DEBUG: Transaction not found for ID: $transactionId');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -259,6 +267,7 @@ class ChatMessageWidget extends StatelessWidget {
 
       // Navigate đến màn hình chỉnh sửa giao dịch đơn giản
       if (context.mounted) {
+        print('🔧 DEBUG: Navigating to edit screen');
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
@@ -269,6 +278,7 @@ class ChatMessageWidget extends StatelessWidget {
 
         // Nếu có kết quả trả về (giao dịch đã được cập nhật)
         if (result == true && context.mounted) {
+          print('✅ DEBUG: Transaction updated successfully');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('✅ Giao dịch đã được cập nhật thành công!'),

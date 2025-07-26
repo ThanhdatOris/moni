@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../services/duplicate_detection_service.dart';
-import '../utils/currency_formatter.dart';
+import '../utils/formatting/currency_formatter.dart';
 
 /// Widget hiển thị cảnh báo giao dịch trùng lặp
 class BudgetDuplicateWarningDialog extends StatelessWidget {
@@ -58,8 +58,10 @@ class BudgetDuplicateWarningDialog extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              ...result.duplicates.take(3).map((duplicate) => 
-                _buildDuplicateItem(duplicate)).toList(),
+              ...result.duplicates
+                  .take(3)
+                  .map((duplicate) => _buildDuplicateItem(duplicate))
+                  .toList(),
             ],
           ],
         ),
@@ -90,7 +92,7 @@ class BudgetDuplicateWarningDialog extends StatelessWidget {
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.grey.withValues(alpha:0.3),
+          color: Colors.grey.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -100,7 +102,8 @@ class BudgetDuplicateWarningDialog extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  CurrencyFormatter.formatCurrency(duplicate.transaction.amount),
+                  CurrencyFormatter.formatCurrency(
+                      duplicate.transaction.amount),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -156,22 +159,25 @@ class BudgetDuplicateWarningDialog extends StatelessWidget {
             const SizedBox(height: 4),
             Wrap(
               spacing: 4,
-              children: duplicate.reasons.map((reason) => 
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.orange[100],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    reason,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.orange[700],
+              children: duplicate.reasons
+                  .map(
+                    (reason) => Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[100],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        reason,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.orange[700],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ).toList(),
+                  )
+                  .toList(),
             ),
           ],
         ],

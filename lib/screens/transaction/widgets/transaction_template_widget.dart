@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/transaction_model.dart';
 import '../../../services/transaction_template_service.dart';
-import '../../../utils/currency_formatter.dart';
+import '../../../utils/formatting/currency_formatter.dart';
 
 /// Widget hiển thị transaction templates
 class BudgetTransactionTemplateWidget extends StatefulWidget {
@@ -19,11 +19,14 @@ class BudgetTransactionTemplateWidget extends StatefulWidget {
   });
 
   @override
-  State<BudgetTransactionTemplateWidget> createState() => _BudgetTransactionTemplateWidgetState();
+  State<BudgetTransactionTemplateWidget> createState() =>
+      _BudgetTransactionTemplateWidgetState();
 }
 
-class _BudgetTransactionTemplateWidgetState extends State<BudgetTransactionTemplateWidget> {
-  final TransactionTemplateService _templateService = TransactionTemplateService();
+class _BudgetTransactionTemplateWidgetState
+    extends State<BudgetTransactionTemplateWidget> {
+  final TransactionTemplateService _templateService =
+      TransactionTemplateService();
   List<TransactionTemplate> _templates = [];
   bool _isLoading = false;
 
@@ -43,14 +46,14 @@ class _BudgetTransactionTemplateWidgetState extends State<BudgetTransactionTempl
 
   Future<void> _loadTemplates() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
     });
 
     try {
       final allTemplates = await _templateService.getPopularTemplates(limit: 8);
-      
+
       // Lọc templates theo type
       final filteredTemplates = allTemplates
           .where((template) => template.type == widget.transactionType)
@@ -125,7 +128,7 @@ class _BudgetTransactionTemplateWidgetState extends State<BudgetTransactionTempl
         color: Colors.orange[50],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.orange.withValues(alpha:0.2),
+          color: Colors.orange.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -148,7 +151,7 @@ class _BudgetTransactionTemplateWidgetState extends State<BudgetTransactionTempl
           Text(
             'Tạo template để nhập giao dịch nhanh hơn',
             style: TextStyle(
-              color: Colors.orange.withValues(alpha:0.8),
+              color: Colors.orange.withValues(alpha: 0.8),
               fontSize: 12,
             ),
             textAlign: TextAlign.center,
@@ -173,7 +176,7 @@ class _BudgetTransactionTemplateWidgetState extends State<BudgetTransactionTempl
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -190,7 +193,7 @@ class _BudgetTransactionTemplateWidgetState extends State<BudgetTransactionTempl
                   gradient: LinearGradient(
                     colors: [
                       AppColors.primary,
-                      AppColors.primary.withValues(alpha:0.8),
+                      AppColors.primary.withValues(alpha: 0.8),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(6),
@@ -254,8 +257,8 @@ class _BudgetTransactionTemplateWidgetState extends State<BudgetTransactionTempl
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: template.type == TransactionType.expense
-                ? Colors.red.withValues(alpha:0.2)
-                : Colors.green.withValues(alpha:0.2),
+                ? Colors.red.withValues(alpha: 0.2)
+                : Colors.green.withValues(alpha: 0.2),
           ),
         ),
         child: Column(
@@ -321,10 +324,10 @@ class _BudgetTransactionTemplateWidgetState extends State<BudgetTransactionTempl
   void _onTemplateTapped(TransactionTemplate template) async {
     // Tăng số lần sử dụng
     await _templateService.incrementTemplateUsage(template.id);
-    
+
     // Gọi callback
     widget.onTemplateSelected(template);
-    
+
     // Haptic feedback
     HapticFeedback.lightImpact();
   }

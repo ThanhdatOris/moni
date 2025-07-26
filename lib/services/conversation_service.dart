@@ -328,11 +328,13 @@ class ConversationService {
           .get();
 
       if (activeConversations.docs.isNotEmpty) {
-        return activeConversations.docs.first.id;
+        final conversationId = activeConversations.docs.first.id;
+        return conversationId;
       }
 
       // Tạo cuộc hội thoại mới với tiêu đề động
-      return await createConversationWithTitle(firstQuestion: firstQuestion);
+      final newConversationId = await createConversationWithTitle(firstQuestion: firstQuestion);
+      return newConversationId;
     } catch (e) {
       _logger.e('Lỗi lấy hoặc tạo cuộc hội thoại active: $e');
       // Fallback: tạo conversation ID tạm thời nếu có lỗi

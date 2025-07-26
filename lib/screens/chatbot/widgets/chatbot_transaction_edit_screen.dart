@@ -35,13 +35,21 @@ class _ChatbotTransactionEditScreenState
   @override
   void initState() {
     super.initState();
-    _transactionService = _getIt<TransactionService>();
+    
+    try {
+      _transactionService = _getIt<TransactionService>();
+      print('✅ TransactionService initialized successfully');
+    } catch (e) {
+      print('❌ Error initializing TransactionService: $e');
+    }
 
     // Initialize with transaction data
     _selectedType = widget.transaction.type;
     _selectedDate = widget.transaction.date;
     _amountController.text = widget.transaction.amount.toString();
     _noteController.text = widget.transaction.note ?? '';
+    
+    print('🔧 DEBUG: Initialized edit screen with transaction: ${widget.transaction.transactionId}');
   }
 
   @override

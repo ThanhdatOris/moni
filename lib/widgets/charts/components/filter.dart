@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../constants/app_colors.dart';
-import '../../../utils/currency_formatter.dart';
-import '../models/chart_data_model.dart';
 
 class ChartFilter extends StatefulWidget {
   final DateTime selectedDate;
   final String selectedTransactionType;
-  final FinancialOverviewData? financialOverviewData;
   final bool isLoading;
   final Function(DateTime) onDateChanged;
   final Function(String) onTransactionTypeChanged;
@@ -16,7 +13,6 @@ class ChartFilter extends StatefulWidget {
     super.key,
     required this.selectedDate,
     required this.selectedTransactionType,
-    this.financialOverviewData,
     this.isLoading = false,
     required this.onDateChanged,
     required this.onTransactionTypeChanged,
@@ -154,7 +150,6 @@ class _ChartFilterState extends State<ChartFilter> {
               'Chi tiêu',
               Icons.trending_down,
               Colors.red,
-              widget.financialOverviewData?.totalExpense ?? 0,
               widget.selectedTransactionType == 'expense',
               () => widget.onTransactionTypeChanged('expense'),
             ),
@@ -162,13 +157,12 @@ class _ChartFilterState extends State<ChartFilter> {
 
           const SizedBox(width: 8),
 
-          // Thu nhập 
+          // Thu nhập
           Expanded(
             child: _buildTransactionTypeCard(
               'Thu nhập',
               Icons.trending_up,
-              Colors.green, 
-              widget.financialOverviewData?.totalIncome ?? 0,
+              Colors.green,
               widget.selectedTransactionType == 'income',
               () => widget.onTransactionTypeChanged('income'),
             ),
@@ -182,7 +176,6 @@ class _ChartFilterState extends State<ChartFilter> {
     String title,
     IconData icon,
     Color color,
-    double amount,
     bool isActive,
     VoidCallback onTap,
   ) {
@@ -246,15 +239,6 @@ class _ChartFilterState extends State<ChartFilter> {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              CurrencyFormatter.formatAmountShort(amount),
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: isActive ? color : AppColors.textPrimary,
-              ),
             ),
           ],
         ),

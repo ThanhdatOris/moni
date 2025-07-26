@@ -199,6 +199,7 @@ class CategoryService {
 
       // Áp dụng filter type nếu có
       if (type != null) {
+        _logger.d('🔍 Filtering categories by type: ${type.value}');
         query = query.where('type', isEqualTo: type.value);
         // Không thêm orderBy khi có where clause để tránh cần composite index
       } else {
@@ -207,11 +208,11 @@ class CategoryService {
       }
 
       return query.snapshots().map((snapshot) {
+        _logger.d('📦 Query returned ${snapshot.docs.length} documents');
         var categories = snapshot.docs.map((doc) {
-          return CategoryModel.fromMap(
-            doc.data() as Map<String, dynamic>,
-            doc.id,
-          );
+          final data = doc.data() as Map<String, dynamic>;
+          _logger.d('   Document ${doc.id}: type=${data['type']}, name=${data['name']}');
+          return CategoryModel.fromMap(data, doc.id);
         }).toList();
 
         // Sắp xếp trong client nếu cần

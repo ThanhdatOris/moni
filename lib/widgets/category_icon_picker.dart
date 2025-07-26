@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
-import '../utils/category_icon_helper.dart';
+import '../utils/helpers/category_icon_helper.dart';
 
 class CategoryIconPicker extends StatefulWidget {
   final String? currentIcon;

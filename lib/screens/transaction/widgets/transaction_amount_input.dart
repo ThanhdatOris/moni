@@ -1,39 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 
 import '../../../constants/app_colors.dart';
-
-/// Custom formatter for currency input
-class CurrencyInputFormatter extends TextInputFormatter {
-  static final NumberFormat _formatter = NumberFormat('#,###', 'vi_VN');
-
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) {
-      return newValue;
-    }
-
-    // Remove all non-digits
-    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    
-    if (digitsOnly.isEmpty) {
-      return const TextEditingValue(text: '');
-    }
-
-    // Format with thousand separators
-    final num = int.parse(digitsOnly);
-    final formatted = _formatter.format(num);
-
-    return TextEditingValue(
-      text: formatted,
-      selection: TextSelection.collapsed(offset: formatted.length),
-    );
-  }
-}
+import '../../../utils/formatting/currency_formatter.dart';
 
 class TransactionAmountInput extends StatefulWidget {
   final TextEditingController controller;
@@ -116,55 +85,39 @@ class _TransactionAmountInputState extends State<TransactionAmountInput> {
               FilteringTextInputFormatter.digitsOnly,
               _formatter,
             ],
-            onChanged: widget.onChanged,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
             decoration: InputDecoration(
               hintText: '0',
-              hintStyle: TextStyle(
-                color: AppColors.textSecondary.withValues(alpha: 0.5),
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
               suffixText: 'VNĐ',
-              suffixStyle: TextStyle(
+              suffixStyle: const TextStyle(
                 fontSize: 16,
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
               ),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(
-                  color: Color(0xFFE2E8F0),
-                  width: 1,
-                ),
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.grey300),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(
-                  color: Color(0xFFE2E8F0),
-                  width: 1,
-                ),
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.grey300),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(
-                  color: AppColors.primary,
-                  width: 2,
-                ),
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: AppColors.primary, width: 2),
               ),
               errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(
                   color: AppColors.error,
                   width: 2,
                 ),
               ),
               focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(
                   color: AppColors.error,
                   width: 2,
@@ -175,6 +128,7 @@ class _TransactionAmountInputState extends State<TransactionAmountInput> {
               contentPadding: const EdgeInsets.all(16),
             ),
             validator: widget.validator ?? _defaultValidator,
+            onChanged: widget.onChanged,
           ),
         ],
       ),
@@ -185,8 +139,8 @@ class _TransactionAmountInputState extends State<TransactionAmountInput> {
     if (value == null || value.isEmpty) {
       return 'Vui lòng nhập số tiền';
     }
-    final amount = double.tryParse(value);
-    if (amount == null || amount <= 0) {
+    final amount = CurrencyFormatter.parseFormattedAmount(value);
+    if (amount <= 0) {
       return 'Số tiền phải lớn hơn 0';
     }
     return null;

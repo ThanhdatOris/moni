@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../constants/app_colors.dart';
-import '../../../utils/category_icon_helper.dart';
+import '../../../utils/helpers/category_icon_helper.dart';
 import '../models/chart_data_model.dart';
 
 class CategoryList extends StatefulWidget {

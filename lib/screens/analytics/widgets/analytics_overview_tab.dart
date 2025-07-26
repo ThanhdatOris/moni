@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_strings.dart';
-import '../../../utils/currency_formatter.dart';
+import '../../../utils/formatting/currency_formatter.dart';
 import 'summary_cards_widget.dart';
 
 class AnalyticsOverviewTab extends StatefulWidget {

@@ -6,7 +6,7 @@ import 'package:logger/logger.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
-import '../utils/currency_formatter.dart';
+import '../utils/formatting/currency_formatter.dart';
 import 'category_service.dart';
 import 'environment_service.dart';
 import 'ocr_service.dart';
@@ -194,7 +194,6 @@ Hãy xác minh và cải thiện thông tin, trả về JSON với format:
 {
   "verified_amount": số_tiền_chính_xác (số, không có dấu phẩy),
   "description": "mô tả ngắn gọn về giao dịch", 
-  "merchant": "tên cửa hàng/dịch vụ",
   "category_suggestion": "danh mục phù hợp bằng tiếng Việt",
   "transaction_type": "expense" hoặc "income",
   "confidence_score": số từ 0-100,
@@ -205,6 +204,7 @@ Lưu ý:
 - Ưu tiên số tiền lớn nhất thường là tổng tiền
 - Danh mục: Ăn uống, Di chuyển, Mua sắm, Giải trí, Y tế, Học tập, Hóa đơn, v.v.
 - Hầu hết hóa đơn là "expense"
+- Mô tả nên bao gồm thông tin về giao dịch, không cần tách riêng tên cửa hàng
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
@@ -237,7 +237,6 @@ Lưu ý:
         return {
           'verified_amount': 125000.0,
           'description': 'Cơm tấm Sài Gòn',
-          'merchant': 'Quán cơm tấm',
           'category_suggestion': 'Ăn uống',
           'transaction_type': 'expense',
           'confidence_score': 85,
@@ -255,7 +254,6 @@ Lưu ý:
   /// Kết hợp kết quả OCR và AI để có kết quả tối ưu
   Map<String, dynamic> _combineOCRAndAI(Map<String, dynamic> ocrResult,
       Map<String, dynamic> ocrAnalysis, Map<String, dynamic> aiAnalysis) {
-    // Ưu tiên AI nếu có confidence cao, nếu không dùng OCR
     final useAI =
         aiAnalysis.isNotEmpty && (aiAnalysis['confidence_score'] ?? 0) > 70;
 
@@ -266,10 +264,6 @@ Lưu ý:
     final description = useAI
         ? (aiAnalysis['description'] ?? 'Giao dịch từ hóa đơn')
         : (ocrAnalysis['merchantName'] ?? 'Giao dịch từ hóa đơn');
-
-    final merchant = useAI
-        ? (aiAnalysis['merchant'] ?? ocrAnalysis['merchantName'])
-        : ocrAnalysis['merchantName'];
 
     final category = useAI
         ? (aiAnalysis['category_suggestion'] ?? ocrAnalysis['categoryHint'])
@@ -289,13 +283,15 @@ Lưu ý:
       'success': true,
       'amount': amount,
       'description': description,
-      'merchant': merchant,
       'type': type,
       'category_suggestion': category,
       'date': DateTime.now().toIso8601String().split('T')[0],
       'confidence': combinedConfidence,
       'raw_text': ocrResult['fullText'],
       'processing_method': useAI ? 'OCR + AI' : 'OCR only',
+      // Đồng bộ với các module khác - chỉ giữ các trường cần thiết
+      'note': description, // Map description thành note cho TransactionModel
+      'category_name': category, // Lưu tên category để hiển thị
     };
   }
 
@@ -1043,5 +1039,126 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
         };
       }
     }
+  }
+
+  /// Map scan result thành TransactionModel
+  Future<TransactionModel> mapScanResultToTransaction(
+      Map<String, dynamic> scanResult, String userId) async {
+    try {
+      // Parse transaction type
+      final transactionType = scanResult['type'] == 'income'
+          ? TransactionType.income
+          : TransactionType.expense;
+
+      // Parse amount
+      final amount = (scanResult['amount'] ?? 0).toDouble();
+
+      // Parse date
+      DateTime transactionDate;
+      try {
+        transactionDate = DateTime.parse(scanResult['date'] ?? '');
+      } catch (e) {
+        transactionDate = DateTime.now();
+      }
+
+      // Tìm category ID
+      String categoryId = 'other';
+      String categoryName = scanResult['category_name'] ??
+          scanResult['category_suggestion'] ??
+          '';
+
+      if (categoryName.isNotEmpty) {
+        final categoryService = _getIt<CategoryService>();
+        final categoriesStream =
+            categoryService.getCategories(type: transactionType);
+        final categories = await categoriesStream.first;
+        final filteredCategories =
+            categories.where((cat) => !cat.isDeleted).toList();
+
+        // Tìm category chính xác
+        for (final category in filteredCategories) {
+          if (category.name.toLowerCase() == categoryName.toLowerCase()) {
+            categoryId = category.categoryId;
+            categoryName = category.name;
+            break;
+          }
+        }
+
+        // Nếu không tìm thấy, tìm partial match
+        if (categoryId == 'other') {
+          for (final category in filteredCategories) {
+            if (category.name
+                    .toLowerCase()
+                    .contains(categoryName.toLowerCase()) ||
+                categoryName
+                    .toLowerCase()
+                    .contains(category.name.toLowerCase())) {
+              categoryId = category.categoryId;
+              categoryName = category.name;
+              break;
+            }
+          }
+        }
+
+        // Sử dụng category đầu tiên nếu vẫn không tìm thấy
+        if (categoryId == 'other' && filteredCategories.isNotEmpty) {
+          categoryId = filteredCategories.first.categoryId;
+          categoryName = filteredCategories.first.name;
+        }
+      }
+
+      // Tạo note từ description
+      String note = scanResult['note'] ??
+          scanResult['description'] ??
+          'Giao dịch từ scan AI';
+
+      return TransactionModel(
+        transactionId: '',
+        userId: userId,
+        categoryId: categoryId,
+        categoryName: categoryName,
+        amount: amount,
+        type: transactionType,
+        date: transactionDate,
+        note: note,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        isDeleted: false,
+      );
+    } catch (e) {
+      _logger.e('Error mapping scan result to transaction: $e');
+      rethrow;
+    }
+  }
+
+  /// Validate scan result trước khi lưu
+  Map<String, dynamic> validateScanResult(Map<String, dynamic> scanResult) {
+    final errors = <String>[];
+
+    // Kiểm tra amount
+    final amount = scanResult['amount'];
+    if (amount == null || amount <= 0) {
+      errors.add('Số tiền không hợp lệ');
+    }
+
+    // Kiểm tra type
+    final type = scanResult['type'];
+    if (type != 'income' && type != 'expense') {
+      errors.add('Loại giao dịch không hợp lệ');
+    }
+
+    // Kiểm tra date
+    try {
+      if (scanResult['date'] != null) {
+        DateTime.parse(scanResult['date']);
+      }
+    } catch (e) {
+      errors.add('Ngày giao dịch không hợp lệ');
+    }
+
+    return {
+      'isValid': errors.isEmpty,
+      'errors': errors,
+    };
   }
 }

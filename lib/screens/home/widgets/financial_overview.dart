@@ -7,7 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:moni/constants/app_colors.dart';
 
 import '../../../services/services.dart';
-import '../../../utils/currency_formatter.dart';
+import '../../../utils/formatting/currency_formatter.dart';
 
 /// A widget that displays financial overview as modern bank cards with glassmorphism effect.
 class FinancialOverviewCards extends StatefulWidget {

@@ -9,12 +9,13 @@ import '../../constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/advanced_validation_service.dart';
+import '../../services/ai_processor_service.dart';
 import '../../services/category_service.dart';
 import '../../services/duplicate_detection_service.dart';
 import '../../services/spending_limit_service.dart';
 import '../../services/transaction_service.dart';
-import '../../services/transaction_template_service.dart';
 import '../../services/transaction_validation_service.dart';
+import '../../utils/formatting/currency_formatter.dart';
 import '../../widgets/advanced_validation_widgets.dart';
 import '../../widgets/duplicate_warning_dialog.dart';
 import '../../widgets/enhanced_category_selector.dart';
@@ -24,7 +25,6 @@ import 'widgets/transaction_ai_scan_tab.dart';
 import 'widgets/transaction_amount_input.dart';
 import 'widgets/transaction_date_selector.dart';
 import 'widgets/transaction_note_input.dart';
-import 'widgets/transaction_template_widget.dart';
 import 'widgets/transaction_type_selector.dart';
 
 class AddTransactionScreen extends StatefulWidget {
@@ -46,6 +46,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
   // Transaction data
   TransactionType _selectedType = TransactionType.expense;
+  TransactionType _currentTransactionType = TransactionType.expense; // Track current type for AI workflow
   CategoryModel? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
   List<CategoryModel> _categories = [];
@@ -54,9 +55,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   String? _categoriesError;
   Map<String, dynamic>? _scanResults;
 
+  // AI auto-fill tracking for UI enhancement
+  Set<String> _aiFilledFields = {};
+  bool _showAiFilledHint = false;
+
   final GetIt _getIt = GetIt.instance;
   late final TransactionService _transactionService;
   late final CategoryService _categoryService;
+  late final AIProcessorService _aiProcessorService;
 
   // Stream subscriptions
   StreamSubscription<List<CategoryModel>>? _categoriesSubscription;
@@ -69,6 +75,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     _tabController = TabController(length: 2, vsync: this);
     _transactionService = _getIt<TransactionService>();
     _categoryService = _getIt<CategoryService>();
+    _aiProcessorService = _getIt<AIProcessorService>();
+    
+    // Initialize current type to match selected type
+    _currentTransactionType = _selectedType;
+
+    // Add controller listeners to track manual edits
+    _noteController.addListener(() {
+      if (_noteController.text.isNotEmpty) {
+        _aiFilledFields.remove('note');
+        if (_aiFilledFields.isEmpty && _showAiFilledHint) {
+          setState(() => _showAiFilledHint = false);
+        }
+      }
+    });
 
     // Add listener for auth state changes
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
@@ -77,6 +97,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           Navigator.of(context).pop();
         } else {
           _loadCategories();
+          // Debug all categories
+          _debugAllCategories();
         }
       }
     });
@@ -116,11 +138,31 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       bool hasTimedOut = false;
 
       // Create new subscription with improved error handling and retry logic
+      _logger.d('🔍 Starting category subscription for type: ${_selectedType.value}');
       _categoriesSubscription =
-          _categoryService.getCategoriesOptimized(type: _selectedType).listen(
-        (categories) {
+          _categoryService.getCategories(type: _selectedType).listen(
+        (categories) async {
           _timeoutTimer?.cancel();
           if (mounted && !hasTimedOut) {
+            _logger.d('📦 Received ${categories.length} categories for type: ${_selectedType.value}');
+            
+            // If no categories found, try to create default categories
+            if (categories.isEmpty) {
+              _logger.d('🔧 No categories found, creating default categories...');
+              try {
+                await _categoryService.createDefaultCategories();
+                _logger.d('✅ Default categories created successfully');
+                // The stream will automatically emit new data after creation
+              } catch (e) {
+                _logger.e('❌ Failed to create default categories: $e');
+              }
+            } else {
+              // Debug: log category names
+              for (var cat in categories) {
+                _logger.d('   - ${cat.name} (${cat.type.value})');
+              }
+            }
+            
             setState(() {
               _categories = categories;
               _isCategoriesLoading = false;
@@ -165,6 +207,38 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   Future<void> _retryLoadCategories() async {
     _logger.d('Retrying load categories');
     await _loadCategories();
+  }
+
+  /// Debug method to check all categories without type filter
+  Future<void> _debugAllCategories() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      _logger.d('🔍 Debug: Checking all categories without type filter...');
+      _categoryService.getCategories().listen((allCategories) {
+        _logger.d('📊 Total categories in DB: ${allCategories.length}');
+        final expenseCount = allCategories.where((c) => c.type == TransactionType.expense).length;
+        final incomeCount = allCategories.where((c) => c.type == TransactionType.income).length;
+        _logger.d('   - Expense categories: $expenseCount');
+        _logger.d('   - Income categories: $incomeCount');
+        
+        for (var cat in allCategories) {
+          _logger.d('   - ${cat.name} (${cat.type.value})');
+        }
+      });
+
+      // Also test optimized version
+      _logger.d('🔍 Debug: Testing getCategoriesOptimized for current type...');
+      _categoryService.getCategoriesOptimized(type: _selectedType).listen((categories) {
+        _logger.d('📦 Optimized method returned: ${categories.length} categories for type: ${_selectedType.value}');
+        for (var cat in categories) {
+          _logger.d('   - ${cat.name} (${cat.type.value})');
+        }
+      });
+    } catch (e) {
+      _logger.e('❌ Debug all categories failed: $e');
+    }
   }
 
   String _formatErrorMessage(dynamic error) {
@@ -350,16 +424,25 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // AI Auto-fill hint banner
+            if (_showAiFilledHint) _buildAiFilledBanner(),
+            
             TransactionTypeSelector(
               selectedType: _selectedType,
               onTypeChanged: (type) {
                 if (type != _selectedType) {
+                  _logger.d('🔄 Transaction type changed from ${_selectedType.value} to ${type.value}');
                   setState(() {
                     _selectedType = type;
+                    _currentTransactionType = type; // Keep current type in sync
                     _selectedCategory = null;
                     // Reset error state when switching types
                     _categoriesError = null;
+                    // Clear AI tracking when user manually changes type
+                    _aiFilledFields.remove('type');
+                    if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
                   });
+                  _logger.d('📋 Loading categories for type: ${type.value}');
                   _loadCategories();
                 }
               },
@@ -367,7 +450,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
             const SizedBox(height: 16),
             TransactionAmountInput(
               controller: _amountController,
-              onChanged: (value) => _validateAmountRealTime(value),
+              onChanged: (value) {
+                _validateAmountRealTime(value);
+                // Clear AI tracking when user manually edits
+                _aiFilledFields.remove('amount');
+                if (_aiFilledFields.isEmpty) {
+                  setState(() => _showAiFilledHint = false);
+                }
+              },
             ),
             const SizedBox(height: 16),
             EnhancedCategorySelector(
@@ -378,33 +468,91 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
               onCategoryChanged: (category) {
                 setState(() {
                   _selectedCategory = category;
+                  // Clear AI tracking when user manually selects category
+                  _aiFilledFields.remove('category');
+                  if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
                 });
               },
               onRetry: _retryLoadCategories,
-              transactionType: _tabController.index == 0
-                  ? TransactionType.expense
-                  : TransactionType.income,
+              transactionType: _currentTransactionType,
               transactionNote:
                   _noteController.text.isNotEmpty ? _noteController.text : null,
               transactionTime: _selectedDate,
             ),
+            // Debug button to create default categories
+            if (_categories.isEmpty && !_isCategoriesLoading)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () async {
+                            try {
+                              await _categoryService.createDefaultCategories();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Đã tạo danh mục mặc định')),
+                              );
+                            } catch (e) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Lỗi tạo danh mục: $e')),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.add_circle_outline),
+                          label: const Text('Tạo danh mục'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _debugAllCategories,
+                          icon: const Icon(Icons.bug_report),
+                          label: const Text('Debug'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Show current type info
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      margin: const EdgeInsets.only(top: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue[200]!),
+                      ),
+                      child: Text(
+                        'Current type: ${_selectedType.value}\nCategories loaded: ${_categories.length}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue[800],
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 16),
             TransactionDateSelector(
               selectedDate: _selectedDate,
               onDateChanged: (date) {
                 setState(() {
                   _selectedDate = date;
+                  // Clear AI tracking when user manually changes date
+                  _aiFilledFields.remove('date');
+                  if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
                 });
               },
             ),
             const SizedBox(height: 16),
             TransactionNoteInput(
               controller: _noteController,
-            ),
-            const SizedBox(height: 16),
-            BudgetTransactionTemplateWidget(
-              transactionType: _selectedType,
-              onTemplateSelected: _applyTransactionTemplate,
             ),
             const SizedBox(height: 20),
             EnhancedSaveButton(
@@ -420,107 +568,287 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
   Widget _buildScanReceiptTab() {
     return TransactionAiScanTab(
-      onScanComplete: (results) {
+      onScanComplete: (results) async {
         setState(() {
           _scanResults = results;
+        });
+        // Tự động điền dữ liệu vào form thủ công
+        await _applyScanResults(results);
+        
+        // Chuyển sang tab thủ công để user có thể chỉnh sửa
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted && _tabController.index == 1) {
+            _tabController.animateTo(0); // Chuyển về tab manual input
+            
+            // Hiển thị thông báo
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Đã điền tự động! Bạn có thể kiểm tra và chỉnh sửa thông tin.',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: AppColors.success,
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            );
+          }
         });
       },
       onScanSaved: _saveScannedTransaction,
     );
   }
 
-  void _applyTransactionTemplate(TransactionTemplate template) {
-    setState(() {
-      _amountController.text = template.amount.toString();
-      _noteController.text = template.note;
-      _selectedType = template.type;
+  Future<void> _applyScanResults(Map<String, dynamic> scanResults) async {
+    // Debug log để kiểm tra dữ liệu AI trả về
+    print('📊 AI Scan Results: $scanResults');
+    
+    _aiFilledFields.clear(); // Reset tracking
+    
+    // Điền amount với xử lý nhiều format
+    final amount = scanResults['amount'];
+    if (amount != null) {
+      if (amount is String) {
+        // Xử lý format như "125,000" hoặc "125k" 
+        final cleanAmount = amount.replaceAll(',', '').replaceAll(' ', '');
+        final parsedAmount = double.tryParse(cleanAmount) ?? 0;
+        _amountController.text = CurrencyFormatter.formatDisplay(parsedAmount.toInt());
+        _aiFilledFields.add('amount');
+      } else if (amount is num) {
+        _amountController.text = CurrencyFormatter.formatDisplay(amount.toInt());
+        _aiFilledFields.add('amount');
+      }
+    }
 
-      // Tìm category từ template
-      final category = _categories.firstWhere(
-        (cat) => cat.categoryId == template.categoryId,
-        orElse: () => CategoryModel(
-          categoryId: template.categoryId,
-          userId: FirebaseAuth.instance.currentUser?.uid ?? '',
-          name: template.categoryName,
-          type: template.type,
-          icon: 'category',
-          iconType: CategoryIconType.material,
-          color: 0xFF2196F3,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          isDefault: false,
-          isSuggested: false,
-          isDeleted: false,
-        ),
-      );
-      _selectedCategory = category;
+      // FIXED: Điền note/description một cách cẩn thận, tránh điền thời gian
+      String noteText = '';
+      
+      // Ưu tiên note từ AI
+      if (scanResults['note'] != null && scanResults['note'].toString().isNotEmpty) {
+        noteText = scanResults['note'].toString();
+      }
+      // Sau đó description
+      else if (scanResults['description'] != null && scanResults['description'].toString().isNotEmpty) {
+        noteText = scanResults['description'].toString();
+      }
+      // Cuối cùng merchant name
+      else if (scanResults['merchantName'] != null && scanResults['merchantName'].toString().isNotEmpty) {
+        noteText = scanResults['merchantName'].toString();
+      }
+      
+      // Kiểm tra xem có phải là thời gian không (tránh điền thời gian vào note)
+      if (noteText.isNotEmpty && !_isTimeString(noteText)) {
+        _noteController.text = noteText;
+        _aiFilledFields.add('note');
+      }
+
+      // FIXED: Điền type và đảm bảo reload categories đúng
+      final typeString = scanResults['type']?.toString().toLowerCase() ?? 'expense';
+      final newType = typeString == 'income' ? TransactionType.income : TransactionType.expense;
+      
+      print('🔄 AI detected type: $typeString -> $newType');
+      
+      if (newType != _selectedType) {
+        print('⚡ Switching transaction type from $_selectedType to $newType');
+        setState(() {
+          _selectedType = newType;
+          _currentTransactionType = newType; // Keep current type in sync for category selector
+          _selectedCategory = null; // Reset category khi đổi type
+        });
+        _aiFilledFields.add('type');
+        
+        // CRITICAL: Reload categories cho type mới và đợi hoàn thành
+        print('⏳ Loading categories for $newType...');
+        await _loadCategoriesForType(newType);
+        print('✅ Categories loaded for $newType');
+      }
+
+      // Điền date với fallback an toàn
+      final dateValue = scanResults['date'];
+      if (dateValue != null) {
+        try {
+          DateTime? parsedDate;
+          
+          if (dateValue is String) {
+            // Thử parse các format date khác nhau
+            parsedDate = _parseDate(dateValue);
+          } else if (dateValue is DateTime) {
+            parsedDate = dateValue;
+          }
+          
+          if (parsedDate != null) {
+            setState(() {
+              _selectedDate = parsedDate!; // Force unwrap vì đã check null
+            });
+            _aiFilledFields.add('date');
+          }
+        } catch (e) {
+          print('⚠️ Error parsing date: $e');
+          setState(() {
+            _selectedDate = DateTime.now();
+          });
+        }
+      }
+
+      // Show hint if any fields were auto-filled
+      setState(() {
+        _showAiFilledHint = _aiFilledFields.isNotEmpty;
+      });
+    
+    // FIXED: Điền category sau khi categories đã được load (với delay longer cho income)
+    final isIncomeType = _selectedType == TransactionType.income;
+    final delayMs = isIncomeType ? 1200 : 800; // More time for income category loading
+    
+    Future.delayed(Duration(milliseconds: delayMs), () {
+      if (mounted) {
+        print('🔍 Attempting to auto-select category for ${_selectedType}...');
+        final categoryName = scanResults['category_name'] ?? 
+                            scanResults['category_suggestion'] ??
+                            scanResults['categoryHint'];
+        if (categoryName != null && categoryName.toString().isNotEmpty) {
+          print('🎯 Looking for category: ${categoryName.toString()}');
+          final foundCategory = _findCategoryByName(categoryName.toString());
+          if (foundCategory != null) {
+            print('✅ Found and selecting category: ${foundCategory.name}');
+            setState(() {
+              _selectedCategory = foundCategory;
+              _aiFilledFields.add('category');
+              _showAiFilledHint = _aiFilledFields.isNotEmpty;
+            });
+          } else {
+            print('❌ Category not found: ${categoryName.toString()}');
+            print('📋 Available categories: ${_categories.map((c) => c.name).join(', ')}');
+          }
+        }
+      }
     });
   }
 
+  CategoryModel? _findCategoryByName(String categoryName) {
+    if (_categories.isEmpty) return null;
+    
+    try {
+      // Chỉ tìm trong categories của type hiện tại
+      final currentTypeCategories = _categories.where((cat) => cat.type == _currentTransactionType).toList();
+      print('🔍 Searching in ${currentTypeCategories.length} categories of type ${_currentTransactionType}');
+      
+      if (currentTypeCategories.isEmpty) return null;
+      
+      // Tìm exact match trước
+      var exactMatch = currentTypeCategories.where((category) =>
+          category.name.toLowerCase() == categoryName.toLowerCase()).firstOrNull;
+      if (exactMatch != null) {
+        print('✅ Found exact match: ${exactMatch.name}');
+        return exactMatch;
+      }
+
+      // Tìm partial match
+      var partialMatch = currentTypeCategories.where((category) =>
+          category.name.toLowerCase().contains(categoryName.toLowerCase()) ||
+          categoryName.toLowerCase().contains(category.name.toLowerCase())).firstOrNull;
+      if (partialMatch != null) {
+        print('✅ Found partial match: ${partialMatch.name}');
+        return partialMatch;
+      }
+
+      // Fallback: return first category of current type
+      print('⚠️ No match found, returning first category of type ${_currentTransactionType}');
+      return currentTypeCategories.firstOrNull;
+    } catch (e) {
+      print('❌ Error in _findCategoryByName: $e');
+      return null;
+    }
+  }
+
   Future<void> _saveTransaction() async {
+    // Validate form
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
-    // Enhanced validation using validation service
-    final validationResult = TransactionValidationService.validateTransaction(
-      amountText: _amountController.text,
-      category: _selectedCategory,
-      date: _selectedDate,
-      type: _selectedType,
-      note: _noteController.text,
-    );
-
-    if (!validationResult.isValid) {
-      // Show first error
-      final firstError = validationResult.errors.values.first;
+    if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(firstError),
-          backgroundColor: AppColors.error,
+        const SnackBar(
+          content: Text('Vui lòng chọn danh mục'),
+          backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    // Show warnings if any
-    if (validationResult.hasWarnings) {
-      final hasUserConfirmed =
-          await _showWarningDialog(validationResult.warnings);
-      if (!hasUserConfirmed) return;
-    }
-
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng đăng nhập để lưu giao dịch'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
-    // Tạo transaction model để kiểm tra trùng lặp
+    // Parse amount từ formatted text
+    final rawAmount = CurrencyFormatter.getRawValue(_amountController.text);
+    if (rawAmount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Số tiền phải lớn hơn 0'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validate với TransactionValidationService
+    final validationResult = TransactionValidationService.validateTransaction(
+      amountText: rawAmount.toString(),
+      category: _selectedCategory,
+      date: _selectedDate,
+      type: _selectedType,
+      note: _noteController.text.trim(),
+    );
+
+    if (!validationResult.isValid) {
+      final errorMessages = validationResult.errors.values.toList();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessages.first),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Kiểm tra trùng lặp
+    final duplicateService = DuplicateDetectionService();
+    final recentTransactions = await _getRecentTransactions();
+
     final newTransaction = TransactionModel(
       transactionId: '',
       userId: currentUser.uid,
-      amount: double.parse(_amountController.text),
       categoryId: _selectedCategory!.categoryId,
+      amount: rawAmount.toDouble(), // Sử dụng raw amount
       type: _selectedType,
-      note: _noteController.text,
       date: _selectedDate,
+      note: _noteController.text.trim().isEmpty
+          ? null
+          : _noteController.text.trim(),
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       isDeleted: false,
     );
 
-    // Kiểm tra trùng lặp
-    final duplicateService = DuplicateDetectionService();
-    final recentTransactions = await _getRecentTransactions();
     final duplicateResult = await duplicateService.detectDuplicates(
       newTransaction: newTransaction,
       recentTransactions: recentTransactions,
@@ -572,13 +900,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       newTransaction: newTransaction,
       recentTransactions: recentTransactions,
       categories: _categories,
-    );
-
-    // Kiểm tra template suggestions
-    final templateService = TransactionTemplateService();
-    final templateSuggestions =
-        await templateService.suggestTemplatesFromFrequentTransactions(
-      recentTransactions,
     );
 
     // Hiển thị advanced validation nếu có warnings
@@ -675,124 +996,29 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   }
 
   Future<void> _saveScannedTransaction() async {
-    if (_scanResults == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không có dữ liệu scan để lưu.'),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      }
-      return;
-    }
-
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-      return;
-    }
+    if (_scanResults == null) return;
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Parse transaction type first
-      final typeStr = _scanResults!['type'] ?? 'expense';
-      final transactionType = typeStr.toLowerCase() == 'income'
-          ? TransactionType.income
-          : TransactionType.expense;
-
-      // Find matching category based on scan result and transaction type
-      String categoryId = '';
-      final categoryName = _scanResults!['category_suggestion'] ?? '';
-
-      // Filter categories by transaction type first
-      final filteredCategories = _categories
-          .where((cat) => cat.type == transactionType && !cat.isDeleted)
-          .toList();
-
-      _logger.d(
-          'Looking for category "$categoryName" in ${filteredCategories.length} categories of type ${transactionType.value}');
-
-      if (categoryName.isNotEmpty && filteredCategories.isNotEmpty) {
-        // Try exact name match first
-        var matchedCategory = filteredCategories.firstWhere(
-          (category) =>
-              category.name.toLowerCase() == categoryName.toLowerCase(),
-          orElse: () => CategoryModel(
-            categoryId: '',
-            userId: '',
-            name: '',
-            type: transactionType,
-            icon: '',
-            color: 0,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ),
-        );
-
-        if (matchedCategory.categoryId.isNotEmpty) {
-          categoryId = matchedCategory.categoryId;
-          _logger.d('Found exact match: ${matchedCategory.name}');
-        } else {
-          // Try partial name match
-          for (final category in filteredCategories) {
-            if (category.name
-                    .toLowerCase()
-                    .contains(categoryName.toLowerCase()) ||
-                categoryName
-                    .toLowerCase()
-                    .contains(category.name.toLowerCase())) {
-              categoryId = category.categoryId;
-              _logger.d('Found partial match: ${category.name}');
-              break;
-            }
-          }
-        }
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('Người dùng chưa đăng nhập');
       }
 
-      // If no category found, use first available category of the same type
-      if (categoryId.isEmpty && filteredCategories.isNotEmpty) {
-        categoryId = filteredCategories.first.categoryId;
-        _logger.d('Using default category: ${filteredCategories.first.name}');
+      // Validate scan result trước
+      final validation = _aiProcessorService.validateScanResult(_scanResults!);
+      if (!validation['isValid']) {
+        final errors = validation['errors'] as List<String>;
+        throw Exception('Dữ liệu scan không hợp lệ: ${errors.join(', ')}');
       }
 
-      // If still no category, check if we need to create a default one
-      if (categoryId.isEmpty) {
-        throw Exception(
-            'Không có danh mục ${transactionType == TransactionType.income ? "thu nhập" : "chi tiêu"} khả dụng. Vui lòng tạo danh mục trước.');
-      }
-
-      // Parse date
-      DateTime transactionDate;
-      try {
-        transactionDate = DateTime.parse(_scanResults!['date'] ?? '');
-      } catch (e) {
-        transactionDate = DateTime.now();
-      }
-
-      // Create transaction from scan results
-      final transaction = TransactionModel(
-        transactionId: '',
-        userId: currentUser.uid,
-        categoryId: categoryId,
-        amount: (_scanResults!['amount'] ?? 0).toDouble(),
-        type: transactionType,
-        date: transactionDate,
-        note: _scanResults!['description'] ?? 'Giao dịch từ scan AI',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        isDeleted: false,
+      // Map scan result thành TransactionModel
+      final transaction = await _aiProcessorService.mapScanResultToTransaction(
+        _scanResults!,
+        currentUser.uid,
       );
 
       await Future.any([
@@ -880,47 +1106,225 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     }
   }
 
-  /// Show warning dialog cho user confirmation
-  Future<bool> _showWarningDialog(Map<String, String> warnings) async {
-    return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Row(
+  /// Build AI auto-fill banner với animation
+  Widget _buildAiFilledBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.1),
+            AppColors.primary.withValues(alpha: 0.05),
+          ],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: Colors.white,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.warning_amber, color: Colors.orange),
-                const SizedBox(width: 8),
-                Text('Cảnh báo'),
+                Text(
+                  'AI đã điền tự động',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
+                ),
+                Text(
+                  'Các trường: ${_aiFilledFields.map((field) => _getFieldDisplayName(field)).join(', ')}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: warnings.entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('• ', style: TextStyle(color: Colors.orange)),
-                      Expanded(child: Text(entry.value)),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Hủy'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text('Tiếp tục'),
-              ),
-            ],
           ),
-        ) ??
-        false;
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _showAiFilledHint = false;
+                _aiFilledFields.clear();
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Icon(
+                Icons.close,
+                color: AppColors.primary,
+                size: 16,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get display name for AI filled fields
+  String _getFieldDisplayName(String field) {
+    switch (field) {
+      case 'amount':
+        return 'Số tiền';
+      case 'note':
+        return 'Ghi chú';
+      case 'type':
+        return 'Loại giao dịch';
+      case 'date':
+        return 'Ngày';
+      case 'category':
+        return 'Danh mục';
+      default:
+        return field;
+    }
+  }
+
+  /// Check if text is a time string (to avoid filling time into note field)
+  bool _isTimeString(String text) {
+    // Check for common time patterns
+    final timePatterns = [
+      RegExp(r'^\d{1,2}:\d{2}$'), // HH:MM
+      RegExp(r'^\d{1,2}:\d{2}:\d{2}$'), // HH:MM:SS
+      RegExp(r'^\d{4}-\d{2}-\d{2}$'), // YYYY-MM-DD
+      RegExp(r'^\d{2}/\d{2}/\d{4}$'), // DD/MM/YYYY
+      RegExp(r'^\d{1,2}h\d{2}$'), // 14h30
+    ];
+    
+    return timePatterns.any((pattern) => pattern.hasMatch(text.trim()));
+  }
+
+  /// Parse date from various formats
+  DateTime? _parseDate(String dateString) {
+    try {
+      final cleanDate = dateString.trim();
+      
+      // Try ISO format first
+      if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(cleanDate)) {
+        return DateTime.parse(cleanDate);
+      }
+      
+      // Try DD/MM/YYYY format
+      if (RegExp(r'^\d{1,2}/\d{1,2}/\d{4}$').hasMatch(cleanDate)) {
+        final parts = cleanDate.split('/');
+        if (parts.length == 3) {
+          return DateTime(
+            int.parse(parts[2]), // year
+            int.parse(parts[1]), // month
+            int.parse(parts[0]), // day
+          );
+        }
+      }
+      
+      // Try other common formats...
+      return DateTime.tryParse(cleanDate);
+    } catch (e) {
+      print('⚠️ Failed to parse date: $dateString');
+      return null;
+    }
+  }
+
+  /// Load categories for specific transaction type
+  Future<void> _loadCategoriesForType(TransactionType type) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        if (mounted) {
+          setState(() {
+            _categories = [];
+            _isCategoriesLoading = false;
+            _categoriesError = 'Người dùng chưa đăng nhập';
+          });
+        }
+        return;
+      }
+
+      // Cancel existing subscription
+      await _categoriesSubscription?.cancel();
+      _categoriesSubscription = null;
+      _timeoutTimer?.cancel();
+      _timeoutTimer = null;
+
+      if (mounted) {
+        setState(() {
+          _categories = [];
+          _isCategoriesLoading = true;
+          _categoriesError = null;
+        });
+      }
+
+      print('🔄 Loading categories for type: ${type.value}');
+
+      // Create new subscription for specific type
+      _categoriesSubscription =
+          _categoryService.getCategoriesOptimized(type: type).listen(
+        (categories) {
+          _timeoutTimer?.cancel();
+          if (mounted) {
+            print('✅ Loaded ${categories.length} categories for ${type.value}');
+            setState(() {
+              _categories = categories;
+              _isCategoriesLoading = false;
+              _categoriesError = null;
+            });
+          }
+        },
+        onError: (error) {
+          _timeoutTimer?.cancel();
+          if (mounted) {
+            print('❌ Error loading categories: $error');
+            setState(() {
+              _isCategoriesLoading = false;
+              _categoriesError = _formatErrorMessage(error);
+            });
+          }
+        },
+        cancelOnError: false,
+      );
+
+      // Set timeout
+      _timeoutTimer = Timer(const Duration(seconds: 10), () {
+        if (mounted && _isCategoriesLoading) {
+          setState(() {
+            _isCategoriesLoading = false;
+            _categoriesError = 'Timeout khi tải danh mục';
+          });
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCategoriesLoading = false;
+          _categoriesError = _formatErrorMessage(e);
+        });
+      }
+    }
   }
 
   @override

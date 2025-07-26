@@ -74,30 +74,43 @@ class ChatLogService {
 
       // Nếu conversationId bắt đầu bằng 'temp_', trả về list rỗng
       if (conversationId != null && conversationId.startsWith('temp_')) {
-        _logger.i(
-            'Trả về chat logs rỗng cho conversation tạm thời: $conversationId');
         return Stream.value([]);
       }
 
+      // Tạo query cơ bản
       Query query = _firestore
           .collection('users')
           .doc(user.uid)
-          .collection('chat_logs')
-          .orderBy('created_at', descending: true);
+          .collection('chat_logs');
 
-      // Lọc theo conversationId nếu có
+      // Lọc theo conversationId nếu có (query đầu tiên)
       if (conversationId != null) {
         query = query.where('conversation_id', isEqualTo: conversationId);
       }
 
-      if (startDate != null) {
-        query = query.where('created_at',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
-      }
+      // Thêm orderBy và các filter khác
+      try {
+        query = query.orderBy('created_at', descending: true);
+        
+        if (startDate != null) {
+          query = query.where('created_at',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        }
 
-      if (endDate != null) {
-        query = query.where('created_at',
-            isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        if (endDate != null) {
+          query = query.where('created_at',
+              isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        }
+      } catch (e) {
+        _logger.w('OrderBy failed (missing index?), using basic query: $e');
+        // Fallback: chỉ dùng filter cơ bản
+        if (conversationId != null) {
+          query = _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('chat_logs')
+              .where('conversation_id', isEqualTo: conversationId);
+        }
       }
 
       if (limit != null) {
@@ -105,10 +118,22 @@ class ChatLogService {
       }
 
       return query.snapshots().map((snapshot) {
-        return snapshot.docs.map((doc) {
-          return ChatLogModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
-        }).toList();
+        final logs = snapshot.docs.map((doc) {
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            return ChatLogModel.fromMap(data, doc.id);
+          } catch (e) {
+            _logger.e('Error parsing chat log document ${doc.id}: $e');
+            return null;
+          }
+        }).where((log) => log != null).cast<ChatLogModel>().toList();
+        
+        // Sort manually nếu orderBy không work
+        if (logs.isNotEmpty) {
+          logs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        }
+        
+        return logs;
       });
     } catch (e) {
       _logger.e('Lỗi lấy lịch sử chat: $e');

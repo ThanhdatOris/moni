@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../category/category_management_screen.dart';
-import '../../../utils/category_icon_helper.dart';
+import '../../../utils/helpers/category_icon_helper.dart';
 
 class TransactionCategorySelector extends StatelessWidget {
   final CategoryModel? selectedCategory;

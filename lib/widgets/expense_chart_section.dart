@@ -379,7 +379,6 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
     return ChartFilter(
       selectedDate: _selectedDate,
       selectedTransactionType: _selectedTransactionType,
-      financialOverviewData: _financialOverviewData,
       isLoading: _isLoading,
       onDateChanged: (date) {
         setState(() {

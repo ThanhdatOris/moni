@@ -10,7 +10,7 @@ import '../../constants/app_colors.dart';
 import '../../core/di/injection_container.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
-import '../utils/category_icon_helper.dart';
+import '../utils/helpers/category_icon_helper.dart';
 
 class AddTransactionScreenClean extends ConsumerStatefulWidget {
   const AddTransactionScreenClean({super.key});

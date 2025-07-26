@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 
 import '../../constants/app_colors.dart';
+import '../../models/chat_log_model.dart';
 import '../../services/ai_processor_service.dart';
 import '../../services/chat_log_service.dart';
 import '../../services/conversation_service.dart';
@@ -40,6 +41,7 @@ class _FullChatScreenState extends State<FullChatScreen> {
   final List<ChatMessage> _messages = [];
   bool _isTyping = false;
   String? _currentConversationId;
+  String _conversationTitle = 'Moni AI Assistant'; // Tiêu đề mặc định
 
   // Services
   final GetIt _getIt = GetIt.instance;
@@ -67,28 +69,66 @@ class _FullChatScreenState extends State<FullChatScreen> {
       _currentConversationId = widget.conversationId ??
           await _conversationService.getOrCreateActiveConversation();
 
+      // Load tiêu đề conversation nếu có conversation ID cụ thể
+      await _loadConversationTitle();
+
       // Load chat history
       await _loadChatHistory();
     } catch (e) {
+      _logger.e('Error initializing conversation: $e');
       // Fallback to welcome message if initialization fails
       _addWelcomeMessage();
     }
   }
 
+  Future<void> _loadConversationTitle() async {
+    try {
+      if (_currentConversationId != null && !_currentConversationId!.startsWith('temp_')) {
+        final conversation = await _conversationService.getConversation(_currentConversationId!);
+        if (conversation != null && mounted) {
+          setState(() {
+            _conversationTitle = conversation.title;
+          });
+        }
+      }
+    } catch (e) {
+      _logger.w('Error loading conversation title: $e');
+      // Giữ tiêu đề mặc định nếu có lỗi
+    }
+  }
+
   Future<void> _loadChatHistory() async {
     try {
+      if (_currentConversationId == null) {
+        _addWelcomeMessage();
+        return;
+      }
+
+      // Nếu là temp conversation, không load history
+      if (_currentConversationId!.startsWith('temp_')) {
+        _addWelcomeMessage();
+        return;
+      }
+      
+      // Load chat logs từ Firestore
       final logs = await _chatLogService
           .getLogs(
             conversationId: _currentConversationId,
-            limit: 10,
+            limit: 20,
           )
-          .first;
+          .timeout(const Duration(seconds: 15))
+          .first
+          .catchError((error) {
+        _logger.w('Error loading chat logs: $error');
+        return <ChatLogModel>[];
+      });
 
       if (logs.isNotEmpty) {
-        // Load recent chat messages (limit to last 10 for performance)
-        final recentLogs = logs.take(10).toList();
-
-        for (final log in recentLogs.reversed) {
+        // Clear existing messages trước khi load
+        _messages.clear();
+        
+        // Load chat messages
+        for (final log in logs.reversed) {
           _messages.add(ChatMessage(
             text: log.question,
             isUser: true,
@@ -105,10 +145,16 @@ class _FullChatScreenState extends State<FullChatScreen> {
         _addWelcomeMessage();
       }
 
-      setState(() {});
-      _scrollToBottom();
+      if (mounted) {
+        setState(() {});
+        _scrollToBottom();
+      }
     } catch (e) {
-      _addWelcomeMessage();
+      _logger.e('Error loading chat history: $e');
+      if (mounted) {
+        _addWelcomeMessage();
+        setState(() {});
+      }
     }
   }
 
@@ -156,19 +202,21 @@ class _FullChatScreenState extends State<FullChatScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Moni AI Assistant',
-                    style: TextStyle(
+                    _conversationTitle,
+                    style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
+                  const Text(
                     'Đang hoạt động',
                     style: TextStyle(
                       color: Color(0xFF4CAF50),
@@ -248,6 +296,9 @@ class _FullChatScreenState extends State<FullChatScreen> {
             await _conversationService.getOrCreateActiveConversation(
           firstQuestion: text,
         );
+        
+        // Load tiêu đề conversation mới được tạo
+        await _loadConversationTitle();
       }
 
       // Gọi AI service
@@ -341,6 +392,8 @@ class _FullChatScreenState extends State<FullChatScreen> {
   void _clearChat() {
     setState(() {
       _messages.clear();
+      _currentConversationId = null;
+      _conversationTitle = 'Moni AI Assistant'; // Reset về tiêu đề mặc định
       _messages.add(ChatMessage(
         text:
             "🔄 Cuộc trò chuyện đã được làm mới!\n\nTôi sẵn sàng hỗ trợ bạn với những câu hỏi mới về tài chính. Hãy bắt đầu bằng cách cho tôi biết bạn cần giúp đỡ gì nhé! 😊",

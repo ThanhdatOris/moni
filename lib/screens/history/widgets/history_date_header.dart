@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../models/transaction_model.dart';
-import '../../../utils/currency_formatter.dart';
+import '../../../utils/formatting/currency_formatter.dart';
 
 class HistoryDateHeader extends StatelessWidget {
   final String dateKey;
@@ -47,7 +47,8 @@ class HistoryDateHeader extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(16),
@@ -99,7 +100,8 @@ class HistoryDateHeader extends StatelessWidget {
                 if (totalIncome > 0)
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 12),
                       decoration: BoxDecoration(
                         color: AppColors.success.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -115,7 +117,8 @@ class HistoryDateHeader extends StatelessWidget {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              CurrencyFormatter.formatAmountWithCurrency(totalIncome),
+                              CurrencyFormatter.formatAmountWithCurrency(
+                                  totalIncome),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -133,7 +136,8 @@ class HistoryDateHeader extends StatelessWidget {
                 if (totalExpense > 0)
                   Expanded(
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 12),
                       decoration: BoxDecoration(
                         color: AppColors.error.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
@@ -149,7 +153,8 @@ class HistoryDateHeader extends StatelessWidget {
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(
-                              CurrencyFormatter.formatAmountWithCurrency(totalExpense),
+                              CurrencyFormatter.formatAmountWithCurrency(
+                                  totalExpense),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -165,7 +170,8 @@ class HistoryDateHeader extends StatelessWidget {
                 if (totalIncome > 0 && totalExpense > 0) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
                     decoration: BoxDecoration(
                       color: netAmount >= 0
                           ? AppColors.success.withValues(alpha: 0.1)
@@ -177,7 +183,9 @@ class HistoryDateHeader extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: netAmount >= 0 ? AppColors.success : AppColors.error,
+                        color: netAmount >= 0
+                            ? AppColors.success
+                            : AppColors.error,
                       ),
                     ),
                   ),
@@ -207,4 +215,4 @@ class HistoryDateHeader extends StatelessWidget {
       return DateFormat('dd/MM/yyyy', 'vi_VN').format(date);
     }
   }
-} 
+}

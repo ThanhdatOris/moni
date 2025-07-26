@@ -10,8 +10,8 @@ import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/category_service.dart';
 import '../../services/transaction_service.dart';
-import '../../utils/category_icon_helper.dart';
-import '../../utils/currency_formatter.dart';
+import '../../utils/formatting/currency_formatter.dart';
+import '../../utils/helpers/category_icon_helper.dart';
 import '../transaction/widgets/transaction_amount_input.dart';
 import '../transaction/widgets/transaction_category_selector.dart';
 import '../transaction/widgets/transaction_date_selector.dart';
@@ -64,23 +64,35 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   @override
   void initState() {
     super.initState();
+    print('🔧 DEBUG: TransactionDetailScreen initState started');
+    
     _tabController = TabController(length: 2, vsync: this);
-    _transactionService = _getIt<TransactionService>();
-    _categoryService = _getIt<CategoryService>();
+    
+    try {
+      _transactionService = _getIt<TransactionService>();
+      _categoryService = _getIt<CategoryService>();
+      print('✅ DEBUG: Services initialized successfully');
+    } catch (e) {
+      print('❌ DEBUG: Error initializing services: $e');
+    }
 
     // Initialize with transaction data
     _selectedType = widget.transaction.type;
     _selectedDate = widget.transaction.date;
     _amountController.text = widget.transaction.amount.toString();
     _noteController.text = widget.transaction.note ?? '';
+    
+    print('🔧 DEBUG: Transaction data initialized - Type: $_selectedType, Amount: ${_amountController.text}');
 
     // Auth listener
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (mounted && user == null) {
+        print('❌ DEBUG: User logged out, closing detail screen');
         Navigator.of(context).pop();
       }
     });
 
+    print('🔧 DEBUG: Loading categories...');
     _loadCategories();
   }
 
@@ -95,6 +107,8 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   }
 
   Future<void> _loadCategories() async {
+    print('🔧 DEBUG: _loadCategories started for type: $_selectedType');
+    
     try {
       await _categoriesSubscription?.cancel();
 
@@ -102,10 +116,13 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         _isCategoriesLoading = true;
         _categoriesError = null;
       });
+      
+      print('🔧 DEBUG: Loading categories from service...');
 
       _categoriesSubscription =
           _categoryService.getCategories(type: _selectedType).listen(
         (categories) {
+          print('✅ DEBUG: Received ${categories.length} categories');
           if (mounted) {
             setState(() {
               _categories = categories;
@@ -128,10 +145,12 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                         updatedAt: DateTime.now(),
                       ),
               );
+              print('✅ DEBUG: Selected category: ${_selectedCategory?.name}');
             });
           }
         },
         onError: (error) {
+          print('❌ DEBUG: Error loading categories: $error');
           if (mounted) {
             setState(() {
               _isCategoriesLoading = false;
@@ -141,6 +160,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         },
       );
     } catch (e) {
+      print('❌ DEBUG: Exception in _loadCategories: $e');
       if (mounted) {
         setState(() {
           _isCategoriesLoading = false;
@@ -588,11 +608,15 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   }
 
   Widget _buildEditTab() {
+    print('🔧 DEBUG: Building edit tab - Loading: $_isCategoriesLoading, Error: $_categoriesError');
+    
     if (_isCategoriesLoading) {
+      print('🔧 DEBUG: Showing loading indicator');
       return const Center(child: CircularProgressIndicator());
     }
 
     if (_categoriesError != null) {
+      print('❌ DEBUG: Showing error message: $_categoriesError');
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -610,6 +634,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       );
     }
 
+    print('✅ DEBUG: Rendering edit form with ${_categories.length} categories');
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Form(
@@ -621,6 +646,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
             TransactionTypeSelector(
               selectedType: _selectedType,
               onTypeChanged: (type) {
+                print('🔧 DEBUG: Type changed to: $type');
                 setState(() {
                   _selectedType = type;
                   _selectedCategory = null;
@@ -644,6 +670,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
               categories: _categories,
               isLoading: _isCategoriesLoading,
               onCategoryChanged: (category) {
+                print('🔧 DEBUG: Category changed to: ${category?.name}');
                 setState(() {
                   _selectedCategory = category;
                 });

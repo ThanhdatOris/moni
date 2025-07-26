@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../constants/app_colors.dart';
 import '../services/spending_limit_service.dart';
-import '../utils/currency_formatter.dart';
+import '../utils/formatting/currency_formatter.dart';
 
 /// Dialog cảnh báo giới hạn chi tiêu
 class BudgetLimitWarningDialog extends StatelessWidget {
@@ -28,8 +28,10 @@ class BudgetLimitWarningDialog extends StatelessWidget {
       title: Row(
         children: [
           Icon(
-            _getWarningIcon(criticalWarning?.severity ?? WarningSeverity.medium),
-            color: _getWarningColor(criticalWarning?.severity ?? WarningSeverity.medium),
+            _getWarningIcon(
+                criticalWarning?.severity ?? WarningSeverity.medium),
+            color: _getWarningColor(
+                criticalWarning?.severity ?? WarningSeverity.medium),
             size: 24,
           ),
           const SizedBox(width: 8),
@@ -39,7 +41,8 @@ class BudgetLimitWarningDialog extends StatelessWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: _getWarningColor(criticalWarning?.severity ?? WarningSeverity.medium),
+                color: _getWarningColor(
+                    criticalWarning?.severity ?? WarningSeverity.medium),
               ),
             ),
           ),
@@ -52,11 +55,14 @@ class BudgetLimitWarningDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _getDescription(criticalWarning?.severity ?? WarningSeverity.medium),
+              _getDescription(
+                  criticalWarning?.severity ?? WarningSeverity.medium),
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
-            ...result.warnings.map((warning) => _buildWarningItem(warning)).toList(),
+            ...result.warnings
+                .map((warning) => _buildWarningItem(warning))
+                .toList(),
           ],
         ),
       ),
@@ -69,10 +75,12 @@ class BudgetLimitWarningDialog extends StatelessWidget {
         ElevatedButton(
           onPressed: onProceed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: _getActionColor(criticalWarning?.severity ?? WarningSeverity.medium),
+            backgroundColor: _getActionColor(
+                criticalWarning?.severity ?? WarningSeverity.medium),
             foregroundColor: Colors.white,
           ),
-          child: Text(_getActionText(criticalWarning?.severity ?? WarningSeverity.medium)),
+          child: Text(_getActionText(
+              criticalWarning?.severity ?? WarningSeverity.medium)),
         ),
       ],
     );
@@ -83,10 +91,10 @@ class BudgetLimitWarningDialog extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _getWarningColor(warning.severity).withValues(alpha:0.1),
+        color: _getWarningColor(warning.severity).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _getWarningColor(warning.severity).withValues(alpha:0.3),
+          color: _getWarningColor(warning.severity).withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -125,7 +133,8 @@ class BudgetLimitWarningDialog extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _buildProgressBar(warning.usagePercentage, warning.severity),
+                child: _buildProgressBar(
+                    warning.usagePercentage, warning.severity),
               ),
             ],
           ),
@@ -293,7 +302,7 @@ class BudgetLimitEditDialog extends StatefulWidget {
 class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
-  
+
   late LimitType _selectedType;
   late bool _allowOverride;
   late bool _isActive;
@@ -301,7 +310,7 @@ class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
   @override
   void initState() {
     super.initState();
-    
+
     if (widget.existingLimit != null) {
       _amountController.text = widget.existingLimit!.amount.toString();
       _selectedType = widget.existingLimit!.type;
@@ -324,7 +333,9 @@ class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(
-        widget.existingLimit != null ? 'Sửa giới hạn chi tiêu' : 'Tạo giới hạn chi tiêu',
+        widget.existingLimit != null
+            ? 'Sửa giới hạn chi tiêu'
+            : 'Tạo giới hạn chi tiêu',
         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
       ),
       content: SizedBox(
@@ -345,7 +356,6 @@ class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
                 ),
                 const SizedBox(height: 16),
               ],
-              
               TextFormField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
@@ -368,9 +378,7 @@ class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
                   return null;
                 },
               ),
-              
               const SizedBox(height: 16),
-              
               Text(
                 'Loại giới hạn',
                 style: TextStyle(
@@ -380,24 +388,24 @@ class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
                 ),
               ),
               const SizedBox(height: 8),
-              
-              ...LimitType.values.map((type) => RadioListTile<LimitType>(
-                title: Text(_getLimitTypeDisplayName(type)),
-                value: type,
-                groupValue: _selectedType,
-                onChanged: (value) {
-                  setState(() {
-                    _selectedType = value!;
-                  });
-                },
-                contentPadding: EdgeInsets.zero,
-              )).toList(),
-              
+              ...LimitType.values
+                  .map((type) => RadioListTile<LimitType>(
+                        title: Text(_getLimitTypeDisplayName(type)),
+                        value: type,
+                        groupValue: _selectedType,
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedType = value!;
+                          });
+                        },
+                        contentPadding: EdgeInsets.zero,
+                      ))
+                  .toList(),
               const SizedBox(height: 16),
-              
               SwitchListTile(
                 title: const Text('Cho phép vượt giới hạn'),
-                subtitle: const Text('Hiển thị cảnh báo nhưng vẫn cho phép lưu giao dịch'),
+                subtitle: const Text(
+                    'Hiển thị cảnh báo nhưng vẫn cho phép lưu giao dịch'),
                 value: _allowOverride,
                 onChanged: (value) {
                   setState(() {
@@ -406,7 +414,6 @@ class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
                 },
                 contentPadding: EdgeInsets.zero,
               ),
-              
               SwitchListTile(
                 title: const Text('Kích hoạt'),
                 subtitle: const Text('Bật/tắt giới hạn này'),
@@ -445,7 +452,7 @@ class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
 
     final amount = double.parse(_amountController.text);
     final now = DateTime.now();
-    
+
     final limit = SpendingLimit(
       id: widget.existingLimit?.id ?? now.millisecondsSinceEpoch.toString(),
       categoryId: widget.categoryId ?? 'all',
@@ -500,7 +507,7 @@ class BudgetLimitProgressWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),

@@ -33,13 +33,39 @@ class ChatLogModel {
       conversationId: map['conversation_id'] ?? '',
       question: map['question'] ?? '',
       response: map['response'] ?? '',
-      createdAt: (map['created_at'] as Timestamp).toDate(),
-      updatedAt: (map['updated_at'] as Timestamp).toDate(),
+      createdAt: _parseTimestamp(map['created_at']),
+      updatedAt: _parseTimestamp(map['updated_at']),
       transactionId: map['transaction_id'],
       transactionData: map['transaction_data'] != null
           ? Map<String, dynamic>.from(map['transaction_data'])
           : null,
     );
+  }
+
+  /// Helper method để parse Timestamp an toàn
+  static DateTime _parseTimestamp(dynamic timestamp) {
+    if (timestamp == null) {
+      return DateTime.now();
+    }
+    
+    if (timestamp is Timestamp) {
+      return timestamp.toDate();
+    }
+    
+    if (timestamp is DateTime) {
+      return timestamp;
+    }
+    
+    if (timestamp is String) {
+      try {
+        return DateTime.parse(timestamp);
+      } catch (e) {
+        return DateTime.now();
+      }
+    }
+    
+    // Fallback
+    return DateTime.now();
   }
 
   /// Chuyển ChatLogModel thành Map để lưu vào Firestore

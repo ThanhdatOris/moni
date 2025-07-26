@@ -5,7 +5,7 @@ import '../../constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/category_service.dart';
-import '../../utils/category_icon_helper.dart';
+import '../../utils/helpers/category_icon_helper.dart';
 import '../../widgets/category_icon_picker.dart';
 
 class AddEditCategoryScreen extends StatefulWidget {

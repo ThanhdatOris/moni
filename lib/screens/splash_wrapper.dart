@@ -1,11 +1,11 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 
 import '../services/environment_service.dart';
 import '../services/offline_service.dart';
-import '../utils/logging_utils.dart';
+import '../utils/logging/logging_utils.dart';
 import 'auth_screen.dart';
 import 'home/home_screen.dart';
 import 'splash_screen.dart';

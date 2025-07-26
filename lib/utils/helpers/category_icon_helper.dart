@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/category_model.dart';
+import '../../models/category_model.dart';
 
 /// Helper class để xử lý hiển thị icon cho category
 class CategoryIconHelper {

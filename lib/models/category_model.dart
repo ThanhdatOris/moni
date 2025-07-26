@@ -155,39 +155,9 @@ class CategoryModel {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-
-    return other is CategoryModel &&
-        other.categoryId == categoryId &&
-        other.userId == userId &&
-        other.parentId == parentId &&
-        other.name == name &&
-        other.type == type &&
-        other.icon == icon &&
-        other.iconType == iconType &&
-        other.customIconUrl == customIconUrl &&
-        other.color == color &&
-        other.createdAt == createdAt &&
-        other.updatedAt == updatedAt &&
-        other.isDefault == isDefault &&
-        other.isSuggested == isSuggested &&
-        other.isDeleted == isDeleted;
+    return other is CategoryModel && other.categoryId == categoryId;
   }
 
   @override
-  int get hashCode {
-    return categoryId.hashCode ^
-        userId.hashCode ^
-        parentId.hashCode ^
-        name.hashCode ^
-        type.hashCode ^
-        icon.hashCode ^
-        iconType.hashCode ^
-        customIconUrl.hashCode ^
-        color.hashCode ^
-        createdAt.hashCode ^
-        updatedAt.hashCode ^
-        isDefault.hashCode ^
-        isSuggested.hashCode ^
-        isDeleted.hashCode;
-  }
+  int get hashCode => categoryId.hashCode;
 }
