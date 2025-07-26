@@ -133,7 +133,7 @@ class AdvancedValidationService {
     
     if (recentMinuteTransactions >= _maxTransactionsPerMinute) {
       warnings['high_frequency'] = 
-        'Bạn đã tạo ${recentMinuteTransactions} giao dịch trong 1 phút qua. Có thể bạn đang nhập trùng lặp?';
+        'Bạn đã tạo $recentMinuteTransactions giao dịch trong 1 phút qua. Có thể bạn đang nhập trùng lặp?';
     }
 
     // Kiểm tra quá nhiều giao dịch tương tự trong 1 ngày
@@ -146,7 +146,7 @@ class AdvancedValidationService {
     
     if (similarTransactions >= _maxSimilarTransactionsPerDay) {
       warnings['similar_transactions'] = 
-        'Bạn đã có ${similarTransactions} giao dịch tương tự trong ngày hôm nay';
+        'Bạn đã có $similarTransactions giao dịch tương tự trong ngày hôm nay';
     }
 
     return ValidationResult(

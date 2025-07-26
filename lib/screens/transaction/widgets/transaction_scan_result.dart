@@ -151,7 +151,7 @@ class _TransactionScanResultState extends State<TransactionScanResult> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Độ tin cậy: ${confidence}% ${isHighConfidence ? '🎯' : '⚠️'}',
+                  'Độ tin cậy: $confidence% ${isHighConfidence ? '🎯' : '⚠️'}',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,

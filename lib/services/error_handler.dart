@@ -488,17 +488,23 @@ void debugError(
       data: data,
     );
     
-    print('🚨 DEBUG ERROR:');
-    print('  Type: ${appError.type.name}');
-    print('  Code: ${appError.code}');
-    print('  Message: ${appError.message}');
-    print('  User Message: ${appError.userMessage}');
-    print('  Context: $context');
-    if (data != null) {
-      print('  Data: $data');
-    }
-    print('  Stack Trace: ${appError.stackTrace}');
-    print('─' * 50);
+    // Sử dụng LoggingService để log error với format đẹp
+    LoggingService.instance.error(
+      'DEBUG ERROR',
+      className: 'ErrorHandler',
+      methodName: 'debugError',
+      data: {
+        'type': appError.type.name,
+        'code': appError.code,
+        'message': appError.message,
+        'userMessage': appError.userMessage,
+        'context': context,
+        'originalData': data,
+        'hasStackTrace': appError.stackTrace != null,
+      },
+      error: appError.originalError,
+      stackTrace: appError.stackTrace,
+    );
   }
 }
 

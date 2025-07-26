@@ -160,19 +160,12 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white,
-                AppColors.backgroundLight.withValues(alpha: 0.3),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 20,
+                color: AppColors.primary.withValues(alpha: 0.09),
+                blurRadius: 10,
                 offset: const Offset(0, 8),
                 spreadRadius: 0,
               ),
@@ -214,7 +207,7 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
         children: [
           // Icon và Title
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
@@ -224,35 +217,33 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
                   color: AppColors.primary.withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
             child: Icon(
               Icons.analytics_outlined,
               color: Colors.white,
-              size: isCompact ? 20 : 24,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Tình hình thu chi',
               style: TextStyle(
-                fontSize: isCompact ? 18 : 20,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: AppColors.textPrimary,
                 letterSpacing: 0.5,
               ),
             ),
           ),
-
-          // Chart Type Toggle
           _buildChartTypeToggle(isCompact),
         ],
       ),
@@ -411,42 +402,21 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
       return _buildErrorState(isCompact, isTablet);
     }
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.white,
-            AppColors.grey100,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: _showTrendChart
-            ? TrendBarChart(
-                key: const ValueKey('trend'),
-                data: _trendData,
-                height: isTablet ? 350 : (isCompact ? 200 : 250),
-                onTap: _onTrendDetailsTap,
-              )
-            : DonutChart(
-                key: const ValueKey('donut'),
-                data: _chartData,
-                size: isTablet ? 300 : (isCompact ? 200 : 250),
-                onCategoryTap: _onCategoryTap,
-              ),
-      ),
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: _showTrendChart
+          ? TrendBarChart(
+              key: const ValueKey('trend'),
+              data: _trendData,
+              height: isTablet ? 350 : (isCompact ? 200 : 250),
+              onTap: _onTrendDetailsTap,
+            )
+          : DonutChart(
+              key: const ValueKey('donut'),
+              data: _chartData,
+              size: isTablet ? 300 : (isCompact ? 200 : 250),
+              onCategoryTap: _onCategoryTap,
+            ),
     );
   }
 

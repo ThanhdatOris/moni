@@ -5,13 +5,13 @@ import '../../../constants/app_colors.dart';
 import '../../../core/di/injection_container.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../history/transaction_detail_screen.dart';
-import '../../history/transaction_history_screen.dart';
-import '../../transaction/add_transaction_screen.dart';
 import '../../../services/category_service.dart';
 import '../../../services/transaction_service.dart';
 import '../../../utils/category_icon_helper.dart';
 import '../../../utils/currency_formatter.dart';
+import '../../history/transaction_detail_screen.dart';
+import '../../history/transaction_history_screen.dart';
+import '../../transaction/add_transaction_screen.dart';
 
 class HomeRecentTransactions extends StatefulWidget {
   final VoidCallback? onNavigateToHistory;
@@ -259,32 +259,36 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
                 ),
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.history,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primary,
+                          AppColors.primaryDark,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Giao dịch gần đây',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.history,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text(
+                      'Giao dịch gần đây',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
                       ),
-                    ],
+                    ),
                   ),
                   AnimatedBuilder(
                     animation: _pullRefreshController,

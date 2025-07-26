@@ -5,6 +5,7 @@ import 'dart:math';
 
 import '../../models/analytics/analytics_models.dart';
 import '../../models/transaction_model.dart';
+import '../../utils/logging_utils.dart';
 import '../base_service.dart';
 import '../category_service.dart';
 import '../offline_service.dart';
@@ -65,7 +66,12 @@ class SpendingPatternAnalyzer extends BaseService {
       logInfo('Completed spending pattern analysis');
       return analysis;
     } catch (e) {
-      logError('Error analyzing spending patterns', e);
+      logError(
+        'Error analyzing spending patterns',
+        className: 'SpendingPatternAnalyzer',
+        methodName: 'analyzeSpendingPatterns',
+        error: e,
+      );
       return _getEmptyAnalysis();
     }
   }
@@ -92,7 +98,12 @@ class SpendingPatternAnalyzer extends BaseService {
         'spendingTrend': await _getSpendingTrend(transactions),
       };
     } catch (e) {
-      logError('Error getting quick spending insights', e);
+      logError(
+        'Error getting quick spending insights',
+        className: 'SpendingPatternAnalyzer',
+        methodName: 'getQuickSpendingInsights',
+        error: e,
+      );
       return {};
     }
   }
@@ -119,7 +130,12 @@ class SpendingPatternAnalyzer extends BaseService {
         'frequency': _getCategoryFrequency(categoryTransactions),
       };
     } catch (e) {
-      logError('Error analyzing category spending', e);
+      logError(
+        'Error analyzing category spending',
+        className: 'SpendingPatternAnalyzer',
+        methodName: 'analyzeCategorySpending',
+        error: e,
+      );
       return {};
     }
   }
@@ -158,7 +174,12 @@ class SpendingPatternAnalyzer extends BaseService {
 
       return insights;
     } catch (e) {
-      print('Error getting trending insights: $e');
+      logError(
+        'Error getting trending insights',
+        className: 'SpendingPatternAnalyzer',
+        methodName: 'getTrendingInsights',
+        error: e,
+      );
       return [];
     }
   }

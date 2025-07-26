@@ -5,9 +5,10 @@ import 'package:get_it/get_it.dart';
 
 import '../services/environment_service.dart';
 import '../services/offline_service.dart';
+import '../utils/logging_utils.dart';
 import 'auth_screen.dart';
-import 'splash_screen.dart';
 import 'home/home_screen.dart';
+import 'splash_screen.dart';
 
 class SplashWrapper extends StatefulWidget {
   const SplashWrapper({super.key});
@@ -73,12 +74,13 @@ class _SplashWrapperState extends State<SplashWrapper> {
 
         // Debug logging để track auth state
         if (kDebugMode && EnvironmentService.isDevelopment) {
-          print('🔍 DEBUG AUTH STATE:');
-          print('  - Has data: ${snapshot.hasData}');
-          print('  - User: ${snapshot.data?.uid}');
-          print('  - Is Anonymous: ${snapshot.data?.isAnonymous}');
-          print('  - Email: ${snapshot.data?.email}');
-          print('  - Display Name: ${snapshot.data?.displayName}');
+          logAuth('Auth state loaded', data: {
+            'hasData': snapshot.hasData,
+            'userId': snapshot.data?.uid,
+            'isAnonymous': snapshot.data?.isAnonymous,
+            'email': snapshot.data?.email,
+            'displayName': snapshot.data?.displayName,
+          });
         }
 
         // Chuyển đến màn hình phù hợp
@@ -88,8 +90,13 @@ class _SplashWrapperState extends State<SplashWrapper> {
           // Có Firebase user (cả anonymous và registered) -> vào HomeScreen
           // HomeScreen sẽ tự xử lý hiển thị UI phù hợp cho từng loại user
           if (kDebugMode && EnvironmentService.isDevelopment) {
-            print(
-                '✅ Navigating to HomeScreen - User type: ${user.isAnonymous ? "Anonymous" : "Registered"}');
+            logNavigation('HomeScreen',
+              from: 'SplashWrapper',
+              params: {
+                'userType': user.isAnonymous ? "Anonymous" : "Registered",
+                'userId': user.uid,
+              },
+            );
           }
           return const HomeScreen();
         } else {
@@ -106,13 +113,19 @@ class _SplashWrapperState extends State<SplashWrapper> {
               if (hasOfflineSession) {
                 // Có offline session -> vào HomeScreen
                 if (kDebugMode && EnvironmentService.isDevelopment) {
-                  print('✅ Navigating to HomeScreen - Offline anonymous user');
+                  logNavigation('HomeScreen',
+                    from: 'SplashWrapper',
+                    params: {'userType': 'OfflineAnonymous'},
+                  );
                 }
                 return const HomeScreen();
               } else {
                 // Không có user nào (cả Firebase và offline) -> vào AuthScreen
                 if (kDebugMode && EnvironmentService.isDevelopment) {
-                  print('➡️ Navigating to AuthScreen - No user found');
+                  logNavigation('AuthScreen',
+                    from: 'SplashWrapper',
+                    params: {'reason': 'NoUserFound'},
+                  );
                 }
                 return const AuthScreen();
               }

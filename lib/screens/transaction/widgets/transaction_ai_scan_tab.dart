@@ -318,7 +318,6 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
           // Cancel button
           OutlinedButton(
             onPressed: _resetScan,
-            child: const Text('Hủy'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               side: BorderSide(color: AppColors.textSecondary),
@@ -326,6 +325,7 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
+            child: const Text('Hủy'),
           ),
         ],
       ),
@@ -386,7 +386,6 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
               Expanded(
                 child: OutlinedButton(
                   onPressed: _resetScan,
-                  child: const Text('Chọn ảnh khác'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.all(12),
                     side: BorderSide(color: AppColors.textSecondary),
@@ -394,13 +393,13 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
+                  child: const Text('Chọn ảnh khác'),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
                   onPressed: _processCurrentImage,
-                  child: const Text('Thử lại'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -409,6 +408,7 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
+                  child: const Text('Thử lại'),
                 ),
               ),
             ],

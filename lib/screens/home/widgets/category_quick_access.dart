@@ -7,9 +7,10 @@ import 'package:get_it/get_it.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../category/category_management_screen.dart';
 import '../../../services/category_service.dart';
 import '../../../utils/category_icon_helper.dart';
+import '../../../utils/logging_utils.dart';
+import '../../category/category_management_screen.dart';
 
 class CategoryQuickAccess extends StatefulWidget {
   const CategoryQuickAccess({super.key});
@@ -77,8 +78,22 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         (categories) {
           if (mounted) {
             setState(() {
-              _expenseCategories = categories.take(4).toList();
+              _expenseCategories =
+                  categories.take(6).toList(); // Tối đa 6 items
             });
+            // Debug: Log category colors
+            for (var category in categories.take(3)) {
+              logDebug(
+                'Expense category color',
+                className: 'CategoryQuickAccess',
+                methodName: '_loadCategories',
+                data: {
+                  'name': category.name,
+                  'color': category.color,
+                  'hex': '0x${category.color.toRadixString(16).toUpperCase()}',
+                },
+              );
+            }
           }
         },
       );
@@ -89,9 +104,22 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         (categories) {
           if (mounted) {
             setState(() {
-              _incomeCategories = categories.take(4).toList();
+              _incomeCategories = categories.take(6).toList(); // Tối đa 6 items
               _isLoading = false;
             });
+            // Debug: Log income category colors
+            for (var category in categories.take(3)) {
+              logDebug(
+                'Income category color',
+                className: 'CategoryQuickAccess',
+                methodName: '_loadCategories',
+                data: {
+                  'name': category.name,
+                  'color': category.color,
+                  'hex': '0x${category.color.toRadixString(16).toUpperCase()}',
+                },
+              );
+            }
           }
         },
       );
@@ -101,6 +129,57 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  /// Helper method để xử lý màu category một cách an toàn
+  Color _getCategoryColor(CategoryModel category) {
+    try {
+      // Kiểm tra xem màu có hợp lệ không
+      if (category.color <= 0) {
+        logWarning(
+          'Invalid color for category',
+          className: 'CategoryQuickAccess',
+          methodName: '_getCategoryColor',
+          data: {
+            'categoryName': category.name,
+            'color': category.color,
+          },
+        );
+        return AppColors.primary;
+      }
+
+      final color = Color(category.color);
+
+      // Kiểm tra xem màu có quá tối hoặc quá sáng không
+      final luminance = color.computeLuminance();
+      if (luminance < 0.1 || luminance > 0.9) {
+        logWarning(
+          'Color too dark/bright for category',
+          className: 'CategoryQuickAccess',
+          methodName: '_getCategoryColor',
+          data: {
+            'categoryName': category.name,
+            'color': category.color,
+            'luminance': luminance,
+          },
+        );
+        return AppColors.primary;
+      }
+
+      return color;
+    } catch (e) {
+      logError(
+        'Error parsing color for category',
+        className: 'CategoryQuickAccess',
+        methodName: '_getCategoryColor',
+        data: {
+          'categoryName': category.name,
+          'color': category.color,
+        },
+        error: e,
+      );
+      return AppColors.primary;
     }
   }
 
@@ -122,7 +201,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -133,12 +212,13 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         children: [
           _buildHeader(),
           const SizedBox(height: 16),
-          _buildCategorySection('Chi tiêu gần đây', _expenseCategories),
-          if (_expenseCategories.isNotEmpty && _incomeCategories.isNotEmpty)
+          if (_expenseCategories.isNotEmpty) ...[
+            _buildCategorySection('Chi tiêu gần đây', _expenseCategories, true),
             const SizedBox(height: 16),
-          _buildCategorySection('Thu nhập gần đây', _incomeCategories),
-          const SizedBox(height: 16),
-          _buildManageButton(),
+          ],
+          if (_incomeCategories.isNotEmpty) ...[
+            _buildCategorySection('Thu nhập gần đây', _incomeCategories, false),
+          ],
         ],
       ),
     );
@@ -153,7 +233,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -183,7 +263,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -200,7 +280,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
                 Icon(
                   Icons.category_outlined,
                   size: 48,
-                  color: AppColors.textSecondary.withValues(alpha:0.5),
+                  color: AppColors.textSecondary.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -230,10 +310,12 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
             gradient: LinearGradient(
               colors: [
                 AppColors.primary,
-                AppColors.primary.withValues(alpha:0.8),
+                AppColors.primaryDark,
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
             Icons.category_outlined,
@@ -242,19 +324,58 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
           ),
         ),
         const SizedBox(width: 12),
-        Text(
-          'Danh mục',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
+        Expanded(
+          child: Text(
+            'Danh mục',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
+        _buildManageButtonSmall(),
       ],
     );
   }
 
-  Widget _buildCategorySection(String title, List<CategoryModel> categories) {
+  Widget _buildManageButtonSmall() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _navigateToCategoryManagement,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Đã xoá icon bánh răng, chỉ còn chữ
+              Text(
+                'Quản lý',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySection(
+      String title, List<CategoryModel> categories, bool isExpense) {
     if (categories.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -270,55 +391,146 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
             color: AppColors.textSecondary,
           ),
         ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 60,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: categories.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 12),
-            itemBuilder: (context, index) {
-              final category = categories[index];
-              return _buildCategoryItem(category);
-            },
-          ),
-        ),
+        const SizedBox(height: 12),
+        _buildCategoryGrid(categories, isExpense),
       ],
     );
   }
 
-  Widget _buildCategoryItem(CategoryModel category) {
+  Widget _buildCategoryGrid(List<CategoryModel> categories, bool isExpense) {
+    // Tạo danh sách items
+    List<Widget> items = [];
+
+    // Thêm các category items (tối đa 6)
+    for (int i = 0; i < categories.length && i < 6; i++) {
+      items.add(_buildCategoryCard(categories[i]));
+    }
+
+    // Nếu có ít hơn 6 items, thêm thẻ "..." để hiển thị thêm
+    if (categories.length < 6) {
+      items.add(_buildMoreCard());
+    }
+
+    return Column(
+      children: [
+        // Hàng 1
+        if (items.isNotEmpty)
+          Row(
+            children: [
+              for (int i = 0; i < 3 && i < items.length; i++) ...[
+                Expanded(child: items[i]),
+                if (i < 2 && i < items.length - 1) const SizedBox(width: 12),
+              ],
+            ],
+          ),
+        // Hàng 2
+        if (items.length > 3) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              for (int i = 3; i < 6 && i < items.length; i++) ...[
+                Expanded(child: items[i]),
+                if (i < 5 && i < items.length - 1) const SizedBox(width: 12),
+              ],
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildCategoryCard(CategoryModel category) {
+    final categoryColor = _getCategoryColor(category);
+
     return Container(
-      width: 60,
+      height: 36,
       decoration: BoxDecoration(
-        color: Color(category.color).withValues(alpha:0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: categoryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Color(category.color).withValues(alpha:0.3),
+          color: categoryColor.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CategoryIconHelper.buildIcon(
-            category,
-            size: 24,
-            color: Color(category.color),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            category.name,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              color: Color(category.color),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            // Handle category tap
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              children: [
+                CategoryIconHelper.buildIcon(
+                  category,
+                  size: 16,
+                  color: categoryColor,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    category.name,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: categoryColor,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoreCard() {
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.grey.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: _navigateToCategoryManagement,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.more_horiz,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Thêm',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

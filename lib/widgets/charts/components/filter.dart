@@ -162,12 +162,12 @@ class _ChartFilterState extends State<ChartFilter> {
 
           const SizedBox(width: 8),
 
-          // Thu nhập
+          // Thu nhập 
           Expanded(
             child: _buildTransactionTypeCard(
               'Thu nhập',
               Icons.trending_up,
-              Colors.green,
+              Colors.green, 
               widget.financialOverviewData?.totalIncome ?? 0,
               widget.selectedTransactionType == 'income',
               () => widget.onTransactionTypeChanged('income'),
