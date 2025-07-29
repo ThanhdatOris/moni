@@ -283,7 +283,8 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
       );
 
       if (mounted) {
-        // Mở cuộc hội thoại mới
+        // ✅ FIXED: Pop conversation list first, then replace current chat
+        Navigator.pop(context); // Remove conversation list from stack
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -305,6 +306,8 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   }
 
   void _openConversation(ConversationModel conversation) {
+    // ✅ FIXED: Pop conversation list first, then replace current chat
+    Navigator.pop(context); // Remove conversation list from stack
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(

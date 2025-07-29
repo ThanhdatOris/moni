@@ -3,8 +3,8 @@ import 'package:get_it/get_it.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../services/transaction_service.dart';
-import '../models/chat_message_model.dart';
 import '../../history/transaction_detail_screen.dart';
+import '../models/chat_message_model.dart';
 
 /// Widget hiển thị một tin nhắn trong cuộc hội thoại
 class ChatMessageWidget extends StatelessWidget {

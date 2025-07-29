@@ -306,7 +306,7 @@ class ConversationService {
     }
   }
 
-  /// Lấy cuộc hội thoại active gần nhất hoặc tạo mới
+  /// Lấy cuộc hội thoại gần nhất hoặc tạo mới
   Future<String> getOrCreateActiveConversation({
     String? firstQuestion,
   }) async {
@@ -317,26 +317,44 @@ class ConversationService {
         return 'temp_${DateTime.now().millisecondsSinceEpoch}';
       }
 
-      // Tìm cuộc hội thoại active gần nhất
-      final activeConversations = await _firestore
+      // ✅ ENHANCED: Tìm cuộc hội thoại gần nhất (không chỉ active)
+      final recentConversations = await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('conversations')
-          .where('is_active', isEqualTo: true)
           .orderBy('updated_at', descending: true)
           .limit(1)
           .get();
 
-      if (activeConversations.docs.isNotEmpty) {
-        final conversationId = activeConversations.docs.first.id;
+      if (recentConversations.docs.isNotEmpty) {
+        final conversationDoc = recentConversations.docs.first;
+        final conversationId = conversationDoc.id;
+        
+        // ✅ ENHANCED: Set conversation as active nếu chưa active
+        final conversationData = conversationDoc.data();
+        if (conversationData['is_active'] != true) {
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('conversations')
+              .doc(conversationId)
+              .update({
+            'is_active': true,
+            'updated_at': DateTime.now(),
+          });
+          _logger.i('Set conversation as active: $conversationId');
+        }
+        
+        _logger.i('Using recent conversation: $conversationId');
         return conversationId;
       }
 
-      // Tạo cuộc hội thoại mới với tiêu đề động
+      // Nếu không có conversation nào, tạo mới với tiêu đề động
+      _logger.i('No existing conversations, creating new one');
       final newConversationId = await createConversationWithTitle(firstQuestion: firstQuestion);
       return newConversationId;
     } catch (e) {
-      _logger.e('Lỗi lấy hoặc tạo cuộc hội thoại active: $e');
+      _logger.e('Lỗi lấy hoặc tạo cuộc hội thoại: $e');
       // Fallback: tạo conversation ID tạm thời nếu có lỗi
       return 'temp_${DateTime.now().millisecondsSinceEpoch}';
     }

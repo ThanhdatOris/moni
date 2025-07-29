@@ -451,19 +451,90 @@ User input: "$input"
     } catch (e) {
       _logger.e('Lỗi khi xử lý đầu vào chat: $e');
 
-      // Return more helpful error message based on error type
-      if (e.toString().contains('API key')) {
-        return 'Xin lỗi, có vấn đề với cấu hình API. Vui lòng kiểm tra lại API key.';
-      } else if (e.toString().contains('network') ||
-          e.toString().contains('connection')) {
-        return 'Xin lỗi, có vấn đề kết nối mạng. Vui lòng kiểm tra internet và thử lại.';
-      } else if (e.toString().contains('quota') ||
-          e.toString().contains('limit')) {
-        return 'Xin lỗi, đã vượt quá giới hạn sử dụng API. Vui lòng thử lại sau.';
-      } else {
-        return 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.\n\n(Lỗi: ${e.toString()})';
-      }
+      // ✅ IMPROVED: Comprehensive error handling with user-friendly messages
+      return _getErrorMessageForUser(e);
     }
+  }
+
+  /// Get user-friendly error message based on exception type
+  String _getErrorMessageForUser(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    
+    // Server overload errors (503)
+    if (errorString.contains('503') || errorString.contains('overloaded')) {
+      return "🤖 AI đang quá tải hiện tại. Vui lòng thử lại sau ít phút.\n\nMôi trường AI hiện đang có nhiều người dùng, hãy kiên nhẫn một chút nhé! 😊";
+    }
+    
+    // Rate limit errors (429)
+    if (errorString.contains('429') || errorString.contains('rate limit')) {
+      return "⏰ Bạn đã gửi quá nhiều tin nhắn trong thời gian ngắn. Vui lòng chờ một chút trước khi tiếp tục.\n\nHãy thư giãn và thử lại sau vài giây! ☕";
+    }
+    
+    // Authentication errors (401, 403)
+    if (errorString.contains('401') || errorString.contains('403') || 
+        errorString.contains('api key') || errorString.contains('unauthorized')) {
+      return "🔐 Có vấn đề với xác thực AI. Vui lòng khởi động lại ứng dụng.\n\nNếu vấn đề vẫn tiếp tục, hãy liên hệ hỗ trợ! 📞";
+    }
+    
+    // Network connectivity errors
+    if (errorString.contains('network') || errorString.contains('connection') ||
+        errorString.contains('timeout') || errorString.contains('socket')) {
+      return "📶 Kết nối mạng không ổn định. Vui lòng kiểm tra internet và thử lại.\n\nHãy đảm bảo bạn có kết nối mạng tốt! 🌐";
+    }
+    
+    // Quota/limit exceeded errors  
+    if (errorString.contains('quota') || errorString.contains('limit') ||
+        errorString.contains('usage')) {
+      return "💳 Đã vượt quá giới hạn sử dụng AI hôm nay. Vui lòng thử lại vào ngày mai.\n\nChúng tôi sẽ reset quota vào 0h mỗi ngày! 🕛";
+    }
+    
+    // Model/AI specific errors
+    if (errorString.contains('model') || errorString.contains('unavailable') ||
+        errorString.contains('service')) {
+      return "🤖 Mô hình AI tạm thời không khả dụng. Vui lòng thử lại sau ít phút.\n\nChúng tôi đang khắc phục sự cố! 🔧";
+    }
+    
+    // Bad request errors (400)
+    if (errorString.contains('400') || errorString.contains('bad request')) {
+      return "📝 Yêu cầu không hợp lệ. Vui lòng thử nhập lại tin nhắn.\n\nHãy kiểm tra định dạng tin nhắn của bạn! ✏️";
+    }
+    
+    // Server errors (500, 502, 504)
+    if (errorString.contains('500') || errorString.contains('502') || 
+        errorString.contains('504') || errorString.contains('server error')) {
+      return "🔧 Máy chủ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.\n\nĐội ngũ kỹ thuật đang xử lý! 👨‍💻";
+    }
+    
+    // Content policy violations
+    if (errorString.contains('policy') || errorString.contains('content') ||
+        errorString.contains('violation')) {
+      return "⚠️ Nội dung tin nhắn không phù hợp với chính sách AI. Vui lòng thử tin nhắn khác.\n\nHãy sử dụng ngôn từ lịch sự và phù hợp! 🤝";
+    }
+    
+    // Generic fallback error
+    return "😅 Đã có lỗi không mong muốn xảy ra. Vui lòng thử lại sau ít phút.\n\nNếu vấn đề tiếp tục, hãy khởi động lại ứng dụng! 🔄\n\n(Mã lỗi: ${_getErrorCode(error)})";
+  }
+
+  /// Extract error code from exception for debugging
+  String _getErrorCode(dynamic error) {
+    final errorString = error.toString();
+    
+    // Extract HTTP status code
+    final statusMatch = RegExp(r'\b[45]\d{2}\b').firstMatch(errorString);
+    if (statusMatch != null) {
+      return statusMatch.group(0) ?? 'UNKNOWN';
+    }
+    
+    // Extract error type
+    if (errorString.contains('GenerativeAIException')) {
+      return 'AI_ERROR';
+    } else if (errorString.contains('SocketException')) {
+      return 'NETWORK_ERROR';
+    } else if (errorString.contains('TimeoutException')) {
+      return 'TIMEOUT_ERROR';
+    }
+    
+    return 'GENERIC_ERROR';
   }
 
   /// Handle adding transaction through function call
@@ -561,18 +632,6 @@ User input: "$input"
       final category = await categoryService.getCategory(categoryId);
       final categoryDisplay =
           category != null ? '${category.icon} ${category.name}' : categoryName;
-
-      // Prepare transaction data for chat log
-      final transactionData = {
-        'transactionId': transactionId,
-        'amount': amount,
-        'description': description,
-        'categoryName': categoryDisplay,
-        'categoryId': categoryId,
-        'type': transactionType.value,
-        'date': transactionDate.toIso8601String(),
-        'createdAt': DateTime.now().toIso8601String(),
-      };
 
       return '''✅ **Đã thêm giao dịch thành công!**
 

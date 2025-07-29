@@ -7,7 +7,6 @@ import '../../models/chat_log_model.dart';
 import '../../services/ai_processor_service.dart';
 import '../../services/chat_log_service.dart';
 import '../../services/conversation_service.dart';
-import '../home/home_screen.dart';
 import 'conversation_list_screen.dart';
 import 'models/chat_message_model.dart';
 import 'widgets/chat_input_widget.dart';
@@ -42,6 +41,9 @@ class _FullChatScreenState extends State<FullChatScreen> {
   bool _isTyping = false;
   String? _currentConversationId;
   String _conversationTitle = 'Moni AI Assistant'; // Tiêu đề mặc định
+  
+  // ✅ NEW: Flag để theo dõi đã hiển thị welcome message trong session
+  static bool _hasShownWelcomeInSession = false;
 
   // Services
   final GetIt _getIt = GetIt.instance;
@@ -100,13 +102,21 @@ class _FullChatScreenState extends State<FullChatScreen> {
   Future<void> _loadChatHistory() async {
     try {
       if (_currentConversationId == null) {
-        _addWelcomeMessage();
+        // ✅ IMPROVED: Chỉ hiển thị welcome nếu không có conversation (UI only, không lưu DB)
+        if (_messages.isEmpty && !_hasShownWelcomeInSession) {
+          _addWelcomeMessage();
+          _hasShownWelcomeInSession = true;
+        }
         return;
       }
 
       // Nếu là temp conversation, không load history
       if (_currentConversationId!.startsWith('temp_')) {
-        _addWelcomeMessage();
+        // ✅ IMPROVED: Temp conversation cũng hiển thị welcome (UI only)
+        if (_messages.isEmpty && !_hasShownWelcomeInSession) {
+          _addWelcomeMessage();
+          _hasShownWelcomeInSession = true;
+        }
         return;
       }
       
@@ -124,41 +134,54 @@ class _FullChatScreenState extends State<FullChatScreen> {
       });
 
       if (logs.isNotEmpty) {
-        // Clear existing messages trước khi load
-        _messages.clear();
+        // ✅ IMPROVED: Build new messages list from actual chat logs
+        final List<ChatMessage> newMessages = [];
         
-        // Load chat messages
+        // Load actual chat messages from database
         for (final log in logs.reversed) {
-          _messages.add(ChatMessage(
+          newMessages.add(ChatMessage(
             text: log.question,
             isUser: true,
             timestamp: log.createdAt,
           ));
-          _messages.add(ChatMessage(
+          newMessages.add(ChatMessage(
             text: log.response,
             isUser: false,
             timestamp: log.createdAt,
             transactionId: log.transactionId,
           ));
         }
+        
+        // ✅ IMPROVED: Replace messages in single setState to avoid flash
+        if (mounted) {
+          setState(() {
+            _messages.clear();
+            _messages.addAll(newMessages);
+          });
+          _scrollToBottom();
+        }
       } else {
-        _addWelcomeMessage();
-      }
-
-      if (mounted) {
-        setState(() {});
-        _scrollToBottom();
+        // ✅ IMPROVED: Nếu có conversation nhưng không có chat logs → hiển thị welcome (UI only)
+        if (_messages.isEmpty && !_hasShownWelcomeInSession) {
+          _addWelcomeMessage();
+          _hasShownWelcomeInSession = true;
+        }
       }
     } catch (e) {
       _logger.e('Error loading chat history: $e');
       if (mounted) {
-        _addWelcomeMessage();
-        setState(() {});
+        // ✅ IMPROVED: Lỗi loading → hiển thị welcome như fallback (UI only)
+        if (_messages.isEmpty && !_hasShownWelcomeInSession) {
+          _addWelcomeMessage();
+          _hasShownWelcomeInSession = true;
+        }
       }
     }
   }
 
   void _addWelcomeMessage() {
+    // ✅ IMPORTANT: Đây chỉ là UI message, KHÔNG lưu vào database
+    // Welcome message chỉ hiển thị để giới thiệu tính năng, không phải chat log thực sự
     _messages.add(ChatMessage(
       text:
           "Xin chào! Tôi là Moni AI - trợ lý tài chính thông minh của bạn! 👋\n\nTôi có thể giúp bạn:\n\n📊 Phân tích chi tiêu và thu nhập\n💰 Lập kế hoạch tiết kiệm\n💡 Tư vấn tài chính cá nhân\n🎯 Đặt và theo dõi mục tiêu tài chính\n❓ Trả lời câu hỏi về ứng dụng\n\nHãy cho tôi biết bạn cần hỗ trợ gì nhé! 😊",
@@ -239,7 +262,7 @@ class _FullChatScreenState extends State<FullChatScreen> {
             onPressed: _clearChat,
             icon: const Icon(Icons.refresh_rounded,
                 color: AppColors.textSecondary),
-            tooltip: 'Làm mới cuộc trò chuyện',
+            tooltip: 'Tạo cuộc trò chuyện mới', // ✅ Updated tooltip
           ),
           const SizedBox(width: 8),
         ],
@@ -304,40 +327,48 @@ class _FullChatScreenState extends State<FullChatScreen> {
       // Gọi AI service
       final aiResponse = await _aiService.processChatInput(text);
 
+      // ✅ IMPROVED: Kiểm tra nếu response là error message từ service
+      final isErrorResponse = _isErrorResponse(aiResponse);
+
       // Extract transactionId from AI response if it contains [EDIT_BUTTON:transactionId]
       String? transactionId;
       String cleanResponse = aiResponse;
 
-      final editButtonRegex = RegExp(r'\[EDIT_BUTTON:([^\]]+)\]');
-      final match = editButtonRegex.firstMatch(aiResponse);
-      if (match != null) {
-        transactionId = match.group(1);
-        cleanResponse = aiResponse.replaceAll(editButtonRegex, '[EDIT_BUTTON]');
-      }
-
-      // Lưu log chat với thông tin giao dịch nếu có
-      await _chatLogService.createLog(
-        question: text,
-        response: cleanResponse,
-        conversationId: _currentConversationId!,
-        transactionId: transactionId,
-        transactionData: transactionId != null
-            ? {
-                'transactionId': transactionId,
-                'createdAt': DateTime.now().toIso8601String(),
-              }
-            : null,
-      );
-
-      // Tăng message count cho conversation (chỉ khi không phải conversation tạm thời)
-      if (!_currentConversationId!.startsWith('temp_')) {
-        try {
-          await _conversationService
-              .incrementMessageCount(_currentConversationId!);
-        } catch (e) {
-          // Bỏ qua lỗi nếu không thể tăng message count
-          _logger.e('Không thể tăng message count: $e');
+      if (!isErrorResponse) {
+        final editButtonRegex = RegExp(r'\[EDIT_BUTTON:([^\]]+)\]');
+        final match = editButtonRegex.firstMatch(aiResponse);
+        if (match != null) {
+          transactionId = match.group(1);
+          cleanResponse = aiResponse.replaceAll(editButtonRegex, '[EDIT_BUTTON]');
         }
+
+        // ✅ IMPROVED: Chỉ lưu chat log nếu không phải error response
+        await _chatLogService.createLog(
+          question: text,
+          response: cleanResponse,
+          conversationId: _currentConversationId!,
+          transactionId: transactionId,
+          transactionData: transactionId != null
+              ? {
+                  'transactionId': transactionId,
+                  'createdAt': DateTime.now().toIso8601String(),
+                }
+              : null,
+        );
+
+        // Tăng message count cho conversation (chỉ khi không phải conversation tạm thời)
+        if (!_currentConversationId!.startsWith('temp_')) {
+          try {
+            await _conversationService
+                .incrementMessageCount(_currentConversationId!);
+          } catch (e) {
+            // Bỏ qua lỗi nếu không thể tăng message count
+            _logger.e('Không thể tăng message count: $e');
+          }
+        }
+      } else {
+        // ✅ NEW: Log error nhưng không lưu vào chat history
+        _logger.w('AI service returned error response, not saving to chat log');
       }
 
       setState(() {
@@ -350,12 +381,13 @@ class _FullChatScreenState extends State<FullChatScreen> {
         ));
       });
     } catch (e) {
-      // Fallback nếu có lỗi
+      // ✅ SIMPLIFIED: Service đã xử lý tất cả logic lỗi
+      _logger.e('Error in _sendMessage: $e');
+      
       setState(() {
         _isTyping = false;
         _messages.add(ChatMessage(
-          text:
-              "Xin lỗi, tôi đang gặp một chút trục trặc. Vui lòng thử lại sau ít phút. 😅\n\nLỗi: ${e.toString()}",
+          text: "😅 Đã có lỗi không mong muốn trong ứng dụng. Vui lòng thử lại.\n\nNếu vấn đề tiếp tục, hãy khởi động lại ứng dụng! 🔄",
           isUser: false,
           timestamp: DateTime.now(),
         ));
@@ -366,6 +398,23 @@ class _FullChatScreenState extends State<FullChatScreen> {
   }
 
   void _navigateToConversationList() {
+    // ✅ ADDED: Navigation guard to prevent stack accumulation
+    final routeStack = Navigator.of(context);
+    
+    // Check if ConversationListScreen is already in the stack
+    bool conversationListExists = false;
+    routeStack.popUntil((route) {
+      if (route.settings.name?.contains('ConversationListScreen') == true) {
+        conversationListExists = true;
+      }
+      return true; // Don't actually pop, just check
+    });
+    
+    if (conversationListExists) {
+      print('🚫 DEBUG: ConversationListScreen already exists in stack, not pushing');
+      return;
+    }
+    
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -375,32 +424,56 @@ class _FullChatScreenState extends State<FullChatScreen> {
   }
 
   void _navigateBackToChatbotTab() {
-    // Quay về màn hình trước đó, nếu không có thì về HomeScreen
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    } else {
-      // Nếu không có màn hình nào trong stack, tạo HomeScreen mới
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
-        ),
-      );
+    // ✅ SIMPLIFIED: Simple pop logic
+    try {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+        print('✅ DEBUG: Successfully popped back');
+      } else {
+        print('⚠️ DEBUG: Cannot pop, navigator stack is empty');
+      }
+    } catch (e) {
+      print('❌ DEBUG: Error in navigation: $e');
     }
   }
 
-  void _clearChat() {
-    setState(() {
-      _messages.clear();
-      _currentConversationId = null;
-      _conversationTitle = 'Moni AI Assistant'; // Reset về tiêu đề mặc định
-      _messages.add(ChatMessage(
-        text:
-            "🔄 Cuộc trò chuyện đã được làm mới!\n\nTôi sẵn sàng hỗ trợ bạn với những câu hỏi mới về tài chính. Hãy bắt đầu bằng cách cho tôi biết bạn cần giúp đỡ gì nhé! 😊",
-        isUser: false,
-        timestamp: DateTime.now(),
-      ));
-    });
+  void _clearChat() async {
+    // ✅ CHANGED: Create new conversation instead of just clearing frontend
+    try {
+      // Create new conversation
+      final newConversationId = await _conversationService.createConversation(
+        title: 'Cuộc trò chuyện mới',
+      );
+      
+      setState(() {
+        _messages.clear();
+        _currentConversationId = newConversationId; // Set to new conversation
+        _conversationTitle = 'Cuộc trò chuyện mới'; // Set new title
+        // ✅ IMPROVED: Reset welcome flag, nhưng không hiển thị message ngay
+        // User sẽ thấy welcome message khi load lại conversation (nếu không có chat logs)
+        _hasShownWelcomeInSession = false;
+      });
+      
+      // ✅ NEW: Load chat history để hiển thị welcome message nếu cần
+      await _loadChatHistory();
+      
+      print('✅ DEBUG: Created new conversation: $newConversationId');
+    } catch (e) {
+      print('❌ DEBUG: Error creating new conversation: $e');
+      
+      // Fallback to old behavior if conversation creation fails
+      setState(() {
+        _messages.clear();
+        _currentConversationId = null;
+        _conversationTitle = 'Moni AI Assistant'; // Reset về tiêu đề mặc định
+        // ✅ IMPROVED: Reset welcome flag, nhưng không hiển thị message ngay
+        _hasShownWelcomeInSession = false;
+      });
+      
+      // ✅ NEW: Load chat history để hiển thị welcome message nếu cần
+      await _loadChatHistory();
+    }
+    
     _scrollToBottom();
   }
 
@@ -414,5 +487,25 @@ class _FullChatScreenState extends State<FullChatScreen> {
         );
       }
     });
+  }
+
+  /// ✅ NEW: Kiểm tra nếu AI response là error message
+  bool _isErrorResponse(String response) {
+    // Kiểm tra các pattern error message từ AI service
+    final errorIndicators = [
+      '🤖 AI đang quá tải',
+      '⏰ Bạn đã gửi quá nhiều',
+      '🔐 Có vấn đề với xác thực',
+      '📶 Kết nối mạng không ổn định',
+      '💳 Đã vượt quá giới hạn',
+      '🤖 Mô hình AI tạm thời',
+      '📝 Yêu cầu không hợp lệ',
+      '🔧 Máy chủ AI đang gặp sự cố',
+      '⚠️ Nội dung tin nhắn không phù hợp',
+      '😅 Đã có lỗi không mong muốn',
+      'Mã lỗi:', // Indicator của generic error
+    ];
+
+    return errorIndicators.any((indicator) => response.contains(indicator));
   }
 }
