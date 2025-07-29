@@ -178,7 +178,7 @@ class DateRange {
 
   /// Get display text for this range
   String get displayText {
-    final format = 'dd/MM';
+    //final format = 'dd/MM';
     final startStr = '${startDate.day.toString().padLeft(2, '0')}/${startDate.month.toString().padLeft(2, '0')}';
     final endStr = '${endDate.day.toString().padLeft(2, '0')}/${endDate.month.toString().padLeft(2, '0')}';
     

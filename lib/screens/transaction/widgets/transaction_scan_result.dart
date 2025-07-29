@@ -196,76 +196,6 @@ class _TransactionScanResultState extends State<TransactionScanResult> {
     );
   }
 
-  Widget _buildHeader(bool isHighConfidence, int confidence) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isHighConfidence
-              ? [
-                  AppColors.success.withValues(alpha: 0.1),
-                  AppColors.success.withValues(alpha: 0.05),
-                ]
-              : [
-                  AppColors.warning.withValues(alpha: 0.1),
-                  AppColors.warning.withValues(alpha: 0.05),
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        border: Border.all(
-          color: isHighConfidence
-              ? AppColors.success.withValues(alpha: 0.3)
-              : AppColors.warning.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isHighConfidence ? AppColors.success : AppColors.warning,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              isHighConfidence ? Icons.check_circle : Icons.warning,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isHighConfidence
-                      ? 'Đã đọc thành công!'
-                      : 'Vui lòng kiểm tra lại',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Độ tin cậy: $confidence% ${isHighConfidence ? '🎯' : '⚠️'}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCategorySelector() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -377,46 +307,6 @@ class _TransactionScanResultState extends State<TransactionScanResult> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDateSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Ngày giao dịch',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _selectDate,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppColors.grey300),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today, color: AppColors.primary),
-                const SizedBox(width: 12),
-                Text(
-                  DateFormat('dd/MM/yyyy').format(_selectedDate),
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 

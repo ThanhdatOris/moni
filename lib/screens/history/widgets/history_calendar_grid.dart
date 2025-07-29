@@ -219,7 +219,7 @@ class HistoryCalendarGrid extends StatelessWidget {
                   // Navigation to Current Month Button
                   GestureDetector(
                     onTap: () {
-                      final currentMonth = DateTime(now.year, now.month, 1);
+                      //final currentMonth = DateTime(now.year, now.month, 1);
                       // Trigger month change to current month
                       final monthDiff = (now.year - focusedDay.year) * 12 +
                           (now.month - focusedDay.month);

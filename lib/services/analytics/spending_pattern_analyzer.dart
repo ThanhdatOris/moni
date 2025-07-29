@@ -3,10 +3,6 @@
 
 import 'dart:math';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:logger/logger.dart';
-
 import '../../models/analytics/analytics_models.dart';
 import '../../models/transaction_model.dart';
 import '../../utils/logging/logging_utils.dart';
