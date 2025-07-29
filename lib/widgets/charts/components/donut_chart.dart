@@ -25,7 +25,7 @@ class _DonutChartState extends State<DonutChart> {
   @override
   Widget build(BuildContext context) {
     if (widget.data.isEmpty) {
-      return Container(
+      return SizedBox(
         height: widget.size,
         child: const Center(
           child: Text('Không có dữ liệu'),

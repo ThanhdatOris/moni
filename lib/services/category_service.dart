@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
 import 'category_cache_service.dart';
+import 'environment_service.dart';
 
 /// Service quản lý danh mục giao dịch
 class CategoryService {
@@ -34,10 +35,13 @@ class CategoryService {
           .collection('categories')
           .add(categoryData.toMap());
 
-      _logger.i('Tạo danh mục thành công: ${docRef.id}');
+      // ✅ IMPROVED: Only log in debug mode with essential info
+      if (EnvironmentService.debugMode) {
+        _logger.d('📁 Category created: ${category.name} (${docRef.id})');
+      }
       return docRef.id;
     } catch (e) {
-      _logger.e('Lỗi tạo danh mục: $e');
+      _logger.e('❌ Error creating category: $e');
       throw Exception('Không thể tạo danh mục: $e');
     }
   }
@@ -61,9 +65,12 @@ class CategoryService {
           .doc(category.categoryId)
           .update(updatedCategory.toMap());
 
-      _logger.i('Cập nhật danh mục thành công: ${category.categoryId}');
+      // ✅ IMPROVED: Only log in debug mode with essential info
+      if (EnvironmentService.debugMode) {
+        _logger.d('📝 Category updated: ${category.name} (${category.categoryId})');
+      }
     } catch (e) {
-      _logger.e('Lỗi cập nhật danh mục: $e');
+      _logger.e('❌ Lỗi cập nhật danh mục: $e');
       throw Exception('Không thể cập nhật danh mục: $e');
     }
   }
@@ -93,9 +100,12 @@ class CategoryService {
           .doc(categoryId)
           .delete();
 
-      _logger.i('Xóa danh mục thành công: $categoryId');
+      // ✅ IMPROVED: Only log in debug mode with essential info
+      if (EnvironmentService.debugMode) {
+        _logger.d('🗑️ Category deleted: $categoryId');
+      }
     } catch (e) {
-      _logger.e('Lỗi xóa danh mục: $e');
+      _logger.e('❌ Lỗi xóa danh mục: $e');
       throw Exception('Không thể xóa danh mục: $e');
     }
   }
@@ -118,9 +128,12 @@ class CategoryService {
         'updated_at': Timestamp.fromDate(DateTime.now()),
       });
 
-      _logger.i('Gán danh mục cha thành công: $categoryId -> $parentId');
+      // ✅ IMPROVED: Only log in debug mode with essential info
+      if (EnvironmentService.debugMode) {
+        _logger.d('🔗 Category parent set: $categoryId → $parentId');
+      }
     } catch (e) {
-      _logger.e('Lỗi gán danh mục cha: $e');
+      _logger.e('❌ Lỗi gán danh mục cha: $e');
       throw Exception('Không thể gán danh mục cha: $e');
     }
   }
@@ -199,7 +212,10 @@ class CategoryService {
 
       // Áp dụng filter type nếu có
       if (type != null) {
-        _logger.d('🔍 Filtering categories by type: ${type.value}');
+        // ✅ IMPROVED: Only log filtering in debug mode
+        if (EnvironmentService.debugMode) {
+          _logger.d('🔍 Filtering categories by type: ${type.value}');
+        }
         query = query.where('type', isEqualTo: type.value);
         // Không thêm orderBy khi có where clause để tránh cần composite index
       } else {
@@ -208,10 +224,13 @@ class CategoryService {
       }
 
       return query.snapshots().map((snapshot) {
-        _logger.d('📦 Query returned ${snapshot.docs.length} documents');
+        // ✅ IMPROVED: Only log query results in debug mode with consolidated info
+        if (EnvironmentService.debugMode) {
+          _logger.d('📦 Categories query returned ${snapshot.docs.length} documents${type != null ? " (filtered by ${type.value})" : ""}');
+        }
+        
         var categories = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          _logger.d('   Document ${doc.id}: type=${data['type']}, name=${data['name']}');
           return CategoryModel.fromMap(data, doc.id);
         }).toList();
 
@@ -223,7 +242,7 @@ class CategoryService {
         return categories;
       });
     } catch (e) {
-      _logger.e('Lỗi lấy danh sách danh mục: $e');
+      _logger.e('❌ Error getting categories: $e');
       return Stream.value([]);
     }
   }
@@ -254,7 +273,7 @@ class CategoryService {
         }).toList();
       });
     } catch (e) {
-      _logger.e('Lỗi lấy danh mục cha: $e');
+      _logger.e('❌ Error getting parent categories: $e');
       return Stream.value([]);
     }
   }
@@ -281,7 +300,7 @@ class CategoryService {
         }).toList();
       });
     } catch (e) {
-      _logger.e('Lỗi lấy danh mục con: $e');
+      _logger.e('❌ Error getting child categories: $e');
       return Stream.value([]);
     }
   }
@@ -307,7 +326,7 @@ class CategoryService {
       }
       return null;
     } catch (e) {
-      _logger.e('Lỗi lấy chi tiết danh mục: $e');
+      _logger.e('❌ Error getting category details: $e');
       return null;
     }
   }
@@ -338,7 +357,7 @@ class CategoryService {
         }).toList();
       });
     } catch (e) {
-      _logger.e('Lỗi lấy danh mục mặc định: $e');
+      _logger.e('❌ Error getting default categories: $e');
       return Stream.value([]);
     }
   }
@@ -360,7 +379,10 @@ class CategoryService {
           .get();
 
       if (existingCategories.docs.isNotEmpty) {
-        _logger.i('Danh mục đã tồn tại, bỏ qua tạo mặc định');
+        // ✅ IMPROVED: Only log in debug mode 
+        if (EnvironmentService.debugMode) {
+          _logger.d('📁 Default categories already exist, skipping creation');
+        }
         return;
       }
 
@@ -490,9 +512,10 @@ class CategoryService {
       }
 
       await batch.commit();
-      _logger.i('Tạo danh mục mặc định thành công');
+      // ✅ IMPROVED: Single comprehensive success message
+      _logger.i('📁 Default categories created successfully (${expenseCategories.length + incomeCategories.length} categories)');
     } catch (e) {
-      _logger.e('Lỗi tạo danh mục mặc định: $e');
+      _logger.e('❌ Error creating default categories: $e');
       throw Exception('Không thể tạo danh mục mặc định: $e');
     }
   }
@@ -513,7 +536,7 @@ class CategoryService {
             doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
     } catch (e) {
-      _logger.e('Lỗi lấy danh mục người dùng: $e');
+      _logger.e('❌ Error getting user categories: $e');
       return [];
     }
   }
@@ -535,7 +558,7 @@ class CategoryService {
 
       return snapshot.docs.isNotEmpty;
     } catch (e) {
-      _logger.e('Lỗi kiểm tra giao dịch trong danh mục: $e');
+      _logger.e('❌ Error checking transactions in category: $e');
       return true; // Err on the side of caution
     }
   }
@@ -565,7 +588,7 @@ class CategoryService {
 
       await batch.commit();
     } catch (e) {
-      _logger.e('Lỗi xóa danh mục con: $e');
+      _logger.e('❌ Error deleting child categories: $e');
       rethrow;
     }
   }

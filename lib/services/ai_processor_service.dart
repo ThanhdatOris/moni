@@ -67,39 +67,43 @@ class AIProcessorService {
     ];
 
     // Try modern model first, with fallback options
+    String initializedModel = '';
     try {
       _model = GenerativeModel(
         model: 'gemini-1.5-flash',
         apiKey: apiKey,
         tools: [Tool(functionDeclarations: functions)],
       );
-      _logger.i(
-          'AI Processor Service initialized with gemini-1.5-flash and function calling');
+      initializedModel = 'gemini-1.5-flash';
     } catch (e) {
-      _logger
-          .w('Failed to initialize gemini-1.5-flash, trying alternative: $e');
-
       try {
         _model = GenerativeModel(
           model: 'gemini-1.5-flash-001',
           apiKey: apiKey,
           tools: [Tool(functionDeclarations: functions)],
         );
-        _logger.i(
-            'AI Processor Service initialized with gemini-1.5-flash-001 and function calling');
+        initializedModel = 'gemini-1.5-flash-001';
       } catch (e2) {
-        _logger.e('Failed to initialize any Gemini model: $e2');
+        _logger.e('❌ Failed to initialize Gemini models: $e2');
         throw Exception(
             'Could not initialize Gemini model. Please check your API key and internet connection.');
       }
     }
+
+    // ✅ IMPROVED: Single consolidated initialization log
+    _logger.i('🤖 AI Processor Service initialized successfully'
+        '\n  Model: $initializedModel'
+        '\n  Functions: ${functions.length} available'
+        '\n  Token Limit: $_dailyTokenLimit/day'
+        '\n  Cache Size: $_cacheMaxSize entries');
   }
 
   /// Trích xuất thông tin giao dịch từ hình ảnh sử dụng OCR + AI
   Future<Map<String, dynamic>> extractTransactionFromImageWithOCR(
       File imageFile) async {
     try {
-      _logger.i('Starting OCR + AI processing for transaction extraction...');
+      // ✅ IMPROVED: Single consolidated OCR processing log
+      _logger.i('📷 Starting OCR + AI processing for transaction extraction...');
 
       // Bước 1: Sử dụng OCR để trích xuất text
       final ocrService = _getIt<OCRService>();
@@ -108,9 +112,8 @@ class AIProcessorService {
       final extractedText = ocrResult['fullText'] as String;
       final ocrConfidence = ocrResult['confidence'] as int;
 
-      _logger.i('OCR extraction completed with confidence: $ocrConfidence%');
-
       if (extractedText.isEmpty) {
+        _logger.w('❌ OCR failed to extract text from image');
         return {
           'success': false,
           'error':
@@ -133,10 +136,16 @@ class AIProcessorService {
       // Bước 4: Kết hợp kết quả OCR và AI
       final finalResult = _combineOCRAndAI(ocrResult, ocrAnalysis, aiAnalysis);
 
-      _logger.i('Combined OCR + AI processing completed successfully');
+      // ✅ IMPROVED: Single consolidated success log
+      _logger.i('✅ OCR + AI processing completed successfully'
+          '\n  Confidence: $ocrConfidence%'
+          '\n  Text Length: ${extractedText.length} chars'
+          '\n  Processing Method: ${finalResult['processing_method']}'
+          '\n  Amount: ${finalResult['amount']}'
+          '\n  Category: ${finalResult['category_suggestion']}');
       return finalResult;
     } catch (e) {
-      _logger.e('Error in OCR + AI processing: $e');
+      _logger.e('❌ Error in OCR + AI processing: $e');
 
       String errorMessage = 'Không thể xử lý ảnh';
       if (e.toString().contains('network') ||
@@ -230,7 +239,11 @@ Lưu ý:
 
       if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart) {
         final jsonString = response.substring(jsonStart, jsonEnd + 1);
-        _logger.i('AI Analysis JSON: $jsonString');
+        
+        // ✅ IMPROVED: Only log JSON analysis in debug mode with length info
+        if (EnvironmentService.debugMode) {
+          _logger.d('🔍 AI Analysis JSON: ${jsonString.length} chars');
+        }
 
         // Tạm thời return structured data vì cần JSON parser
         // Trong thực tế sẽ parse JSON thật
@@ -246,7 +259,7 @@ Lưu ý:
 
       return {};
     } catch (e) {
-      _logger.e('Error parsing AI analysis response: $e');
+      _logger.e('❌ Error parsing AI analysis response: $e');
       return {};
     }
   }
@@ -339,7 +352,10 @@ Lưu ý:
         return 'Xin lỗi, bạn đã sử dụng hết quota AI hôm nay. Vui lòng thử lại vào ngày mai! 😅';
       }
 
-      _logger.i('Processing chat input: $input');
+      // ✅ IMPROVED: Simplified debug log for chat processing
+      if (EnvironmentService.debugMode) {
+        _logger.d('💬 Processing chat input (${input.length} chars, ~$estimatedTokens tokens)');
+      }
 
       final prompt = '''
 You are Moni AI, a smart financial assistant with advanced category management. Analyze user input and:
@@ -405,8 +421,6 @@ User input: "$input"
 
       // Update token usage
       _dailyTokenCount += estimatedTokens;
-      _logger
-          .i('Token usage: $estimatedTokens (daily total: $_dailyTokenCount)');
 
       // Check if user is asking about categories or financial help
       final inputLower = input.toLowerCase();
@@ -429,8 +443,12 @@ User input: "$input"
 
       // Update token count (estimate response tokens too)
       final responseTokens = _estimateTokens(response.text ?? '');
-      _dailyTokenCount += estimatedTokens + responseTokens;
-      _logger.i('Token usage: $_dailyTokenCount / $_dailyTokenLimit');
+      _dailyTokenCount += responseTokens;
+
+      // ✅ IMPROVED: Consolidated token usage log (only when significant usage)
+      if (_dailyTokenCount > _dailyTokenLimit * 0.8) {
+        _logger.w('⚠️ High token usage: $_dailyTokenCount / $_dailyTokenLimit (${(_dailyTokenCount/_dailyTokenLimit*100).toStringAsFixed(1)}%)');
+      }
 
       // Check if AI wants to call functions
       if (response.functionCalls.isNotEmpty) {
@@ -445,11 +463,13 @@ User input: "$input"
       final result =
           response.text ?? 'Xin lỗi, tôi không hiểu yêu cầu của bạn.';
 
-      _logger.i(
-          'Processed chat input successfully. Response length: ${result.length}');
+      // ✅ IMPROVED: Only log successful processing in debug mode
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Chat processed successfully (${result.length} chars response)');
+      }
       return result;
     } catch (e) {
-      _logger.e('Lỗi khi xử lý đầu vào chat: $e');
+      _logger.e('❌ Error processing chat input: $e');
 
       // ✅ IMPROVED: Comprehensive error handling with user-friendly messages
       return _getErrorMessageForUser(e);
@@ -543,7 +563,7 @@ User input: "$input"
       final transactionService = _getIt<TransactionService>();
       final categoryService = _getIt<CategoryService>();
 
-      // Extract parameters with detailed logging
+      // Extract parameters
       final rawAmount = args['amount'];
       final amount = _parseAmount(rawAmount);
       final description = args['description'] as String;
@@ -551,9 +571,8 @@ User input: "$input"
       final typeStr = args['type'] as String? ?? 'expense';
       final dateStr = args['date'] as String?;
 
-      _logger.i('Function call args: $args');
-      _logger.i(
-          'Extracted - Amount: $amount, Description: $description, Category: $categoryName, Type: $typeStr');
+      // ✅ IMPROVED: Single comprehensive log for transaction processing
+      _logger.i('💰 Adding transaction: $typeStr ${CurrencyFormatter.formatAmountWithCurrency(amount)} - $categoryName');
 
       // Parse transaction type
       final transactionType = typeStr.toLowerCase() == 'income'
@@ -625,8 +644,10 @@ User input: "$input"
       final transactionId =
           await transactionService.createTransaction(transaction);
 
-      _logger.i(
-          'Transaction added successfully: $description - ${amount.toStringAsFixed(0)}đ - ID: $transactionId');
+      // ✅ IMPROVED: Only log success in debug mode with essential info
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Transaction saved successfully: ID $transactionId');
+      }
 
       // Find category to get its emoji for display
       final category = await categoryService.getCategory(categoryId);
@@ -647,7 +668,7 @@ ${transactionType == TransactionType.expense ? '📉' : '📈'} **Loại:** ${tr
 
 [EDIT_BUTTON:$transactionId]''';
     } catch (e) {
-      _logger.e('Error adding transaction: $e');
+      _logger.e('❌ Error adding transaction: $e');
       return 'Xin lỗi, có lỗi xảy ra khi thêm giao dịch. Vui lòng thử lại.\n\nLỗi: ${e.toString()}';
     }
   }
@@ -657,13 +678,19 @@ ${transactionType == TransactionType.expense ? '📉' : '📈'} **Loại:** ${tr
     // Kiểm tra cache trước
     final cacheKey = description.toLowerCase().trim();
     if (_categoryCache.containsKey(cacheKey)) {
-      _logger.i('Category cache hit for: $description');
+      // ✅ IMPROVED: Only log cache hits in debug mode
+      if (EnvironmentService.debugMode) {
+        _logger.d('📁 Category cache hit for: $description');
+      }
       return _categoryCache[cacheKey]!;
     }
 
     try {
       // Check rate limit
       await _checkRateLimit();
+
+      // ✅ IMPROVED: Single log for category suggestion processing
+      _logger.i('🤔 Suggesting category for: "$description"');
 
       final prompt = '''
 Suggest best category for transaction: "$description"
@@ -686,10 +713,13 @@ Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "G
       // Lưu vào cache
       _addToCache(_categoryCache, cacheKey, result);
 
-      _logger.i('Suggested category for "$description": $result');
+      // ✅ IMPROVED: Only log successful category suggestion in debug mode
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Category suggested: "$result" for "$description"');
+      }
       return result;
     } catch (e) {
-      _logger.e('Lỗi khi gợi ý danh mục: $e');
+      _logger.e('❌ Error suggesting category: $e');
       return 'Ăn uống'; // Default fallback category
     }
   }
@@ -697,6 +727,9 @@ Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "G
   /// Trả lời câu hỏi tài chính cá nhân
   Future<String> answerQuestion(String question) async {
     try {
+      // ✅ IMPROVED: Consolidated logging for financial Q&A
+      _logger.i('💡 Processing financial question (${question.length} chars)');
+
       final prompt = '''
 You are a personal finance expert. Answer professionally in Vietnamese with practical advice for Vietnam context.
 
@@ -707,10 +740,13 @@ Question: "$question"
       final result = response.text ??
           'Xin lỗi, tôi không thể trả lời câu hỏi này lúc này.';
 
-      _logger.i('Answered question: $result');
+      // ✅ IMPROVED: Only log successful answers in debug mode
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Financial question answered (${result.length} chars)');
+      }
       return result;
     } catch (e) {
-      _logger.e('Lỗi khi trả lời câu hỏi: $e');
+      _logger.e('❌ Error answering question: $e');
       return 'Xin lỗi, đã có lỗi xảy ra khi trả lời câu hỏi của bạn.';
     }
   }
@@ -719,6 +755,9 @@ Question: "$question"
   Future<String> analyzeSpendingHabits(
       Map<String, dynamic> transactionData) async {
     try {
+      // ✅ IMPROVED: Consolidated logging for spending analysis
+      _logger.i('📊 Analyzing spending habits (${transactionData.keys.length} data points)');
+
       final prompt = '''
 Analyze spending habits and give specific advice to improve personal finance. Answer in Vietnamese with clear structure.
 
@@ -726,13 +765,17 @@ Data: ${transactionData.toString()}
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
-      final result = response.text ?? 'Không thể phân tích dữ liệu này.';
+      final result = response.text ??
+          'Xin lỗi, không thể phân tích thói quen chi tiêu lúc này.';
 
-      _logger.i('Analyzed spending habits');
+      // ✅ IMPROVED: Only log successful analysis in debug mode  
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Spending analysis completed (${result.length} chars)');
+      }
       return result;
     } catch (e) {
-      _logger.e('Lỗi khi phân tích thói quen chi tiêu: $e');
-      return 'Xin lỗi, không thể phân tích dữ liệu này lúc này.';
+      _logger.e('❌ Error analyzing spending habits: $e');
+      return 'Xin lỗi, đã có lỗi xảy ra khi phân tích thói quen chi tiêu.';
     }
   }
 
