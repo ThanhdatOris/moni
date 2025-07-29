@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 import '../../../constants/app_colors.dart';
 import '../../../services/transaction_service.dart';
 import '../models/chat_message_model.dart';
-import 'chatbot_transaction_edit_screen.dart';
+import '../../history/transaction_detail_screen.dart';
 
 /// Widget hiển thị một tin nhắn trong cuộc hội thoại
 class ChatMessageWidget extends StatelessWidget {
@@ -256,33 +256,69 @@ class ChatMessageWidget extends StatelessWidget {
         print('❌ DEBUG: Transaction not found for ID: $transactionId');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Không tìm thấy giao dịch để chỉnh sửa'),
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.warning, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Không tìm thấy giao dịch để chỉnh sửa',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
               backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating, // ← Floating behavior
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 100), // ← Margin to avoid input area
+              duration: const Duration(seconds: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
         return;
       }
 
-      // Navigate đến màn hình chỉnh sửa giao dịch đơn giản
+      // Navigate đến màn hình chi tiết giao dịch (tab Edit)
       if (context.mounted) {
-        print('🔧 DEBUG: Navigating to edit screen');
+        print('🔧 DEBUG: Navigating to transaction detail screen');
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) =>
-                ChatbotTransactionEditScreen(transaction: transaction),
+            builder: (context) => TransactionDetailScreen(
+              transaction: transaction,
+              initialTabIndex: 1, // Open on Edit tab
+            ),
           ),
         );
 
         // Nếu có kết quả trả về (giao dịch đã được cập nhật)
-        if (result == true && context.mounted) {
+        if (result != null && context.mounted) {
           print('✅ DEBUG: Transaction updated successfully');
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Giao dịch đã được cập nhật thành công!'),
-              backgroundColor: Colors.green,
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Giao dịch đã được cập nhật thành công!',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating, // ← Floating behavior
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 100), // ← Margin to avoid input area
+              duration: const Duration(seconds: 2), // ← Shorter duration
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
@@ -291,8 +327,25 @@ class ChatMessageWidget extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Lỗi khi mở giao dịch: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Lỗi khi mở giao dịch: $e',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating, // ← Floating behavior
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 100), // ← Margin to avoid input area
+            duration: const Duration(seconds: 3), // ← Slightly longer for error
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
       }

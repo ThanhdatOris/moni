@@ -11,6 +11,7 @@ class CategoryIconHelper {
     Color? color,
     bool showBackground = false,
     Color? backgroundColor,
+    bool isCompact = false, // Thêm parameter để handle compact mode
   }) {
     Widget iconWidget;
 
@@ -27,9 +28,13 @@ class CategoryIconHelper {
     }
 
     if (showBackground) {
+      // Giảm padding khi ở compact mode (dùng trong dropdown)
+      final padding = isCompact ? 6.0 : 16.0;
+      final containerSize = size + padding;
+      
       return Container(
-        width: size + 16,
-        height: size + 16,
+        width: containerSize,
+        height: containerSize,
         decoration: BoxDecoration(
           color: backgroundColor ?? Color(category.color).withValues(alpha: 0.1),
           shape: BoxShape.circle,

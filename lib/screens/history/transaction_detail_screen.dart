@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get_it/get_it.dart';
-import 'package:intl/intl.dart';
 
 import '../../constants/app_colors.dart';
 import '../../models/category_model.dart';
@@ -11,19 +11,18 @@ import '../../models/transaction_model.dart';
 import '../../services/category_service.dart';
 import '../../services/transaction_service.dart';
 import '../../utils/formatting/currency_formatter.dart';
-import '../../utils/helpers/category_icon_helper.dart';
-import '../transaction/widgets/transaction_amount_input.dart';
-import '../transaction/widgets/transaction_category_selector.dart';
-import '../transaction/widgets/transaction_date_selector.dart';
-import '../transaction/widgets/transaction_note_input.dart';
-import '../transaction/widgets/transaction_type_selector.dart';
+import 'widgets/detail_app_bar.dart';
+import 'widgets/detail_details_tab.dart';
+import 'widgets/detail_edit_form.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   final TransactionModel transaction;
+  final int? initialTabIndex;
 
   const TransactionDetailScreen({
     super.key,
     required this.transaction,
+    this.initialTabIndex,
   });
 
   @override
@@ -46,6 +45,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   final _noteController = TextEditingController();
 
   // Transaction data
+  late TransactionModel _currentTransaction; // Track current transaction state
   late TransactionType _selectedType;
   CategoryModel? _selectedCategory;
   late DateTime _selectedDate;
@@ -68,6 +68,15 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     
     _tabController = TabController(length: 2, vsync: this);
     
+    // Set initial tab index if provided
+    if (widget.initialTabIndex != null && widget.initialTabIndex! >= 0 && widget.initialTabIndex! < 2) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _tabController.animateTo(widget.initialTabIndex!);
+        }
+      });
+    }
+    
     try {
       _transactionService = _getIt<TransactionService>();
       _categoryService = _getIt<CategoryService>();
@@ -77,9 +86,10 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     }
 
     // Initialize with transaction data
+    _currentTransaction = widget.transaction; // Initialize current transaction
     _selectedType = widget.transaction.type;
     _selectedDate = widget.transaction.date;
-    _amountController.text = widget.transaction.amount.toString();
+    _amountController.text = CurrencyFormatter.formatDisplay(widget.transaction.amount.toInt());
     _noteController.text = widget.transaction.note ?? '';
     
     print('🔧 DEBUG: Transaction data initialized - Type: $_selectedType, Amount: ${_amountController.text}');
@@ -112,10 +122,13 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     try {
       await _categoriesSubscription?.cancel();
 
-      setState(() {
-        _isCategoriesLoading = true;
-        _categoriesError = null;
-      });
+      // Chỉ set loading state nếu chưa được set
+      if (!_isCategoriesLoading && mounted) {
+        setState(() {
+          _isCategoriesLoading = true;
+          _categoriesError = null;
+        });
+      }
       
       print('🔧 DEBUG: Loading categories from service...');
 
@@ -123,50 +136,59 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           _categoryService.getCategories(type: _selectedType).listen(
         (categories) {
           print('✅ DEBUG: Received ${categories.length} categories');
-          if (mounted) {
-            setState(() {
-              _categories = categories;
-              _isCategoriesLoading = false;
+          // Defer setState để tránh layout cycle
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _categories = categories;
+                _isCategoriesLoading = false;
 
-              // Find and set current category
-              _selectedCategory = categories.firstWhere(
-                (cat) => cat.categoryId == widget.transaction.categoryId,
-                orElse: () => categories.isNotEmpty
-                    ? categories.first
-                    : CategoryModel(
-                        categoryId: 'other',
-                        userId: '',
-                        name: 'Khác',
-                        type: _selectedType,
-                        icon: '📝',
-                        iconType: CategoryIconType.emoji,
-                        color: 0xFF9E9E9E,
-                        createdAt: DateTime.now(),
-                        updatedAt: DateTime.now(),
-                      ),
-              );
-              print('✅ DEBUG: Selected category: ${_selectedCategory?.name}');
-            });
-          }
+                // Find and set current category
+                _selectedCategory = categories.firstWhere(
+                  (cat) => cat.categoryId == _currentTransaction.categoryId, // Use current transaction
+                  orElse: () => categories.isNotEmpty
+                      ? categories.first
+                      : CategoryModel(
+                          categoryId: 'other',
+                          userId: '',
+                          name: 'Khác',
+                          type: _selectedType,
+                          icon: '📝',
+                          iconType: CategoryIconType.emoji,
+                          color: 0xFF9E9E9E,
+                          createdAt: DateTime.now(),
+                          updatedAt: DateTime.now(),
+                        ),
+                );
+                print('✅ DEBUG: Selected category: ${_selectedCategory?.name}');
+              });
+            }
+          });
         },
         onError: (error) {
           print('❌ DEBUG: Error loading categories: $error');
-          if (mounted) {
-            setState(() {
-              _isCategoriesLoading = false;
-              _categoriesError = error.toString();
-            });
-          }
+          // Defer setState để tránh layout cycle
+          SchedulerBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() {
+                _isCategoriesLoading = false;
+                _categoriesError = error.toString();
+              });
+            }
+          });
         },
       );
     } catch (e) {
       print('❌ DEBUG: Exception in _loadCategories: $e');
-      if (mounted) {
-        setState(() {
-          _isCategoriesLoading = false;
-          _categoriesError = e.toString();
-        });
-      }
+      // Defer setState để tránh layout cycle
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _isCategoriesLoading = false;
+            _categoriesError = e.toString();
+          });
+        }
+      });
     }
   }
 
@@ -180,9 +202,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     });
 
     try {
-      final amount = double.tryParse(_amountController.text) ?? 0.0;
+      final amount = CurrencyFormatter.parseFormattedAmount(_amountController.text);
 
-      final updatedTransaction = widget.transaction.copyWith(
+      final updatedTransaction = _currentTransaction.copyWith(
         amount: amount,
         type: _selectedType,
         categoryId: _selectedCategory!.categoryId,
@@ -196,14 +218,28 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       await _transactionService.updateTransaction(updatedTransaction);
 
       if (mounted) {
+        // Cập nhật local transaction data
+        setState(() {
+          _currentTransaction = updatedTransaction; // Update current transaction
+        });
+        
+        // Nếu được gọi từ chatbot (có initialTabIndex), return updated transaction
+        if (widget.initialTabIndex != null) {
+          Navigator.pop(context, updatedTransaction);
+          return;
+        }
+        
+        // Chuyển về tab "Chi tiết" để hiển thị thông tin đã cập nhật
+        _tabController.animateTo(0);
+        
+        // Hiển thị thông báo thành công
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('✅ Cập nhật giao dịch thành công!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
-        Navigator.pop(
-            context, true); // Return true to indicate successful update
       }
     } catch (e) {
       if (mounted) {
@@ -251,7 +287,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
 
     try {
       await _transactionService
-          .deleteTransaction(widget.transaction.transactionId);
+          .deleteTransaction(_currentTransaction.transactionId); // Use current transaction
 
       if (mounted) {
         Navigator.pop(context, true); // Return true to indicate deletion
@@ -287,322 +323,27 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       body: SafeArea(
         child: Column(
           children: [
-            _buildAppBar(),
+            DetailAppBar(
+              transaction: _currentTransaction, // Use current transaction
+              tabController: _tabController,
+              onBack: () => Navigator.pop(context),
+              onDelete: _deleteTransaction,
+              isDeleting: _isDeleting,
+            ),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildDetailsTab(),
+                  DetailDetailsTab(
+                    transaction: _currentTransaction, // Use current transaction
+                    selectedCategory: _selectedCategory,
+                  ),
                   _buildEditTab(),
                 ],
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAppBar() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Header row
-          Row(
-            children: [
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: Icon(
-                  Icons.arrow_back_ios,
-                  color: AppColors.textPrimary,
-                  size: 20,
-                ),
-                style: IconButton.styleFrom(
-                  backgroundColor: AppColors.grey100,
-                  padding: const EdgeInsets.all(8),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Chi tiết giao dịch',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      DateFormat('dd/MM/yyyy HH:mm')
-                          .format(widget.transaction.date),
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Actions
-              IconButton(
-                onPressed: _isDeleting ? null : _deleteTransaction,
-                icon: _isDeleting
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.red,
-                        ),
-                      )
-                    : const Icon(Icons.delete_outline),
-                style: IconButton.styleFrom(
-                  foregroundColor: Colors.red,
-                  backgroundColor: Colors.red.withValues(alpha: 0.1),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          // Tab bar
-          Container(
-            height: 45,
-            decoration: BoxDecoration(
-              color: AppColors.grey100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: Colors.white,
-              unselectedLabelColor: AppColors.textSecondary,
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
-              indicator: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryDark],
-                ),
-              ),
-              indicatorSize: TabBarIndicatorSize.tab,
-              dividerColor: Colors.transparent,
-              tabs: const [
-                Tab(text: 'Chi tiết'),
-                Tab(text: 'Chỉnh sửa'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Amount Card
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: widget.transaction.type == TransactionType.income
-                    ? [
-                        AppColors.success,
-                        AppColors.success.withValues(alpha: 0.8)
-                      ]
-                    : [AppColors.error, AppColors.error.withValues(alpha: 0.8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: (widget.transaction.type == TransactionType.income
-                          ? AppColors.success
-                          : AppColors.error)
-                      .withValues(alpha: 0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Text(
-                  widget.transaction.type == TransactionType.income
-                      ? 'Thu nhập'
-                      : 'Chi tiêu',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${widget.transaction.type == TransactionType.income ? '+' : '-'}${CurrencyFormatter.formatAmountWithCurrency(widget.transaction.amount)}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Details Cards
-          _buildDetailCard(
-            icon: Icons.category_outlined,
-            title: 'Danh mục',
-            value: _selectedCategory?.name ?? 'Đang tải...',
-            categoryIcon: _selectedCategory,
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildDetailCard(
-            icon: Icons.calendar_today_outlined,
-            title: 'Ngày',
-            value: DateFormat('EEEE, dd/MM/yyyy', 'vi_VN')
-                .format(widget.transaction.date),
-          ),
-
-          const SizedBox(height: 16),
-
-          _buildDetailCard(
-            icon: Icons.access_time_outlined,
-            title: 'Thời gian',
-            value: DateFormat('HH:mm').format(widget.transaction.date),
-          ),
-
-          if (widget.transaction.note?.isNotEmpty == true) ...[
-            const SizedBox(height: 16),
-            _buildDetailCard(
-              icon: Icons.note_outlined,
-              title: 'Ghi chú',
-              value: widget.transaction.note!,
-              isMultiline: true,
-            ),
-          ],
-
-          const SizedBox(height: 16),
-
-          _buildDetailCard(
-            icon: Icons.update_outlined,
-            title: 'Cập nhật lần cuối',
-            value: DateFormat('dd/MM/yyyy HH:mm')
-                .format(widget.transaction.updatedAt),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailCard({
-    required IconData icon,
-    required String title,
-    required String value,
-    CategoryModel? categoryIcon,
-    bool isMultiline = false,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.grey200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment:
-            isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    if (categoryIcon != null) ...[
-                      CategoryIconHelper.buildIcon(
-                        categoryIcon,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                    Expanded(
-                      child: Text(
-                        value,
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -635,104 +376,54 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     }
 
     print('✅ DEBUG: Rendering edit form with ${_categories.length} categories');
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Transaction Type Selector
-            TransactionTypeSelector(
-              selectedType: _selectedType,
-              onTypeChanged: (type) {
-                print('🔧 DEBUG: Type changed to: $type');
-                setState(() {
-                  _selectedType = type;
-                  _selectedCategory = null;
-                });
-                _loadCategories();
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            // Amount Input
-            TransactionAmountInput(
-              controller: _amountController,
-            ),
-
-            const SizedBox(height: 24),
-
-            // Category Selector
-            TransactionCategorySelector(
-              selectedCategory: _selectedCategory,
-              categories: _categories,
-              isLoading: _isCategoriesLoading,
-              onCategoryChanged: (category) {
-                print('🔧 DEBUG: Category changed to: ${category?.name}');
-                setState(() {
-                  _selectedCategory = category;
-                });
-              },
-              onRetry: _loadCategories,
-            ),
-
-            const SizedBox(height: 24),
-
-            // Date Selector
-            TransactionDateSelector(
-              selectedDate: _selectedDate,
-              onDateChanged: (date) {
-                setState(() {
-                  _selectedDate = date;
-                });
-              },
-            ),
-
-            const SizedBox(height: 24),
-
-            // Note Input
-            TransactionNoteInput(
-              controller: _noteController,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Save Button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _updateTransaction,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Cập nhật giao dịch',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return DetailEditForm(
+      formKey: _formKey,
+      amountController: _amountController,
+      noteController: _noteController,
+      selectedType: _selectedType,
+      selectedCategory: _selectedCategory,
+      selectedDate: _selectedDate,
+      categories: _categories,
+      isCategoriesLoading: _isCategoriesLoading,
+      isLoading: _isLoading,
+      onTypeChanged: (type) {
+        print('🔧 DEBUG: Type changed to: $type');
+        // Update UI ngay lập tức cho responsive UX
+        if (mounted) {
+          setState(() {
+            _selectedType = type;
+            _selectedCategory = null;
+            _categories = []; // Clear old categories immediately
+            _isCategoriesLoading = true; // Show loading state immediately
+            _categoriesError = null;
+          });
+          // Load categories sau khi state đã update
+          Future.microtask(() => _loadCategories());
+        }
+      },
+      onCategoryChanged: (category) {
+        print('🔧 DEBUG: Category changed to: ${category?.name}');
+        // Defer setState để tránh layout cycle
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _selectedCategory = category;
+            });
+          }
+        });
+      },
+      onDateChanged: (date) {
+        // Defer setState để tránh layout cycle
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            setState(() {
+              _selectedDate = date;
+            });
+          }
+        });
+      },
+      onRetry: _loadCategories,
+      onSave: _updateTransaction,
     );
   }
 }

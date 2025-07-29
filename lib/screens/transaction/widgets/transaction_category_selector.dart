@@ -288,16 +288,18 @@ class TransactionCategorySelector extends StatelessWidget {
             return DropdownMenuItem<CategoryModel>(
               value: category,
               child: Row(
+                mainAxisSize: MainAxisSize.min, // Fix unbounded width constraint
                 children: [
                   // Icon hiển thị bằng CategoryIconHelper
                   CategoryIconHelper.buildIcon(
                     category,
-                    size: 16,
+                    size: 12, // size = 12
                     color: Color(category.color),
                     showBackground: true,
+                    isCompact: true, // Compact mode cho dropdown: 12 + 6 = 18 < 24
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
+                  Flexible( // Thay Expanded bằng Flexible
                     child: Text(
                       category.name,
                       style: TextStyle(
@@ -305,6 +307,7 @@ class TransactionCategorySelector extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary,
                       ),
+                      overflow: TextOverflow.ellipsis, // Handle long text
                     ),
                   ),
                   // Hiển thị badge cho parent/child category
