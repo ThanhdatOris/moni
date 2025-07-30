@@ -8,7 +8,7 @@ import '../../constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/category_service.dart';
-import 'add_edit_category_screen.dart';
+import 'add_edit_category_v2_screen.dart';
 import 'widgets/animated_category_list.dart';
 import 'widgets/animated_floating_action_button.dart';
 import 'widgets/animated_search_bar.dart';
@@ -354,7 +354,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddEditCategoryScreen(
+        builder: (context) => AddEditCategoryV2Screen(
           transactionType: _selectedType,
         ),
       ),
@@ -369,7 +369,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => AddEditCategoryScreen(
+        builder: (context) => AddEditCategoryV2Screen(
           category: category,
           transactionType: _selectedType,
         ),

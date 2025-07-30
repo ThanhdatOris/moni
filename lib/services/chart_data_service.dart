@@ -24,6 +24,7 @@ class ChartDataService {
     DateTime? startDate,
     DateTime? endDate,
     TransactionType? transactionType,
+    bool showParentCategories = false, // Mới: hỗ trợ hierarchy
   }) async {
     try {
       final user = _auth.currentUser;
@@ -55,78 +56,167 @@ class ChartDataService {
         (total, transaction) => total + transaction.amount,
       );
 
-      // Nhóm giao dịch theo danh mục
-      final categoryTotals = <String, double>{};
-      for (final transaction in transactions) {
-        final categoryId = transaction.categoryId;
-        categoryTotals[categoryId] =
-            (categoryTotals[categoryId] ?? 0) + transaction.amount;
+      if (showParentCategories) {
+        return _getGroupedByParentChartData(
+          transactions,
+          categories,
+          totalAmount,
+          transactionType,
+        );
+      } else {
+        return _getDetailedChartData(
+          transactions,
+          categories,
+          totalAmount,
+          transactionType,
+        );
       }
+    } catch (e) {
+      _logger.e('Lỗi lấy dữ liệu donut chart: $e');
+      return _getMockDonutChartData();
+    }
+  }
 
-      // Tạo dữ liệu chart
-      final chartData = <ChartDataModel>[];
-      final processedCategories = <String>{};
+  /// Lấy dữ liệu chi tiết theo từng danh mục
+  List<ChartDataModel> _getDetailedChartData(
+    List<dynamic> transactions,
+    List<dynamic> categories,
+    double totalAmount,
+    TransactionType? transactionType,
+  ) {
+    // Nhóm giao dịch theo danh mục
+    final categoryTotals = <String, double>{};
+    for (final transaction in transactions) {
+      final categoryId = transaction.categoryId;
+      categoryTotals[categoryId] =
+          (categoryTotals[categoryId] ?? 0) + transaction.amount;
+    }
 
-      for (final category in categories) {
-        final amount = categoryTotals[category.categoryId] ?? 0;
-        if (amount > 0) {
-          final percentage = (amount / totalAmount) * 100;
-          chartData.add(ChartDataModel.fromCategoryModel(
-            category,
-            amount,
-            percentage,
-          ));
-          processedCategories.add(category.categoryId);
-        }
+    // Tạo dữ liệu chart
+    final chartData = <ChartDataModel>[];
+    final processedCategories = <String>{};
+
+    for (final category in categories) {
+      final amount = categoryTotals[category.categoryId] ?? 0;
+      if (amount > 0) {
+        final percentage = (amount / totalAmount) * 100;
+        chartData.add(ChartDataModel.fromCategoryModel(
+          category,
+          amount,
+          percentage,
+        ));
+        processedCategories.add(category.categoryId);
       }
+    }
 
-      // Thêm danh mục "Còn lại" nếu có giao dịch không thuộc danh mục nào
-      final unprocessedAmount = transactions
-          .where((t) => !processedCategories.contains(t.categoryId))
-          .fold<double>(0, (total, t) => total + t.amount);
+    // Thêm danh mục "Còn lại" nếu có giao dịch không thuộc danh mục nào
+    final unprocessedAmount = transactions
+        .where((t) => !processedCategories.contains(t.categoryId))
+        .fold<double>(0, (total, t) => total + t.amount);
 
-      if (unprocessedAmount > 0) {
-        final percentage = (unprocessedAmount / totalAmount) * 100;
-        chartData.add(ChartDataModel(
+    if (unprocessedAmount > 0) {
+      final percentage = (unprocessedAmount / totalAmount) * 100;
+      chartData.add(ChartDataModel(
+        category: 'Còn lại',
+        amount: unprocessedAmount,
+        percentage: percentage,
+        icon: 'more_horiz',
+        color: '#9E9E9E',
+        type: transactionType?.value ?? 'expense',
+      ));
+    }
+
+    // Sắp xếp theo phần trăm giảm dần
+    chartData.sort((a, b) => b.percentage.compareTo(a.percentage));
+
+    // Giới hạn top 5 danh mục và gộp phần còn lại
+    if (chartData.length > 5) {
+      final top5 = chartData.take(5).toList();
+      final remaining = chartData.skip(5);
+      final remainingAmount =
+          remaining.fold<double>(0, (total, item) => total + item.amount);
+      final remainingPercentage =
+          remaining.fold<double>(0, (total, item) => total + item.percentage);
+
+      if (remainingAmount > 0) {
+        top5.add(ChartDataModel(
           category: 'Còn lại',
-          amount: unprocessedAmount,
-          percentage: percentage,
+          amount: remainingAmount,
+          percentage: remainingPercentage,
           icon: 'more_horiz',
           color: '#9E9E9E',
           type: transactionType?.value ?? 'expense',
         ));
       }
-
-      // Sắp xếp theo phần trăm giảm dần
-      chartData.sort((a, b) => b.percentage.compareTo(a.percentage));
-
-      // Giới hạn top 5 danh mục và gộp phần còn lại
-      if (chartData.length > 5) {
-        final top5 = chartData.take(5).toList();
-        final remaining = chartData.skip(5);
-        final remainingAmount =
-            remaining.fold<double>(0, (total, item) => total + item.amount);
-        final remainingPercentage =
-            remaining.fold<double>(0, (total, item) => total + item.percentage);
-
-        if (remainingAmount > 0) {
-          top5.add(ChartDataModel(
-            category: 'Còn lại',
-            amount: remainingAmount,
-            percentage: remainingPercentage,
-            icon: 'more_horiz',
-            color: '#9E9E9E',
-            type: transactionType?.value ?? 'expense',
-          ));
-        }
-        return top5;
-      }
-
-      return chartData;
-    } catch (e) {
-      _logger.e('Lỗi lấy dữ liệu donut chart: $e');
-      return _getMockDonutChartData();
+      return top5;
     }
+
+    return chartData;
+  }
+
+  /// Lấy dữ liệu nhóm theo danh mục cha
+  List<ChartDataModel> _getGroupedByParentChartData(
+    List<dynamic> transactions,
+    List<dynamic> categories,
+    double totalAmount,
+    TransactionType? transactionType,
+  ) {
+    // Tạo map danh mục con -> danh mục cha
+    final Map<String, dynamic> categoryParentMap = {};
+    final Map<String, dynamic> parentCategoryMap = {};
+    
+    for (final category in categories) {
+      if (category.parentId != null && category.parentId!.isNotEmpty) {
+        categoryParentMap[category.categoryId] = category.parentId;
+      }
+      parentCategoryMap[category.categoryId] = category;
+    }
+
+    // Nhóm giao dịch theo danh mục cha
+    final parentTotals = <String, double>{};
+    final parentCategoriesUsed = <String, dynamic>{};
+    
+    for (final transaction in transactions) {
+      final categoryId = transaction.categoryId;
+      final parentId = categoryParentMap[categoryId];
+      
+      if (parentId != null) {
+        // Đây là danh mục con, gộp vào danh mục cha
+        parentTotals[parentId] = (parentTotals[parentId] ?? 0) + transaction.amount;
+        if (parentCategoryMap[parentId] != null) {
+          parentCategoriesUsed[parentId] = parentCategoryMap[parentId];
+        }
+      } else {
+        // Đây là danh mục cha hoặc không có parent
+        parentTotals[categoryId] = (parentTotals[categoryId] ?? 0) + transaction.amount;
+        if (parentCategoryMap[categoryId] != null) {
+          parentCategoriesUsed[categoryId] = parentCategoryMap[categoryId];
+        }
+      }
+    }
+
+    // Tạo dữ liệu chart
+    final chartData = <ChartDataModel>[];
+    
+    for (final entry in parentTotals.entries) {
+      final categoryId = entry.key;
+      final amount = entry.value;
+      final category = parentCategoriesUsed[categoryId];
+      
+      if (amount > 0 && category != null) {
+        final percentage = (amount / totalAmount) * 100;
+        chartData.add(ChartDataModel.fromCategoryModel(
+          category,
+          amount,
+          percentage,
+        ));
+      }
+    }
+
+    // Sắp xếp theo phần trăm giảm dần
+    chartData.sort((a, b) => b.percentage.compareTo(a.percentage));
+
+    return chartData;
   }
 
   /// Lấy dữ liệu cho trend bar chart

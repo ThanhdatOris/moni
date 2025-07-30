@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
@@ -100,17 +102,24 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
           .first;
 
       setState(() {
+        // Chỉ lấy parent categories và sắp xếp theo tên
         _parentCategories = categories
             .where((c) =>
                 c.isParentCategory &&
                 (!isEditing || c.categoryId != widget.category!.categoryId))
-            .toList();
+            .toList()
+          ..sort((a, b) => a.name.compareTo(b.name));
 
         // Set selected parent if editing and has parent
         if (isEditing && widget.category!.parentId != null) {
           _selectedParent = _parentCategories
               .where((p) => p.categoryId == widget.category!.parentId)
               .firstOrNull;
+          
+          // Nếu không tìm thấy parent trong danh sách hiện tại, tải lại
+          if (_selectedParent == null) {
+            _loadSpecificParent(widget.category!.parentId!);
+          }
         }
 
         _isLoadingParents = false;
@@ -119,6 +128,40 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
       setState(() {
         _isLoadingParents = false;
       });
+      _showErrorSnackBar('Lỗi tải danh sách danh mục cha: $e');
+    }
+  }
+
+  /// Load specific parent category nếu không có trong danh sách
+  Future<void> _loadSpecificParent(String parentId) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('categories')
+          .doc(parentId)
+          .get();
+
+      if (doc.exists) {
+        final parentCategory = CategoryModel.fromMap(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
+        
+        setState(() {
+          _selectedParent = parentCategory;
+          // Thêm vào danh sách nếu chưa có
+          if (!_parentCategories.any((p) => p.categoryId == parentId)) {
+            _parentCategories.add(parentCategory);
+            _parentCategories.sort((a, b) => a.name.compareTo(b.name));
+          }
+        });
+      }
+    } catch (e) {
+      _showErrorSnackBar('Lỗi tải thông tin danh mục cha: $e');
     }
   }
 

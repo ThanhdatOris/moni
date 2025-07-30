@@ -124,37 +124,62 @@ class _AnimatedCategoryListState extends State<AnimatedCategoryList>
                   padding: const EdgeInsets.all(20),
                   physics: const BouncingScrollPhysics(),
                   children: [
-                    // Parent categories with subtle staggered animation
+                    // Parent categories with their children
                     ...parentCategories.asMap().entries.map((entry) {
                       final index = entry.key;
                       final category = entry.value;
                       final children = childCategories
                           .where((child) => child.parentId == category.categoryId)
                           .toList();
+                      children.sort((a, b) => a.name.compareTo(b.name));
 
                       return AnimatedContainer(
-                        duration: Duration(milliseconds: (150 + (index * 20)).round()), // Reduced delays
-                        curve: Curves.easeOut, // Gentler curve
+                        duration: Duration(milliseconds: (150 + (index * 20)).round()),
+                        curve: Curves.easeOut,
                         child: _buildCategoryGroup(category, children, index),
                       );
                     }),
 
-                    // Orphaned child categories
-                    ...childCategories
-                        .where((child) => !parentCategories
-                            .any((parent) => parent.categoryId == child.parentId))
-                        .toList()
-                        .asMap()
-                        .entries
-                        .map((entry) {
-                      final index = entry.key + parentCategories.length;
-                      final category = entry.value;
-                      return AnimatedContainer(
-                        duration: Duration(milliseconds: (150 + (index * 20)).round()), // Reduced delays
-                        curve: Curves.easeOut, // Gentler curve
-                        child: _buildCategoryItem(category, isChild: true, index: index),
-                      );
-                    }),
+                    // Standalone categories (không có parent valid)
+                    ...() {
+                      final standaloneCategories = childCategories
+                          .where((child) {
+                            // Kiểm tra xem parent có tồn tại trong danh sách không
+                            final hasValidParent = parentCategories
+                                .any((parent) => parent.categoryId == child.parentId);
+                            return !hasValidParent;
+                          })
+                          .toList();
+                      standaloneCategories.sort((a, b) => a.name.compareTo(b.name));
+                      
+                      return standaloneCategories.asMap().entries.map((entry) {
+                        final index = entry.key + parentCategories.length;
+                        final category = entry.value;
+                        return AnimatedContainer(
+                          duration: Duration(milliseconds: (150 + (index * 20)).round()),
+                          curve: Curves.easeOut,
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: _buildCategoryItem(
+                              category, 
+                              isChild: false, 
+                              index: index
+                            ),
+                          ),
+                        );
+                      });
+                    }(),
 
                     const SizedBox(height: 80), // Space for FAB
                   ],

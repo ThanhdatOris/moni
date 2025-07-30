@@ -36,6 +36,7 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
   String _errorMessage = '';
   String _selectedTransactionType = 'all';
   DateTime _selectedDate = DateTime.now();
+  bool _showParentCategories = true; // True: hiển thị danh mục cha, False: hiển thị chi tiết
 
   // Data
   List<ChartDataModel> _chartData = [];
@@ -95,11 +96,13 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
           startDate: startDate,
           endDate: endDate,
           transactionType: TransactionType.income,
+          showParentCategories: _showParentCategories,
         );
         final expenseData = await _chartDataService.getDonutChartData(
           startDate: startDate,
           endDate: endDate,
           transactionType: TransactionType.expense,
+          showParentCategories: _showParentCategories,
         );
         
         if (mounted) {
@@ -116,6 +119,7 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
           startDate: startDate,
           endDate: endDate,
           transactionType: _getTransactionType(),
+          showParentCategories: _showParentCategories,
         );
         if (mounted) {
           setState(() {
@@ -255,6 +259,9 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
             children: [
               // HEADER: Title + Chart Type Toggle
               _buildHeader(isCompact),
+
+              // HIERARCHY TOGGLE: Khi đang ở mode phân bổ (không phải trend)
+              if (!_showTrendChart) _buildHierarchyToggle(),
 
               // BODY: Filter + Main Chart + Categories
               _buildBody(isCompact, isTablet),
@@ -427,6 +434,50 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Build hierarchy toggle
+  Widget _buildHierarchyToggle() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.account_tree_outlined,
+            size: 20,
+            color: Colors.grey[600],
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Hiển thị theo danh mục cha',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          Switch(
+            value: _showParentCategories,
+            onChanged: (value) {
+              setState(() {
+                _showParentCategories = value;
+              });
+              _loadData(); // Reload data với mode mới
+            },
+            activeColor: AppColors.primary,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ],
       ),
     );
   }
