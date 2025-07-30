@@ -7,8 +7,8 @@ import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
 import '../../../services/category_service.dart';
 import '../../../services/transaction_service.dart';
-import '../../../utils/helpers/category_icon_helper.dart';
 import '../../../utils/formatting/currency_formatter.dart';
+import '../../../utils/helpers/category_icon_helper.dart';
 import '../../history/transaction_detail_screen.dart';
 import '../../history/transaction_history_screen.dart';
 import '../../transaction/add_transaction_screen.dart';
@@ -151,8 +151,8 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
     }
   }
 
-  void _navigateToTransactionDetail(TransactionModel transaction) {
-    Navigator.push(
+  void _navigateToTransactionDetail(TransactionModel transaction) async {
+    final result = await Navigator.push(
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
@@ -174,6 +174,14 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
         transitionDuration: const Duration(milliseconds: 300),
       ),
     );
+
+    // Refresh data khi quay về nếu có thay đổi
+    if (result != null) {
+      // result có thể là:
+      // - true nếu transaction bị xóa
+      // - TransactionModel nếu transaction được update
+      await _loadRecentTransactions();
+    }
   }
 
   void _navigateToAllTransactions() {
@@ -494,6 +502,15 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
   Widget _buildTransactionItem(TransactionModel transaction) {
     final category = _categoryMap[transaction.categoryId];
     final isExpense = transaction.type == TransactionType.expense;
+    
+    // Sử dụng màu từ category nếu có, fallback về màu mặc định
+    final categoryColor = category != null 
+        ? Color(category.color)
+        : (isExpense ? Colors.red[600]! : Colors.green[600]!);
+    
+    final backgroundColorLight = category != null
+        ? Color(category.color).withValues(alpha: 0.1)
+        : (isExpense ? Colors.red[50]! : Colors.green[50]!);
 
     return Material(
       color: Colors.transparent,
@@ -503,29 +520,27 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
           child: Row(
             children: [
-              // Icon danh mục compact
+              // Icon danh mục với màu đúng từ category
               Hero(
                 tag: 'transaction-${transaction.transactionId}',
                 child: Container(
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: isExpense ? Colors.red[50] : Colors.green[50],
+                    color: backgroundColorLight,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
-                    // Căn giữa icon
                     child: category != null
                         ? CategoryIconHelper.buildIcon(
                             category,
                             size: 18,
-                            color:
-                                isExpense ? Colors.red[600] : Colors.green[600],
+                            color: categoryColor,
                             showBackground: false,
                           )
                         : Icon(
                             Icons.category_rounded,
-                            color: Colors.grey[600],
+                            color: categoryColor,
                             size: 18,
                           ),
                   ),
@@ -562,8 +577,7 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color:
-                                isExpense ? Colors.red[600] : Colors.green[600],
+                            color: categoryColor,
                           ),
                         ),
                       ],
@@ -595,8 +609,7 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color:
-                                isExpense ? Colors.red[50] : Colors.green[50],
+                            color: backgroundColorLight,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -604,9 +617,7 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
-                              color: isExpense
-                                  ? Colors.red[600]
-                                  : Colors.green[600],
+                              color: categoryColor,
                             ),
                           ),
                         ),

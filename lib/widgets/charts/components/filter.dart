@@ -141,43 +141,56 @@ class _ChartFilterState extends State<ChartFilter> {
   /// Build transaction type filter section
   Widget _buildTransactionTypeFilter(bool isCompact) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          // Tất cả
-          Expanded(
-            child: _buildTransactionTypeCard(
-              'Tất cả',
-              Icons.analytics,
-              AppColors.primary,
-              widget.selectedTransactionType == 'all',
-              () => widget.onTransactionTypeChanged('all'),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [          
+          // Filter options
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: AppColors.grey100,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.grey200,
+                width: 1,
+              ),
             ),
-          ),
+            child: Row(
+              children: [
+                // Tất cả
+                Expanded(
+                  child: _buildModernFilterButton(
+                    'Tất cả',
+                    Icons.analytics_outlined,
+                    AppColors.primary,
+                    widget.selectedTransactionType == 'all',
+                    () => widget.onTransactionTypeChanged('all'),
+                  ),
+                ),
 
-          const SizedBox(width: 6),
+                // Chi tiêu
+                Expanded(
+                  child: _buildModernFilterButton(
+                    'Chi tiêu',
+                    Icons.trending_down,
+                    Colors.red,
+                    widget.selectedTransactionType == 'expense',
+                    () => widget.onTransactionTypeChanged('expense'),
+                  ),
+                ),
 
-          // Chi tiêu
-          Expanded(
-            child: _buildTransactionTypeCard(
-              'Chi tiêu',
-              Icons.trending_down,
-              Colors.red,
-              widget.selectedTransactionType == 'expense',
-              () => widget.onTransactionTypeChanged('expense'),
-            ),
-          ),
-
-          const SizedBox(width: 6),
-
-          // Thu nhập
-          Expanded(
-            child: _buildTransactionTypeCard(
-              'Thu nhập',
-              Icons.trending_up,
-              Colors.green,
-              widget.selectedTransactionType == 'income',
-              () => widget.onTransactionTypeChanged('income'),
+                // Thu nhập
+                Expanded(
+                  child: _buildModernFilterButton(
+                    'Thu nhập',
+                    Icons.trending_up,
+                    Colors.green,
+                    widget.selectedTransactionType == 'income',
+                    () => widget.onTransactionTypeChanged('income'),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -185,7 +198,7 @@ class _ChartFilterState extends State<ChartFilter> {
     );
   }
 
-  Widget _buildTransactionTypeCard(
+  Widget _buildModernFilterButton(
     String title,
     IconData icon,
     Color color,
@@ -194,64 +207,50 @@ class _ChartFilterState extends State<ChartFilter> {
   ) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.all(2),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: isActive
-                ? [
-                    color.withValues(alpha: 0.1),
-                    color.withValues(alpha: 0.05),
-                  ]
-                : [
-                    Colors.white,
-                    AppColors.grey100,
+          gradient: isActive
+              ? LinearGradient(
+                  colors: [
+                    color,
+                    color.withValues(alpha: 0.8),
                   ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isActive ? null : Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isActive ? color.withValues(alpha: 0.3) : AppColors.grey200,
-            width: isActive ? 2 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? color.withValues(alpha: 0.2)
-                        : AppColors.grey200,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: isActive ? color : AppColors.grey600,
-                    size: 14,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: isActive ? color : AppColors.grey600,
-                  ),
-                ),
-              ],
+            Icon(
+              icon,
+              color: isActive ? Colors.white : color,
+              size: 18,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isActive ? Colors.white : color,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),

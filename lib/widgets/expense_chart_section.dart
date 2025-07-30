@@ -106,7 +106,8 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
           setState(() {
             _incomeData = incomeData;
             _expenseData = expenseData;
-            _chartData = [...expenseData, ...incomeData]; // Combine for category list
+            // Khi filter là "all", combine và merge categories giống nhau
+            _chartData = _combineAndMergeCategories(incomeData, expenseData);
           });
         }
       } else {
@@ -178,6 +179,55 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
       default:
         return null;
     }
+  }
+
+  /// Combine và merge categories từ income và expense data
+  /// Nếu category trùng tên, sẽ cộng dồn amount và tính lại percentage
+  List<ChartDataModel> _combineAndMergeCategories(
+    List<ChartDataModel> incomeData,
+    List<ChartDataModel> expenseData,
+  ) {
+    final Map<String, ChartDataModel> mergedCategories = {};
+    double totalAmount = 0;
+
+    // Tính tổng amount để tính percentage sau
+    for (final item in [...incomeData, ...expenseData]) {
+      totalAmount += item.amount;
+    }
+
+    // Process income data
+    for (final item in incomeData) {
+      final key = '${item.category}_income'; // Thêm suffix để phân biệt
+      mergedCategories[key] = ChartDataModel(
+        category: '${item.category} (Thu)',
+        amount: item.amount,
+        percentage: totalAmount > 0 ? (item.amount / totalAmount) * 100 : 0,
+        color: item.color,
+        icon: item.icon,
+        type: 'income',
+        categoryModel: item.categoryModel,
+      );
+    }
+
+    // Process expense data
+    for (final item in expenseData) {
+      final key = '${item.category}_expense'; // Thêm suffix để phân biệt
+      mergedCategories[key] = ChartDataModel(
+        category: '${item.category} (Chi)',
+        amount: item.amount,
+        percentage: totalAmount > 0 ? (item.amount / totalAmount) * 100 : 0,
+        color: item.color,
+        icon: item.icon,
+        type: 'expense',
+        categoryModel: item.categoryModel,
+      );
+    }
+
+    // Sort by amount descending
+    final sortedCategories = mergedCategories.values.toList()
+      ..sort((a, b) => b.amount.compareTo(a.amount));
+
+    return sortedCategories;
   }
 
   @override
@@ -529,6 +579,7 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
     return CategoryList(
       data: _chartData,
       isCompact: isCompact,
+      isAllFilter: _selectedTransactionType == 'all',
       onCategoryTap: _onCategoryItemTap,
       onNavigateToHistory: widget.onNavigateToHistory,
     );
