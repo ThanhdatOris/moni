@@ -144,6 +144,19 @@ class _ChartFilterState extends State<ChartFilter> {
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
+          // Tất cả
+          Expanded(
+            child: _buildTransactionTypeCard(
+              'Tất cả',
+              Icons.analytics,
+              AppColors.primary,
+              widget.selectedTransactionType == 'all',
+              () => widget.onTransactionTypeChanged('all'),
+            ),
+          ),
+
+          const SizedBox(width: 6),
+
           // Chi tiêu
           Expanded(
             child: _buildTransactionTypeCard(
@@ -155,7 +168,7 @@ class _ChartFilterState extends State<ChartFilter> {
             ),
           ),
 
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
 
           // Thu nhập
           Expanded(

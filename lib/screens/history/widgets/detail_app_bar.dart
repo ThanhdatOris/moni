@@ -23,7 +23,7 @@ class DetailAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 0),
       child: Column(
         children: [
           // Header row
@@ -83,7 +83,7 @@ class DetailAppBar extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
 
           // Tab bar
           Container(

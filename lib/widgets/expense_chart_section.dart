@@ -5,6 +5,7 @@ import '../constants/app_colors.dart';
 import '../models/transaction_model.dart';
 import '../services/chart_data_service.dart';
 import 'charts/components/category_list.dart';
+import 'charts/components/combined_chart.dart';
 import 'charts/components/donut_chart.dart';
 import 'charts/components/filter.dart';
 import 'charts/components/trend_bar_chart.dart';
@@ -33,13 +34,14 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
   bool _showTrendChart = false;
   bool _isLoading = false;
   String _errorMessage = '';
-  String _selectedTransactionType = 'expense';
+  String _selectedTransactionType = 'all';
   DateTime _selectedDate = DateTime.now();
 
   // Data
   List<ChartDataModel> _chartData = [];
+  List<ChartDataModel> _incomeData = [];
+  List<ChartDataModel> _expenseData = [];
   List<TrendData> _trendData = [];
-  FinancialOverviewData? _financialOverviewData;
 
   // Services
   late final ChartDataService _chartDataService;
@@ -87,15 +89,40 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
   /// Load dữ liệu donut chart
   Future<void> _loadChartData(DateTime startDate, DateTime endDate) async {
     try {
-      final data = await _chartDataService.getDonutChartData(
-        startDate: startDate,
-        endDate: endDate,
-        transactionType: _getTransactionType(),
-      );
-      if (mounted) {
-        setState(() {
-          _chartData = data;
-        });
+      if (_selectedTransactionType == 'all') {
+        // Load cả income và expense data
+        final incomeData = await _chartDataService.getDonutChartData(
+          startDate: startDate,
+          endDate: endDate,
+          transactionType: TransactionType.income,
+        );
+        final expenseData = await _chartDataService.getDonutChartData(
+          startDate: startDate,
+          endDate: endDate,
+          transactionType: TransactionType.expense,
+        );
+        
+        if (mounted) {
+          setState(() {
+            _incomeData = incomeData;
+            _expenseData = expenseData;
+            _chartData = [...expenseData, ...incomeData]; // Combine for category list
+          });
+        }
+      } else {
+        // Load single type data
+        final data = await _chartDataService.getDonutChartData(
+          startDate: startDate,
+          endDate: endDate,
+          transactionType: _getTransactionType(),
+        );
+        if (mounted) {
+          setState(() {
+            _chartData = data;
+            _incomeData = [];
+            _expenseData = [];
+          });
+        }
       }
     } catch (e) {
       debugPrint('Lỗi load chart data: $e');
@@ -130,7 +157,8 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
       );
       if (mounted) {
         setState(() {
-          _financialOverviewData = data;
+          // Data loaded successfully - can be used for additional insights
+          debugPrint('Financial overview data loaded: ${data.totalExpense}');
         });
       }
     } catch (e) {
@@ -145,6 +173,8 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
         return TransactionType.expense;
       case 'income':
         return TransactionType.income;
+      case 'all':
+        return null; // null means all types
       default:
         return null;
     }
@@ -408,14 +438,22 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
               key: const ValueKey('trend'),
               data: _trendData,
               height: isTablet ? 350 : (isCompact ? 200 : 250),
-              onTap: _onTrendDetailsTap,
+              onBarTap: _onTrendBarTap,
             )
-          : DonutChart(
-              key: const ValueKey('donut'),
-              data: _chartData,
-              size: isTablet ? 300 : (isCompact ? 200 : 250),
-              onCategoryTap: _onCategoryTap,
-            ),
+          : _selectedTransactionType == 'all'
+              ? CombinedChart(
+                  key: const ValueKey('combined'),
+                  incomeData: _incomeData,
+                  expenseData: _expenseData,
+                  size: isTablet ? 300 : (isCompact ? 200 : 250),
+                  onCategoryTap: _onCombinedCategoryTap,
+                )
+              : DonutChart(
+                  key: const ValueKey('donut'),
+                  data: _chartData,
+                  size: isTablet ? 300 : (isCompact ? 200 : 250),
+                  onCategoryTap: _onDonutCategoryTap,
+                ),
     );
   }
 
@@ -504,9 +542,12 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
   }
 
   // Event handlers
-  void _onCategoryTap() {
+  void _onDonutCategoryTap(ChartDataModel item) {
+    // Show category details and navigate to filtered history
+    debugPrint('Donut category tapped: ${item.category} - Amount: ${item.amount}');
     widget.onCategoryTap?.call();
-    debugPrint('Category tapped');
+    // TODO: Navigate to history with category filter for the selected category
+    widget.onNavigateToHistory?.call();
   }
 
   void _onCategoryItemTap(ChartDataModel item) {
@@ -515,8 +556,18 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
     debugPrint('Category item tapped: ${item.category}');
   }
 
-  void _onTrendDetailsTap() {
-    // TODO: Navigate to trend details
-    debugPrint('Trend details tapped');
+  void _onTrendBarTap(TrendData item) {
+    // Show trend details or navigate to filtered history
+    debugPrint('Trend bar tapped: ${item.label} - Income: ${item.income}, Expense: ${item.expense}');
+    // TODO: Navigate to history with date filter for the selected period
+    widget.onNavigateToHistory?.call();
+  }
+
+  void _onCombinedCategoryTap(ChartDataModel item, String type) {
+    // Show category details and navigate to filtered history with type
+    debugPrint('Combined category tapped: ${item.category} - Type: $type - Amount: ${item.amount}');
+    widget.onCategoryTap?.call();
+    // TODO: Navigate to history with category and type filter
+    widget.onNavigateToHistory?.call();
   }
 }
