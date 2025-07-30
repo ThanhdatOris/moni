@@ -8,16 +8,20 @@ class CategoryList extends StatefulWidget {
   final List<ChartDataModel> data;
   final bool isCompact;
   final bool isAllFilter; // Thêm để biết khi nào filter là "all"
+  final bool showParentCategories; // Thêm để biết mode hiện tại
   final Function(ChartDataModel)? onCategoryTap;
   final VoidCallback? onNavigateToHistory;
+  final Function(bool)? onHierarchyModeChanged; // Callback khi chuyển tab
 
   const CategoryList({
     super.key,
     required this.data,
     required this.isCompact,
     this.isAllFilter = false,
+    this.showParentCategories = true,
     this.onCategoryTap,
     this.onNavigateToHistory,
+    this.onHierarchyModeChanged,
   });
 
   @override
@@ -84,6 +88,9 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
             // Modern header
             _buildModernHeader(),
             const SizedBox(height: 12),
+            // Tab selector cho hierarchy mode
+            _buildTabSelector(),
+            const SizedBox(height: 16),
             // Grid categories
             _buildCategoriesGrid(displayData),
             // Show more section
@@ -185,6 +192,94 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
             ),
           ),
       ],
+    );
+  }
+
+  /// Build tab selector for hierarchy mode
+  Widget _buildTabSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.grey100,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.grey200),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildTabButton(
+              title: 'Danh mục cha',
+              icon: Icons.folder_outlined,
+              isActive: widget.showParentCategories,
+              onTap: () {
+                if (!widget.showParentCategories) {
+                  widget.onHierarchyModeChanged?.call(true);
+                }
+              },
+            ),
+          ),
+          Expanded(
+            child: _buildTabButton(
+              title: 'Danh mục con',
+              icon: Icons.account_tree_outlined,
+              isActive: !widget.showParentCategories,
+              onTap: () {
+                if (widget.showParentCategories) {
+                  widget.onHierarchyModeChanged?.call(false);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build individual tab button
+  Widget _buildTabButton({
+    required String title,
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isActive ? AppColors.primary : AppColors.grey600,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                color: isActive ? AppColors.primary : AppColors.grey600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
