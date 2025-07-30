@@ -41,18 +41,32 @@ class DetailInfoCard extends StatelessWidget {
         crossAxisAlignment:
             isMultiline ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: 20,
-            ),
-          ),
+          // Icon chính - thay thế bằng category icon nếu có
+          categoryIcon != null
+              ? Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Color(categoryIcon!.color).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: CategoryIconHelper.buildIcon(
+                    categoryIcon!,
+                    size: 20,
+                    color: Color(categoryIcon!.color),
+                  ),
+                )
+              : Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: AppColors.primary,
+                    size: 20,
+                  ),
+                ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -69,13 +83,6 @@ class DetailInfoCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    if (categoryIcon != null) ...[
-                      CategoryIconHelper.buildIcon(
-                        categoryIcon!,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 8),
-                    ],
                     Expanded(
                       child: Text(
                         value,

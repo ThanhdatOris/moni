@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 
 import '../../../constants/app_colors.dart';
+import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
+import '../../../services/category_service.dart';
 import '../../../utils/formatting/currency_formatter.dart';
+import '../../../utils/helpers/category_icon_helper.dart';
 
 class HistoryTransactionItem extends StatelessWidget {
   final TransactionModel transaction;
+  final CategoryModel? category; // Thêm category info
   final VoidCallback onTap;
   final bool isListView;
 
   const HistoryTransactionItem({
     super.key,
     required this.transaction,
+    this.category,
     required this.onTap,
     this.isListView = false,
   });
@@ -38,7 +44,10 @@ class HistoryTransactionItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            _buildIcon(),
+            // Sử dụng FutureBuilder để load category nếu chưa có
+            category != null 
+                ? _buildIcon() 
+                : _buildIconWithCategory(),
             const SizedBox(width: 12),
             Expanded(
               child: _buildContent(),
@@ -50,38 +59,123 @@ class HistoryTransactionItem extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon() {
+  Widget _buildIconWithCategory() {
+    return FutureBuilder<CategoryModel?>(
+      future: _loadCategory(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildLoadingIcon();
+        }
+        final loadedCategory = snapshot.data;
+        return _buildIconWithCategoryData(loadedCategory);
+      },
+    );
+  }
+
+  Future<CategoryModel?> _loadCategory() async {
+    try {
+      final categoryService = GetIt.instance<CategoryService>();
+      return await categoryService.getCategory(transaction.categoryId);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Widget _buildLoadingIcon() {
     return Container(
       padding: EdgeInsets.all(isListView ? 10 : 8),
       decoration: BoxDecoration(
-        color: (transaction.type == TransactionType.income
-                ? AppColors.success
-                : AppColors.error)
-            .withValues(alpha: isListView ? 0.15 : 0.1),
+        color: AppColors.grey200.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(isListView ? 10 : 8),
       ),
-      child: Icon(
-        isListView
-            ? (transaction.type == TransactionType.income
-                ? Icons.add_circle_outline
-                : Icons.remove_circle_outline)
-            : (transaction.type == TransactionType.income
-                ? Icons.arrow_upward
-                : Icons.arrow_downward),
-        color: transaction.type == TransactionType.income
-            ? AppColors.success
-            : AppColors.error,
-        size: isListView ? 24 : 20,
+      child: SizedBox(
+        width: isListView ? 24 : 20,
+        height: isListView ? 24 : 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.textSecondary),
+        ),
       ),
     );
   }
 
+  Widget _buildIconWithCategoryData(CategoryModel? categoryData) {
+    return Container(
+      padding: EdgeInsets.all(isListView ? 10 : 8),
+      decoration: BoxDecoration(
+        color: categoryData != null 
+            ? Color(categoryData.color).withValues(alpha: isListView ? 0.15 : 0.1)
+            : (transaction.type == TransactionType.income
+                ? AppColors.success
+                : AppColors.error).withValues(alpha: isListView ? 0.15 : 0.1),
+        borderRadius: BorderRadius.circular(isListView ? 10 : 8),
+      ),
+      child: _buildCategoryIcon(categoryData),
+    );
+  }
+
+  Widget _buildIcon() {
+    return Container(
+      padding: EdgeInsets.all(isListView ? 10 : 8),
+      decoration: BoxDecoration(
+        color: category != null 
+            ? Color(category!.color).withValues(alpha: isListView ? 0.15 : 0.1)
+            : (transaction.type == TransactionType.income
+                ? AppColors.success
+                : AppColors.error).withValues(alpha: isListView ? 0.15 : 0.1),
+        borderRadius: BorderRadius.circular(isListView ? 10 : 8),
+      ),
+      child: _buildCategoryIcon(category),
+    );
+  }
+
+  Widget _buildCategoryIcon(CategoryModel? categoryData) {
+    if (categoryData != null) {
+      // Sử dụng CategoryIconHelper để hiển thị icon đúng cách
+      return CategoryIconHelper.buildIcon(
+        categoryData,
+        size: isListView ? 24 : 20,
+        color: Color(categoryData.color),
+      );
+    } else {
+      // Fallback: hiển thị icon mặc định theo loại giao dịch
+      return Icon(
+        transaction.type == TransactionType.income
+            ? Icons.trending_up
+            : Icons.trending_down,
+        color: transaction.type == TransactionType.income
+            ? AppColors.success
+            : AppColors.error,
+        size: isListView ? 24 : 20,
+      );
+    }
+  }
+
   Widget _buildContent() {
+    // Nếu đã có category, hiển thị trực tiếp
+    if (category != null) {
+      return _buildContentWithCategory(category);
+    }
+    
+    // Nếu chưa có, load category
+    return FutureBuilder<CategoryModel?>(
+      future: _loadCategory(),
+      builder: (context, snapshot) {
+        final loadedCategory = snapshot.data;
+        return _buildContentWithCategory(loadedCategory);
+      },
+    );
+  }
+
+  Widget _buildContentWithCategory(CategoryModel? categoryData) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Hiển thị note hoặc tên category
         Text(
-          transaction.note ?? 'Không có ghi chú',
+          transaction.note?.isNotEmpty == true 
+              ? transaction.note! 
+              : _getCategoryDisplayName(categoryData),
           style: TextStyle(
             fontSize: isListView ? 15 : 14,
             fontWeight: FontWeight.w600,
@@ -90,6 +184,21 @@ class HistoryTransactionItem extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         SizedBox(height: isListView ? 6 : 4),
+        // Hiển thị category name nếu có note
+        if (transaction.note?.isNotEmpty == true && (categoryData?.name != null || transaction.categoryName != null))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Text(
+              categoryData?.name ?? transaction.categoryName ?? '',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                fontStyle: FontStyle.italic,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         if (isListView)
           Row(
             children: [
@@ -118,6 +227,21 @@ class HistoryTransactionItem extends StatelessWidget {
           ),
       ],
     );
+  }
+
+  String _getCategoryDisplayName(CategoryModel? categoryData) {
+    // Nếu có category data
+    if (categoryData?.name != null) {
+      return categoryData!.name;
+    }
+    
+    // Nếu có categoryName từ transaction
+    if (transaction.categoryName?.isNotEmpty == true) {
+      return transaction.categoryName!;
+    }
+    
+    // Fallback: hiển thị theo loại giao dịch
+    return transaction.type == TransactionType.income ? 'Thu nhập' : 'Chi tiêu';
   }
 
   Widget _buildAmount() {

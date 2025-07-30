@@ -64,7 +64,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   @override
   void initState() {
     super.initState();
-    print('🔧 DEBUG: TransactionDetailScreen initState started');
     
     _tabController = TabController(length: 2, vsync: this);
     
@@ -80,29 +79,24 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     try {
       _transactionService = _getIt<TransactionService>();
       _categoryService = _getIt<CategoryService>();
-      print('✅ DEBUG: Services initialized successfully');
     } catch (e) {
-      print('❌ DEBUG: Error initializing services: $e');
+      // Handle service initialization error
     }
 
     // Initialize with transaction data
-    _currentTransaction = widget.transaction; // Initialize current transaction
+    _currentTransaction = widget.transaction;
     _selectedType = widget.transaction.type;
     _selectedDate = widget.transaction.date;
     _amountController.text = CurrencyFormatter.formatDisplay(widget.transaction.amount.toInt());
     _noteController.text = widget.transaction.note ?? '';
-    
-    print('🔧 DEBUG: Transaction data initialized - Type: $_selectedType, Amount: ${_amountController.text}');
 
     // Auth listener
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (mounted && user == null) {
-        print('❌ DEBUG: User logged out, closing detail screen');
         Navigator.of(context).pop();
       }
     });
 
-    print('🔧 DEBUG: Loading categories...');
     _loadCategories();
   }
 
@@ -117,8 +111,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   }
 
   Future<void> _loadCategories() async {
-    print('🔧 DEBUG: _loadCategories started for type: $_selectedType');
-    
     try {
       await _categoriesSubscription?.cancel();
 
@@ -129,13 +121,10 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
           _categoriesError = null;
         });
       }
-      
-      print('🔧 DEBUG: Loading categories from service...');
 
       _categoriesSubscription =
           _categoryService.getCategories(type: _selectedType).listen(
         (categories) {
-          print('✅ DEBUG: Received ${categories.length} categories');
           // Defer setState để tránh layout cycle
           SchedulerBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -145,7 +134,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
 
                 // Find and set current category
                 _selectedCategory = categories.firstWhere(
-                  (cat) => cat.categoryId == _currentTransaction.categoryId, // Use current transaction
+                  (cat) => cat.categoryId == _currentTransaction.categoryId,
                   orElse: () => categories.isNotEmpty
                       ? categories.first
                       : CategoryModel(
@@ -160,13 +149,11 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
                           updatedAt: DateTime.now(),
                         ),
                 );
-                print('✅ DEBUG: Selected category: ${_selectedCategory?.name}');
               });
             }
           });
         },
         onError: (error) {
-          print('❌ DEBUG: Error loading categories: $error');
           // Defer setState để tránh layout cycle
           SchedulerBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -179,7 +166,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         },
       );
     } catch (e) {
-      print('❌ DEBUG: Exception in _loadCategories: $e');
       // Defer setState để tránh layout cycle
       SchedulerBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -349,15 +335,11 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   }
 
   Widget _buildEditTab() {
-    print('🔧 DEBUG: Building edit tab - Loading: $_isCategoriesLoading, Error: $_categoriesError');
-    
     if (_isCategoriesLoading) {
-      print('🔧 DEBUG: Showing loading indicator');
       return const Center(child: CircularProgressIndicator());
     }
 
     if (_categoriesError != null) {
-      print('❌ DEBUG: Showing error message: $_categoriesError');
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -375,7 +357,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       );
     }
 
-    print('✅ DEBUG: Rendering edit form with ${_categories.length} categories');
     return DetailEditForm(
       formKey: _formKey,
       amountController: _amountController,
@@ -387,7 +368,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       isCategoriesLoading: _isCategoriesLoading,
       isLoading: _isLoading,
       onTypeChanged: (type) {
-        print('🔧 DEBUG: Type changed to: $type');
         // Update UI ngay lập tức cho responsive UX
         if (mounted) {
           setState(() {
@@ -402,7 +382,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
         }
       },
       onCategoryChanged: (category) {
-        print('🔧 DEBUG: Category changed to: ${category?.name}');
         // Defer setState để tránh layout cycle
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
