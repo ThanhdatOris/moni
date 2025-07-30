@@ -9,7 +9,7 @@ import '../transaction/add_transaction_screen.dart';
 import 'widgets/anonymous_user_banner.dart';
 import 'widgets/category_quick_access.dart';
 import 'widgets/home_banner.dart';
-import 'widgets/home_header_with_cards.dart';
+import 'widgets/home_header.dart';
 import 'widgets/home_recent_transactions.dart';
 import 'widgets/simple_offline_status_banner.dart';
 
@@ -131,8 +131,6 @@ class _HomeTabContentState extends State<HomeTabContent> {
 
           // Anonymous User Banner (chỉ hiển thị cho anonymous user)
           const AnonymousUserBanner(),
-
-          const SizedBox(height: 20),
 
           // Expense Chart Section
           ExpenseChartSection(

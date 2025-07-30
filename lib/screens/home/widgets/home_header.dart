@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../services/services.dart';
 import '../../../services/transaction_service.dart';
@@ -26,12 +27,16 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
   double monthlyIncome = 0.0;
   double monthlyExpense = 0.0;
   bool isLoadingFinancial = true;
+  
+  // Balance visibility
+  bool _isBalanceVisible = true;
 
   final GetIt _getIt = GetIt.instance;
 
   @override
   void initState() {
     super.initState();
+    _loadBalanceVisibility();
     _loadUserInfo();
     _loadFinancialData();
     
@@ -42,6 +47,32 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
         _loadFinancialData();
       }
     });
+  }
+
+  /// Load balance visibility from SharedPreferences
+  Future<void> _loadBalanceVisibility() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isVisible = prefs.getBool('balance_visibility') ?? true;
+      if (mounted) {
+        setState(() {
+          _isBalanceVisible = isVisible;
+        });
+      }
+    } catch (e) {
+      // If error, default to visible
+      debugPrint('Lỗi load balance visibility: $e');
+    }
+  }
+
+  /// Save balance visibility to SharedPreferences
+  Future<void> _saveBalanceVisibility(bool isVisible) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('balance_visibility', isVisible);
+    } catch (e) {
+      debugPrint('Lỗi save balance visibility: $e');
+    }
   }
 
   /// Load thông tin người dùng
@@ -95,6 +126,14 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
       }
       debugPrint('Lỗi load financial data: $e');
     }
+  }
+
+  /// Toggle balance visibility
+  void _toggleBalanceVisibility() {
+    setState(() {
+      _isBalanceVisible = !_isBalanceVisible;
+    });
+    _saveBalanceVisibility(_isBalanceVisible);
   }
 
   @override
@@ -292,13 +331,33 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Số dư hiện tại',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+              Row(
+                children: [
+                  Text(
+                    'Số dư hiện tại',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _toggleBalanceVisibility,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Icon(
+                        _isBalanceVisible ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.white.withValues(alpha: 0.8),
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               isLoadingFinancial
@@ -310,16 +369,21 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                     )
-                  : Text(
-                      CurrencyFormatter.formatAmountWithCurrency(balance),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
+                  : GestureDetector(
+                      onTap: _toggleBalanceVisibility,
+                      child: Text(
+                        _isBalanceVisible 
+                            ? CurrencyFormatter.formatAmountWithCurrency(balance)
+                            : '••••••••',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
               // Hiển thị tip cho user mới
-              if (balance == 0.0) ...[
+              if (balance == 0.0 && _isBalanceVisible) ...[
                 const SizedBox(height: 4),
                 Text(
                   '💡 Bắt đầu ghi chép thu chi ngay!',
