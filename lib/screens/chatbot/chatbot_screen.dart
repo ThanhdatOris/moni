@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 
@@ -198,6 +199,10 @@ class _FullChatScreenState extends State<FullChatScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
+        systemOverlayStyle: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+        ),
         leading: IconButton(
           onPressed: _navigateBackToChatbotTab,
           icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),

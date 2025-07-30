@@ -8,9 +8,8 @@ import '../profile/profile_screen.dart';
 import '../transaction/add_transaction_screen.dart';
 import 'widgets/anonymous_user_banner.dart';
 import 'widgets/category_quick_access.dart';
-import 'widgets/financial_overview.dart';
 import 'widgets/home_banner.dart';
-import 'widgets/home_header.dart';
+import 'widgets/home_header_with_cards.dart';
 import 'widgets/home_recent_transactions.dart';
 import 'widgets/simple_offline_status_banner.dart';
 
@@ -96,14 +95,12 @@ class HomeTabContent extends StatefulWidget {
 }
 
 class _HomeTabContentState extends State<HomeTabContent> {
-  Key _financialOverviewKey = UniqueKey();
   Key _recentTransactionsKey = UniqueKey();
 
   @override
   void didUpdateWidget(HomeTabContent oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Khi widget được rebuild, tạo key mới để refresh các widget con
-    _financialOverviewKey = UniqueKey();
     _recentTransactionsKey = UniqueKey();
   }
 
@@ -117,7 +114,6 @@ class _HomeTabContentState extends State<HomeTabContent> {
   void _onRefresh() {
     // Refresh các widget khác nếu cần
     setState(() {
-      _financialOverviewKey = UniqueKey();
       _recentTransactionsKey = UniqueKey();
     });
   }
@@ -127,19 +123,14 @@ class _HomeTabContentState extends State<HomeTabContent> {
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Header Section với gradient background
-          const ModernHomeHeader(),
+          // Combined Header and Financial Cards
+          const HomeHeaderWithCards(),
 
           // Offline Status Banner (hiển thị trạng thái kết nối)
           const SimpleOfflineStatusBanner(),
 
           // Anonymous User Banner (chỉ hiển thị cho anonymous user)
           const AnonymousUserBanner(),
-
-          const SizedBox(height: 20),
-
-          // Financial Overview Cards
-          FinancialOverviewCards(key: _financialOverviewKey),
 
           const SizedBox(height: 20),
 
