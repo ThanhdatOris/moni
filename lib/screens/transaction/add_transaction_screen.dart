@@ -17,14 +17,10 @@ import '../../services/transaction_validation_service.dart';
 import '../../utils/formatting/currency_formatter.dart';
 import '../../widgets/advanced_validation_widgets.dart';
 import '../../widgets/duplicate_warning_dialog.dart';
-import 'widgets/enhanced_category_selector.dart';
-import '../../widgets/enhanced_save_button.dart';
 import '../../widgets/spending_limit_widgets.dart';
 import 'widgets/transaction_ai_scan_tab.dart';
-import 'widgets/transaction_amount_input.dart';
-import 'widgets/transaction_date_selector.dart';
-import 'widgets/transaction_note_input.dart';
-import 'widgets/transaction_type_selector.dart';
+import 'widgets/transaction_app_bar.dart';
+import 'widgets/transaction_manual_form.dart';
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({super.key});
@@ -263,7 +259,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       body: SafeArea(
         child: Column(
           children: [
-            _buildCompactAppBar(),
+            TransactionAppBar(
+              tabController: _tabController,
+              onBackPressed: () => Navigator.pop(context),
+            ),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -279,286 +278,65 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     );
   }
 
-  Widget _buildCompactAppBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Compact Header
-          Row(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    Icons.arrow_back_ios_new,
-                    color: AppColors.textPrimary,
-                    size: 18,
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  constraints:
-                      const BoxConstraints(minWidth: 40, minHeight: 40),
-                  padding: const EdgeInsets.all(8),
-                ),
-              ),
-              Expanded(
-                child: Center(
-                  child: Text(
-                    'Thêm giao dịch',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 40),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Compact Tab Bar
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: TabBar(
-              controller: _tabController,
-              indicator: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primary.withValues(alpha: 0.9),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.25),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              labelColor: Colors.white,
-              unselectedLabelColor: AppColors.textSecondary,
-              dividerColor: Colors.transparent,
-              overlayColor: WidgetStateProperty.all(Colors.transparent),
-              splashFactory: NoSplash.splashFactory,
-              labelStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-              labelPadding: const EdgeInsets.symmetric(vertical: 6),
-              tabs: [
-                Tab(
-                  height: 20,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.edit_outlined, size: 16),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'Nhập thường',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Tab(
-                  height: 20,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.camera_alt_outlined, size: 16),
-                      const SizedBox(width: 6),
-                      Flexible(
-                        child: Text(
-                          'Scan hóa đơn',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCompactManualInputTab() {
-    return Form(
-      key: _formKey,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // AI Auto-fill hint banner
-            if (_showAiFilledHint) _buildAiFilledBanner(),
-            
-            TransactionTypeSelector(
-              selectedType: _selectedType,
-              onTypeChanged: (type) {
-                if (type != _selectedType) {
-                  _logger.d('🔄 Transaction type changed from ${_selectedType.value} to ${type.value}');
-                  setState(() {
-                    _selectedType = type;
-                    _currentTransactionType = type; // Keep current type in sync
-                    _selectedCategory = null;
-                    // Reset error state when switching types
-                    _categoriesError = null;
-                    // Clear AI tracking when user manually changes type
-                    _aiFilledFields.remove('type');
-                    if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
-                  });
-                  _logger.d('📋 Loading categories for type: ${type.value}');
-                  _loadCategories();
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            TransactionAmountInput(
-              controller: _amountController,
-              onChanged: (value) {
-                _validateAmountRealTime(value);
-                // Clear AI tracking when user manually edits
-                _aiFilledFields.remove('amount');
-                if (_aiFilledFields.isEmpty) {
-                  setState(() => _showAiFilledHint = false);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-            EnhancedCategorySelector(
-              selectedCategory: _selectedCategory,
-              categories: _categories,
-              isLoading: _isCategoriesLoading,
-              errorMessage: _categoriesError,
-              onCategoryChanged: (category) {
-                setState(() {
-                  _selectedCategory = category;
-                  // Clear AI tracking when user manually selects category
-                  _aiFilledFields.remove('category');
-                  if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
-                });
-              },
-              onRetry: _retryLoadCategories,
-              transactionType: _currentTransactionType,
-              transactionNote:
-                  _noteController.text.isNotEmpty ? _noteController.text : null,
-              transactionTime: _selectedDate,
-            ),
-            // Debug button to create default categories
-            if (_categories.isEmpty && !_isCategoriesLoading)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        TextButton.icon(
-                          onPressed: () async {
-                            try {
-                              await _categoryService.createDefaultCategories();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Đã tạo danh mục mặc định')),
-                              );
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Lỗi tạo danh mục: $e')),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.add_circle_outline),
-                          label: const Text('Tạo danh mục'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _debugAllCategories,
-                          icon: const Icon(Icons.bug_report),
-                          label: const Text('Debug'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-                    // Show current type info
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      margin: const EdgeInsets.only(top: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue[200]!),
-                      ),
-                      child: Text(
-                        'Current type: ${_selectedType.value}\nCategories loaded: ${_categories.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue[800],
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 16),
-            TransactionDateSelector(
-              selectedDate: _selectedDate,
-              onDateChanged: (date) {
-                setState(() {
-                  _selectedDate = date;
-                  // Clear AI tracking when user manually changes date
-                  _aiFilledFields.remove('date');
-                  if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            TransactionNoteInput(
-              controller: _noteController,
-            ),
-            const SizedBox(height: 20),
-            EnhancedSaveButton(
-              isLoading: _isLoading,
-              onSave: _saveTransaction,
-              icon: Icons.save,
-            ),
-          ],
-        ),
-      ),
+    return TransactionManualForm(
+      formKey: _formKey,
+      logger: _logger,
+      amountController: _amountController,
+      noteController: _noteController,
+      selectedType: _selectedType,
+      selectedCategory: _selectedCategory,
+      selectedDate: _selectedDate,
+      categories: _categories,
+      isCategoriesLoading: _isCategoriesLoading,
+      categoriesError: _categoriesError,
+      isLoading: _isLoading,
+      aiFilledFields: _aiFilledFields,
+      showAiFilledHint: _showAiFilledHint,
+      categoryService: _categoryService,
+      currentTransactionType: _currentTransactionType,
+      onTypeChanged: (type) {
+        setState(() {
+          _selectedType = type;
+          _currentTransactionType = type;
+          _selectedCategory = null;
+          _categoriesError = null;
+          _aiFilledFields.remove('type');
+          if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
+        });
+        _logger.d('📋 Loading categories for type: ${type.value}');
+        _loadCategories();
+      },
+      onAmountChanged: (value) {
+        _validateAmountRealTime(value);
+        _aiFilledFields.remove('amount');
+        if (_aiFilledFields.isEmpty) {
+          setState(() => _showAiFilledHint = false);
+        }
+      },
+      onCategoryChanged: (category) {
+        setState(() {
+          _selectedCategory = category;
+          _aiFilledFields.remove('category');
+          if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
+        });
+      },
+      onRetryLoadCategories: _retryLoadCategories,
+      onDateChanged: (date) {
+        setState(() {
+          _selectedDate = date;
+          _aiFilledFields.remove('date');
+          if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
+        });
+      },
+      onSaveTransaction: _saveTransaction,
+      onDebugAllCategories: _debugAllCategories,
+      onDismissAiBanner: () {
+        setState(() {
+          _showAiFilledHint = false;
+          _aiFilledFields.clear();
+        });
+      },
     );
   }
 
@@ -1023,106 +801,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     } catch (e) {
       _logger.e('Error getting recent transactions: $e');
       return [];
-    }
-  }
-
-  /// Build AI auto-fill banner với animation
-  Widget _buildAiFilledBanner() {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.primary.withValues(alpha: 0.1),
-            AppColors.primary.withValues(alpha: 0.05),
-          ],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: const Icon(
-              Icons.auto_awesome,
-              color: Colors.white,
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'AI đã điền tự động',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-                Text(
-                  'Các trường: ${_aiFilledFields.map((field) => _getFieldDisplayName(field)).join(', ')}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _showAiFilledHint = false;
-                _aiFilledFields.clear();
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Icon(
-                Icons.close,
-                color: AppColors.primary,
-                size: 16,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Get display name for AI filled fields
-  String _getFieldDisplayName(String field) {
-    switch (field) {
-      case 'amount':
-        return 'Số tiền';
-      case 'note':
-        return 'Ghi chú';
-      case 'type':
-        return 'Loại giao dịch';
-      case 'date':
-        return 'Ngày';
-      case 'category':
-        return 'Danh mục';
-      default:
-        return field;
     }
   }
 
