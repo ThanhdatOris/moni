@@ -416,7 +416,7 @@ class _FullChatScreenState extends State<FullChatScreen> {
     });
     
     if (conversationListExists) {
-      print('🚫 DEBUG: ConversationListScreen already exists in stack, not pushing');
+      // ConversationListScreen already exists in stack, not pushing
       return;
     }
     
@@ -433,12 +433,12 @@ class _FullChatScreenState extends State<FullChatScreen> {
     try {
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
-        print('✅ DEBUG: Successfully popped back');
+        // Successfully popped back
       } else {
-        print('⚠️ DEBUG: Cannot pop, navigator stack is empty');
+        // Cannot pop, navigator stack is empty
       }
     } catch (e) {
-      print('❌ DEBUG: Error in navigation: $e');
+      // Error in navigation: $e
     }
   }
 
@@ -462,9 +462,9 @@ class _FullChatScreenState extends State<FullChatScreen> {
       // ✅ NEW: Load chat history để hiển thị welcome message nếu cần
       await _loadChatHistory();
       
-      print('✅ DEBUG: Created new conversation: $newConversationId');
+      // Created new conversation: $newConversationId
     } catch (e) {
-      print('❌ DEBUG: Error creating new conversation: $e');
+      // Error creating new conversation: $e
       
       // Fallback to old behavior if conversation creation fails
       setState(() {

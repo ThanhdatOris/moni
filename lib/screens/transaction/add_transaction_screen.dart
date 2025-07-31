@@ -17,7 +17,7 @@ import '../../services/transaction_validation_service.dart';
 import '../../utils/formatting/currency_formatter.dart';
 import '../../widgets/advanced_validation_widgets.dart';
 import '../../widgets/duplicate_warning_dialog.dart';
-import '../../widgets/enhanced_category_selector.dart';
+import 'widgets/enhanced_category_selector.dart';
 import '../../widgets/enhanced_save_button.dart';
 import '../../widgets/spending_limit_widgets.dart';
 import 'widgets/transaction_ai_scan_tab.dart';

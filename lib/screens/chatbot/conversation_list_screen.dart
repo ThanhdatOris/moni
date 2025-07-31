@@ -357,14 +357,18 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
             onPressed: () async {
               final newTitle = controller.text.trim();
               if (newTitle.isNotEmpty) {
+                // Cache context trước async operations
+                final navigator = Navigator.of(context);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                
                 try {
                   await _conversationService.updateConversation(
                     conversationId: conversation.conversationId,
                     title: newTitle,
                   );
                   if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    navigator.pop();
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(
                         content: Text('✅ Đã đổi tên thành công'),
                         backgroundColor: Colors.green,
@@ -373,8 +377,8 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                   }
                 } catch (e) {
                   if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    navigator.pop();
+                    scaffoldMessenger.showSnackBar(
                       SnackBar(
                         content: Text('❌ Lỗi đổi tên: $e'),
                         backgroundColor: AppColors.error,
@@ -407,12 +411,16 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              // Cache context trước async operations
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              
               try {
                 await _conversationService
                     .deleteConversation(conversation.conversationId);
                 if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
                       content: Text('✅ Đã xóa cuộc hội thoại'),
                       backgroundColor: Colors.green,
@@ -421,8 +429,8 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                 }
               } catch (e) {
                 if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text('❌ Lỗi xóa cuộc hội thoại: $e'),
                       backgroundColor: AppColors.error,
@@ -455,11 +463,15 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
+              // Cache context trước async operations
+              final navigator = Navigator.of(context);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              
               try {
                 await _conversationService.deleteAllConversations();
                 if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
                       content: Text('✅ Đã xóa tất cả cuộc hội thoại'),
                       backgroundColor: Colors.green,
@@ -468,8 +480,8 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                 }
               } catch (e) {
                 if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  navigator.pop();
+                  scaffoldMessenger.showSnackBar(
                     SnackBar(
                       content: Text('❌ Lỗi xóa tất cả cuộc hội thoại: $e'),
                       backgroundColor: AppColors.error,

@@ -110,7 +110,7 @@ class ChatMessageWidget extends StatelessWidget {
                           message.transactionId != null)
                         TextButton.icon(
                           onPressed: () {
-                            print('🔧 DEBUG: Attempting to edit transaction: ${message.transactionId}');
+                            // Attempting to edit transaction: ${message.transactionId}
                             _editTransaction(context, message.transactionId!);
                           },
                           icon: const Icon(Icons.edit, size: 16),
@@ -241,19 +241,14 @@ class ChatMessageWidget extends StatelessWidget {
   }
 
   void _editTransaction(BuildContext context, String transactionId) async {
-    print('🔧 DEBUG: Starting _editTransaction with ID: $transactionId');
     
     try {
       // Lấy thông tin giao dịch từ service
       final transactionService = GetIt.instance<TransactionService>();
-      print('🔧 DEBUG: Got TransactionService instance');
       
       final transaction =
           await transactionService.getTransaction(transactionId);
-      print('🔧 DEBUG: Retrieved transaction: ${transaction?.transactionId}');
-
       if (transaction == null) {
-        print('❌ DEBUG: Transaction not found for ID: $transactionId');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -284,7 +279,7 @@ class ChatMessageWidget extends StatelessWidget {
 
       // Navigate đến màn hình chi tiết giao dịch (tab Edit)
       if (context.mounted) {
-        print('🔧 DEBUG: Navigating to transaction detail screen');
+        // Navigating to transaction detail screen
         final result = await Navigator.push(
           context,
           MaterialPageRoute(
@@ -297,7 +292,7 @@ class ChatMessageWidget extends StatelessWidget {
 
         // Nếu có kết quả trả về (giao dịch đã được cập nhật)
         if (result != null && context.mounted) {
-          print('✅ DEBUG: Transaction updated successfully');
+          // Transaction updated successfully
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Row(

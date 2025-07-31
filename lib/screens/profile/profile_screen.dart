@@ -351,7 +351,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               isFirst: isFirst,
               isLast: isLast,
             );
-          }).toList(),
+          }),
         ],
       ),
     );
