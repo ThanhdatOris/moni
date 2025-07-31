@@ -652,7 +652,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
       context,
       MaterialPageRoute(
         builder: (context) => AddEditCategoryV2Screen(
-          transactionType: _selectedType,
+          initialTransactionType: _selectedType,
         ),
       ),
     );
@@ -673,7 +673,7 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
       MaterialPageRoute(
         builder: (context) => AddEditCategoryV2Screen(
           category: category,
-          transactionType: _selectedType,
+          initialTransactionType: category.type,
         ),
       ),
     );
