@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
@@ -351,11 +350,6 @@ class _TransactionScanResultState extends State<TransactionScanResult> {
     );
   }
 
-  String _formatAmount(dynamic amount) {
-    if (amount == null) return '';
-    return amount.toString().replaceAll('.0', '');
-  }
-
   DateTime _parseDate(String? dateStr) {
     if (dateStr == null) return DateTime.now();
     try {
@@ -375,22 +369,6 @@ class _TransactionScanResultState extends State<TransactionScanResult> {
       );
     } catch (e) {
       return null;
-    }
-  }
-
-  Future<void> _selectDate() async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now(),
-    );
-
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-      });
-      _updateResult();
     }
   }
 

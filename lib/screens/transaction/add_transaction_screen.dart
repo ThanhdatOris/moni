@@ -9,7 +9,6 @@ import '../../constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/advanced_validation_service.dart';
-import '../../services/ai_processor_service.dart';
 import '../../services/category_service.dart';
 import '../../services/duplicate_detection_service.dart';
 import '../../services/spending_limit_service.dart';
@@ -53,7 +52,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   bool _isLoading = false;
   bool _isCategoriesLoading = false;
   String? _categoriesError;
-  Map<String, dynamic>? _scanResults;
 
   // AI auto-fill tracking for UI enhancement
   Set<String> _aiFilledFields = {};
@@ -62,7 +60,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   final GetIt _getIt = GetIt.instance;
   late final TransactionService _transactionService;
   late final CategoryService _categoryService;
-  late final AIProcessorService _aiProcessorService;
 
   // Stream subscriptions
   StreamSubscription<List<CategoryModel>>? _categoriesSubscription;
@@ -75,7 +72,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     _tabController = TabController(length: 2, vsync: this);
     _transactionService = _getIt<TransactionService>();
     _categoryService = _getIt<CategoryService>();
-    _aiProcessorService = _getIt<AIProcessorService>();
     
     // Initialize current type to match selected type
     _currentTransactionType = _selectedType;
@@ -569,9 +565,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   Widget _buildScanReceiptTab() {
     return TransactionAiScanTab(
       onScanComplete: (results) async {
-        setState(() {
-          _scanResults = results;
-        });
         // Tự động điền dữ liệu vào form thủ công
         await _applyScanResults(results);
         
@@ -606,7 +599,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           }
         });
       },
-      onScanSaved: _saveScannedTransaction,
     );
   }
 
@@ -960,78 +952,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Đã lưu giao dịch thành công!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context, transaction);
-      }
-    } catch (e) {
-      if (mounted) {
-        String errorMessage = 'Lỗi lưu giao dịch: $e';
-
-        if (e.toString().contains('Timeout')) {
-          errorMessage =
-              'Kết nối bị timeout. Vui lòng kiểm tra mạng và thử lại.';
-        } else if (e.toString().contains('permission-denied')) {
-          errorMessage = 'Không có quyền thực hiện thao tác này.';
-        } else if (e.toString().contains('network')) {
-          errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra internet.';
-        }
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _saveScannedTransaction() async {
-    if (_scanResults == null) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        throw Exception('Người dùng chưa đăng nhập');
-      }
-
-      // Validate scan result trước
-      final validation = _aiProcessorService.validateScanResult(_scanResults!);
-      if (!validation['isValid']) {
-        final errors = validation['errors'] as List<String>;
-        throw Exception('Dữ liệu scan không hợp lệ: ${errors.join(', ')}');
-      }
-
-      // Map scan result thành TransactionModel
-      final transaction = await _aiProcessorService.mapScanResultToTransaction(
-        _scanResults!,
-        currentUser.uid,
-      );
-
-      await Future.any([
-        _transactionService.createTransaction(transaction),
-        Future.delayed(const Duration(seconds: 30), () {
-          throw Exception('Timeout: Lưu giao dịch mất quá nhiều thời gian.');
-        }),
-      ]);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã lưu giao dịch từ scan thành công!'),
             backgroundColor: Colors.green,
           ),
         );

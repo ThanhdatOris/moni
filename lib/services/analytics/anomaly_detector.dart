@@ -47,7 +47,7 @@ class AnomalyDetector extends BaseService {
 
       // Combine all anomalies
       for (final anomalyList in futures) {
-        anomalies.addAll(anomalyList as List<SpendingAnomaly>);
+        anomalies.addAll(anomalyList);
       }
 
       // Sort by severity and confidence

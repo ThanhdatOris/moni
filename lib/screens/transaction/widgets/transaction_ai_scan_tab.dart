@@ -10,16 +10,13 @@ import '../../../models/transaction_model.dart';
 import '../../../services/ai_processor_service.dart';
 import '../../../services/category_service.dart';
 import 'transaction_image_picker.dart';
-import 'transaction_scan_result.dart';
 
 class TransactionAiScanTab extends StatefulWidget {
   final Function(Map<String, dynamic>) onScanComplete;
-  final VoidCallback onScanSaved;
 
   const TransactionAiScanTab({
     super.key,
     required this.onScanComplete,
-    required this.onScanSaved,
   });
 
   @override
@@ -109,13 +106,7 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
           ] else if (_isProcessingImage) ...[
             _buildProcessingCard(),
           ] else if (_scanResults != null) ...[
-            TransactionScanResult(
-              scanResult: _scanResults!,
-              categories: _categories,
-              onResultEdited: _handleResultEdited,
-              onSave: widget.onScanSaved,
-              onRescan: _resetScan,
-            ),
+            _buildScanCompleteCard(),
           ] else if (_errorMessage != null) ...[
             _buildErrorCard(),
           ],
@@ -479,11 +470,174 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
     }
   }
 
-  void _handleResultEdited(Map<String, dynamic> updatedResult) {
-    setState(() {
-      _scanResults = updatedResult;
-    });
-    widget.onScanComplete(updatedResult);
+  Widget _buildScanCompleteCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.success.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.success.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.success,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.check_circle,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Scan thành công!',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.success,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Dữ liệu đã được điền tự động vào form',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          
+          // Show basic scan info
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: const Color(0xFFE2E8F0),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              children: [
+                _buildInfoRow('Số tiền:', _formatAmount(_scanResults!['amount'])),
+                const SizedBox(height: 8),
+                _buildInfoRow('Loại:', _scanResults!['type'] == 'income' ? 'Thu nhập' : 'Chi tiêu'),
+                const SizedBox(height: 8),
+                _buildInfoRow('Ghi chú:', _scanResults!['note'] ?? _scanResults!['description'] ?? ''),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Action button
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _resetScan,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Scan lại'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.all(16),
+                    side: BorderSide(color: AppColors.textSecondary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    // Chuyển về tab manual để chỉnh sửa
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.edit, size: 18),
+                  label: const Text('Chỉnh sửa'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.all(16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatAmount(dynamic amount) {
+    if (amount == null) return '0';
+    if (amount is String) {
+      return amount;
+    }
+    if (amount is num) {
+      return '${amount.toInt().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} VNĐ';
+    }
+    return amount.toString();
   }
 
   void _resetScan() {

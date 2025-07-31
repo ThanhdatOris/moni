@@ -1,7 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../constants/app_colors.dart';
@@ -9,51 +6,59 @@ import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/category_service.dart';
 import '../../utils/helpers/category_icon_helper.dart';
-import '../../widgets/category_icon_picker.dart';
 
-class AddEditCategoryScreen extends StatefulWidget {
+class AddEditCategoryV2Screen extends StatefulWidget {
   final CategoryModel? category;
   final TransactionType transactionType;
 
-  const AddEditCategoryScreen({
+  const AddEditCategoryV2Screen({
     super.key,
     this.category,
     required this.transactionType,
   });
 
   @override
-  State<AddEditCategoryScreen> createState() => _AddEditCategoryScreenState();
+  State<AddEditCategoryV2Screen> createState() => _AddEditCategoryV2ScreenState();
 }
 
-class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
+class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final GetIt _getIt = GetIt.instance;
   late final CategoryService _categoryService;
+
+  // Animation controllers
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   // Form data
   String? _selectedIcon;
-  CategoryIconType _selectedIconType = CategoryIconType.material;
-  Color _selectedColor = const Color(0xFF607D8B);
+  CategoryIconType _selectedIconType = CategoryIconType.emoji;
+  Color _selectedColor = const Color(0xFF2196F3);
   CategoryModel? _selectedParent;
-  List<CategoryModel> _parentCategories = [];
+  List<CategoryModel> _availableParents = [];
+  
+  // UI state
   bool _isLoading = false;
   bool _isLoadingParents = false;
+  bool _showParentSelector = false;
 
-  // Predefined colors
-  final List<Color> _availableColors = [
-    const Color(0xFFFF6B35), // Orange
+  // Predefined colors with better selection
+  final List<Color> _colorPalette = [
     const Color(0xFF2196F3), // Blue
-    const Color(0xFF9C27B0), // Purple
-    const Color(0xFFFF9800), // Amber
-    const Color(0xFFF44336), // Red
     const Color(0xFF4CAF50), // Green
+    const Color(0xFFFF9800), // Orange
+    const Color(0xFFF44336), // Red
+    const Color(0xFF9C27B0), // Purple
     const Color(0xFF00BCD4), // Cyan
     const Color(0xFFFFD700), // Gold
-    const Color(0xFF607D8B), // Blue Grey
     const Color(0xFF795548), // Brown
-    const Color(0xFF9E9E9E), // Grey
+    const Color(0xFF607D8B), // Blue Grey
     const Color(0xFF3F51B5), // Indigo
+    const Color(0xFFE91E63), // Pink
+    const Color(0xFF8BC34A), // Light Green
   ];
 
   bool get isEditing => widget.category != null;
@@ -61,113 +66,90 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
   @override
   void initState() {
     super.initState();
-    _categoryService = _getIt<CategoryService>();
+    _categoryService = GetIt.instance<CategoryService>();
+    
+    // Initialize animations
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 600),
+      vsync: this,
+    );
 
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeOutCubic),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
+
+    _initializeData();
+    _loadAvailableParents();
+    
+    // Start animations
+    _fadeController.forward();
+    _slideController.forward();
+  }
+
+  void _initializeData() {
     if (isEditing) {
-      _initializeForEditing();
+      final category = widget.category!;
+      _nameController.text = category.name;
+      _selectedIcon = category.icon;
+      _selectedIconType = category.iconType;
+      _selectedColor = Color(category.color);
+      _showParentSelector = category.parentId != null;
     } else {
-      _initializeForAdding();
+      // Set smart defaults based on transaction type
+      if (widget.transactionType == TransactionType.expense) {
+        _selectedIcon = '🛒';
+        _selectedColor = const Color(0xFFFF9800); // Orange
+      } else {
+        _selectedIcon = '💰';
+        _selectedColor = const Color(0xFF4CAF50); // Green
+      }
     }
-
-    _loadParentCategories();
   }
 
-  void _initializeForEditing() {
-    final category = widget.category!;
-    _nameController.text = category.name;
-    _selectedIcon = category.icon;
-    _selectedIconType = category.iconType;
-    _selectedColor = Color(category.color);
-  }
-
-  void _initializeForAdding() {
-    // Set default icon based on transaction type
-    if (widget.transactionType == TransactionType.expense) {
-      _selectedIcon = '🍽️';
-      _selectedIconType = CategoryIconType.emoji;
-    } else {
-      _selectedIcon = '💼';
-      _selectedIconType = CategoryIconType.emoji;
-    }
-    _selectedColor = _availableColors.first;
-  }
-
-  Future<void> _loadParentCategories() async {
-    setState(() {
-      _isLoadingParents = true;
-    });
+  Future<void> _loadAvailableParents() async {
+    setState(() => _isLoadingParents = true);
 
     try {
       final categories = await _categoryService
           .getCategories(type: widget.transactionType)
           .first;
 
-      setState(() {
-        // Chỉ lấy parent categories và sắp xếp theo tên
-        _parentCategories = categories
-            .where((c) =>
-                c.isParentCategory &&
-                (!isEditing || c.categoryId != widget.category!.categoryId))
-            .toList()
-          ..sort((a, b) => a.name.compareTo(b.name));
+      final parents = categories
+          .where((c) => c.isParentCategory && 
+                       (!isEditing || c.categoryId != widget.category!.categoryId))
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
 
-        // Set selected parent if editing and has parent
+      setState(() {
+        _availableParents = parents;
+        
+        // Set selected parent if editing
         if (isEditing && widget.category!.parentId != null) {
-          _selectedParent = _parentCategories
+          _selectedParent = parents
               .where((p) => p.categoryId == widget.category!.parentId)
               .firstOrNull;
-          
-          // Nếu không tìm thấy parent trong danh sách hiện tại, tải lại
-          if (_selectedParent == null) {
-            _loadSpecificParent(widget.category!.parentId!);
-          }
         }
-
-        _isLoadingParents = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoadingParents = false;
-      });
-      _showErrorSnackBar('Lỗi tải danh sách danh mục cha: $e');
-    }
-  }
-
-  /// Load specific parent category nếu không có trong danh sách
-  Future<void> _loadSpecificParent(String parentId) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('categories')
-          .doc(parentId)
-          .get();
-
-      if (doc.exists) {
-        final parentCategory = CategoryModel.fromMap(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
         
-        setState(() {
-          _selectedParent = parentCategory;
-          // Thêm vào danh sách nếu chưa có
-          if (!_parentCategories.any((p) => p.categoryId == parentId)) {
-            _parentCategories.add(parentCategory);
-            _parentCategories.sort((a, b) => a.name.compareTo(b.name));
-          }
-        });
-      }
+        _isLoadingParents = false;
+      });
     } catch (e) {
-      _showErrorSnackBar('Lỗi tải thông tin danh mục cha: $e');
+      setState(() => _isLoadingParents = false);
+      _showError('Lỗi tải danh sách danh mục: $e');
     }
   }
 
   @override
   void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
     _nameController.dispose();
     super.dispose();
   }
@@ -176,23 +158,280 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: _buildAppBar(),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildAppBar(),
+            Expanded(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: _buildBody(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.grey100,
+              padding: const EdgeInsets.all(8),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isEditing ? 'Sửa danh mục' : 'Thêm danh mục mới',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                Text(
+                  widget.transactionType == TransactionType.expense 
+                      ? 'Danh mục chi tiêu' 
+                      : 'Danh mục thu nhập',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.grey600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _buildPreviewCard(),
+          const SizedBox(height: 20),
+          _buildNameSection(),
+          const SizedBox(height: 20),
+          _buildIconSection(),
+          const SizedBox(height: 20),
+          _buildColorSection(),
+          const SizedBox(height: 20),
+          _buildParentSection(),
+          const SizedBox(height: 32),
+          _buildSaveButton(),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewCard() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            _selectedColor.withValues(alpha: 0.1),
+            _selectedColor.withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: _selectedColor.withValues(alpha: 0.3),
+          width: 2,
+        ),
+      ),
+      child: Row(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _selectedColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: _selectedIcon != null
+                ? _buildIconWidget(_selectedIcon!, _selectedIconType)
+                : Icon(
+                    Icons.category_rounded,
+                    color: _selectedColor,
+                    size: 24,
+                  ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _nameController.text.isEmpty 
+                      ? 'Tên danh mục...' 
+                      : _nameController.text,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: _nameController.text.isEmpty 
+                        ? AppColors.grey400 
+                        : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    if (_selectedParent != null) ...[
+                      Text(
+                        'Thuộc: ${_selectedParent!.name}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.grey600,
+                        ),
+                      ),
+                    ] else ...[
+                      Text(
+                        'Danh mục độc lập',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.grey600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNameSection() {
+    return _buildSection(
+      title: 'Tên danh mục',
+      icon: Icons.label_outline,
+      child: TextFormField(
+        controller: _nameController,
+        enabled: !(isEditing && widget.category!.isDefault),
+        decoration: InputDecoration(
+          hintText: 'Nhập tên danh mục...',
+          prefixIcon: Icon(Icons.edit_outlined, color: AppColors.grey600),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.grey200),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.grey200),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: _selectedColor, width: 2),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: AppColors.grey300),
+          ),
+          filled: true,
+          fillColor: (isEditing && widget.category!.isDefault) 
+              ? AppColors.grey100 
+              : Colors.white,
+        ),
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) {
+            return 'Vui lòng nhập tên danh mục';
+          }
+          if (value.trim().length < 2) {
+            return 'Tên danh mục phải có ít nhất 2 ký tự';
+          }
+          return null;
+        },
+        onChanged: (value) => setState(() {}), // Update preview
+      ),
+    );
+  }
+
+  Widget _buildIconSection() {
+    final isDefaultCategory = isEditing && widget.category!.isDefault;
+    
+    return _buildSection(
+      title: 'Biểu tượng',
+      icon: Icons.emoji_emotions_outlined,
+      child: GestureDetector(
+        onTap: isDefaultCategory ? null : _showIconPicker,
+        child: Container(
           padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          decoration: BoxDecoration(
+            color: isDefaultCategory ? AppColors.grey100 : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.grey200),
+          ),
+          child: Row(
             children: [
-              _buildNameField(),
-              const SizedBox(height: 24),
-              _buildIconSelector(),
-              const SizedBox(height: 24),
-              _buildColorSelector(),
-              const SizedBox(height: 24),
-              _buildParentSelector(),
-              const SizedBox(height: 32),
-              _buildSaveButton(),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _selectedColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: _selectedIcon != null
+                    ? _buildIconWidget(_selectedIcon!, _selectedIconType)
+                    : Icon(Icons.add, color: _selectedColor),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _selectedIcon != null ? 'Biểu tượng đã chọn' : 'Chọn biểu tượng',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: isDefaultCategory ? AppColors.grey600 : AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      'Nhấn để thay đổi',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.grey600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: AppColors.grey400),
             ],
           ),
         ),
@@ -200,490 +439,192 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Text(
-        isEditing ? 'Sửa danh mục' : 'Thêm danh mục',
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
+  Widget _buildColorSection() {
+    final isDefaultCategory = isEditing && widget.category!.isDefault;
+    
+    return _buildSection(
+      title: 'Màu sắc',
+      icon: Icons.palette_outlined,
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 6,
+          childAspectRatio: 1,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
         ),
-      ),
-      backgroundColor: Colors.white,
-      foregroundColor: AppColors.textPrimary,
-      elevation: 0,
-      systemOverlayStyle: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.dark,
-      ),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new),
-        onPressed: () => Navigator.pop(context),
-      ),
-    );
-  }
-
-  Widget _buildNameField() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primary.withValues(alpha:0.8),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.edit,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Tên danh mục',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: _nameController,
-            decoration: InputDecoration(
-              hintText: 'Nhập tên danh mục',
-              hintStyle: TextStyle(
-                color: AppColors.textSecondary.withValues(alpha:0.7),
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: Color(0xFFE2E8F0),
-                  width: 1,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(
-                  color: Color(0xFFE2E8F0),
-                  width: 1,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppColors.primary,
-                  width: 2,
-                ),
-              ),
-              filled: true,
-              fillColor: const Color(0xFFF8FAFC),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 16,
-              ),
-            ),
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.textPrimary,
-            ),
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Vui lòng nhập tên danh mục';
-              }
-              if (value.trim().length < 2) {
-                return 'Tên danh mục phải có ít nhất 2 ký tự';
-              }
-              return null;
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIconSelector() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primary.withValues(alpha:0.8),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.emoji_emotions,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Biểu tượng',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: _showIconPicker,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
+        itemCount: _colorPalette.length,
+        itemBuilder: (context, index) {
+          final color = _colorPalette[index];
+          final isSelected = color.value == _selectedColor.value;
+          
+          return GestureDetector(
+            onTap: isDefaultCategory ? null : () => setState(() {
+              _selectedColor = color;
+            }),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: color,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: const Color(0xFFE2E8F0),
-                  width: 1,
+                  color: isSelected ? Colors.white : Colors.transparent,
+                  width: 3,
                 ),
-              ),
-              child: Row(
-                children: [
-                  if (_selectedIcon != null)
-                    CategoryIconHelper.buildIconPreview(
-                      _selectedIcon!,
-                      _selectedIconType,
-                      size: 32,
-                      isSelected: true,
-                      categoryColor: _selectedColor,
-                    )
-                  else
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.withValues(alpha:0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.grey.withValues(alpha:0.3),
-                        ),
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.grey,
-                      ),
+                boxShadow: [
+                  if (isSelected)
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.4),
+                      blurRadius: 8,
+                      spreadRadius: 2,
                     ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _selectedIcon != null
-                              ? 'Biểu tượng đã chọn'
-                              : 'Chọn biểu tượng',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _selectedIconType == CategoryIconType.emoji
-                              ? 'Emoji'
-                              : 'Material Icon',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.keyboard_arrow_right,
-                    color: AppColors.textSecondary,
-                  ),
                 ],
               ),
+              child: isSelected
+                  ? const Icon(Icons.check, color: Colors.white, size: 20)
+                  : null,
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildColorSelector() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+  Widget _buildParentSection() {
+    return _buildSection(
+      title: 'Danh mục cha',
+      icon: Icons.folder_outlined,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primary.withValues(alpha:0.8),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.palette,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Màu sắc',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: _availableColors.map((color) {
-              final isSelected = _selectedColor == color;
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _selectedColor = color;
-                  });
-                },
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.textPrimary
-                          : Colors.transparent,
-                      width: 3,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withValues(alpha:0.3),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+          // Toggle switch
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.grey200),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Có danh mục cha',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'Tạo phân cấp cho danh mục',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.grey600,
+                        ),
                       ),
                     ],
                   ),
-                  child: isSelected
-                      ? const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 20,
-                        )
-                      : null,
                 ),
-              );
-            }).toList(),
+                Switch(
+                  value: _showParentSelector,
+                  onChanged: (value) async {
+                    setState(() {
+                      _showParentSelector = value;
+                      if (!value) {
+                        _selectedParent = null;
+                      }
+                    });
+                    
+                    // Load parents when toggled on
+                    if (value && _availableParents.isEmpty) {
+                      await _loadAvailableParents();
+                    }
+                  },
+                  activeColor: _selectedColor,
+                ),
+              ],
+            ),
           ),
+          
+          // Parent selector
+          if (_showParentSelector) ...[
+            const SizedBox(height: 16),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              child: _buildParentDropdown(),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildParentSelector() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha:0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+  Widget _buildParentDropdown() {
+    if (_isLoadingParents) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.grey200),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return DropdownButtonFormField<CategoryModel>(
+      value: _selectedParent,
+      decoration: InputDecoration(
+        hintText: 'Chọn danh mục cha...',
+        prefixIcon: Icon(Icons.folder_outlined, color: AppColors.grey600),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: AppColors.grey200),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: AppColors.grey200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: _selectedColor, width: 2),
+        ),
+        filled: true,
+        fillColor: Colors.white,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      items: _availableParents.map((parent) {
+        return DropdownMenuItem<CategoryModel>(
+          value: parent,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary,
-                      AppColors.primary.withValues(alpha:0.8),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.folder_outlined,
-                  color: Colors.white,
-                  size: 20,
-                ),
+              CategoryIconHelper.buildIcon(
+                parent,
+                size: 20,
+                color: Color(parent.color),
+                showBackground: true,
+                isCompact: true,
               ),
               const SizedBox(width: 12),
-              Text(
-                'Danh mục cha (tùy chọn)',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+              Flexible(
+                child: Text(
+                  parent.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (_isLoadingParents)
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
-          else
-            DropdownButtonFormField<CategoryModel>(
-              value: _selectedParent,
-              decoration: InputDecoration(
-                hintText: 'Chọn danh mục cha',
-                hintStyle: TextStyle(
-                  color: AppColors.textSecondary.withValues(alpha:0.7),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFE2E8F0),
-                    width: 1,
-                  ),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFE2E8F0),
-                    width: 1,
-                  ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: AppColors.primary,
-                    width: 2,
-                  ),
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-              ),
-              items: [
-                const DropdownMenuItem<CategoryModel>(
-                  value: null,
-                  child: Text('Không có danh mục cha'),
-                ),
-                ..._parentCategories.map((parent) {
-                  return DropdownMenuItem<CategoryModel>(
-                    value: parent,
-                    child: Row(
-                      children: [
-                        CategoryIconHelper.buildIcon(
-                          parent,
-                          size: 20,
-                          color: Color(parent.color),
-                          showBackground: true,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            parent.name,
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-              ],
-              onChanged: (value) {
-                setState(() {
-                  _selectedParent = value;
-                });
-              },
-              dropdownColor: Colors.white,
-              icon: Icon(
-                Icons.keyboard_arrow_down,
-                color: AppColors.textSecondary,
-              ),
-            ),
-        ],
-      ),
+        );
+      }).toList(),
+      onChanged: (value) => setState(() => _selectedParent = value),
+      dropdownColor: Colors.white,
     );
   }
 
@@ -693,37 +634,82 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
       child: ElevatedButton(
         onPressed: _isLoading ? null : _saveCategory,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: _selectedColor,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
           elevation: 0,
+          shadowColor: _selectedColor.withValues(alpha: 0.3),
         ),
         child: _isLoading
-            ? const CircularProgressIndicator(
-                color: Colors.white,
-                strokeWidth: 2,
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
               )
             : Text(
                 isEditing ? 'Cập nhật danh mục' : 'Tạo danh mục',
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
       ),
     );
   }
 
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _selectedColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                color: _selectedColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        child,
+      ],
+    );
+  }
+
   void _showIconPicker() async {
-    final result = await CategoryIconPickerHelper.showIconPicker(
+    final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      currentIcon: _selectedIcon,
-      currentIconType: _selectedIconType,
-      transactionType: widget.transactionType,
-      categoryColor: _selectedColor,
+      builder: (context) => _IconPickerDialog(
+        selectedIcon: _selectedIcon,
+        selectedIconType: _selectedIconType,
+        selectedColor: _selectedColor,
+      ),
     );
 
     if (result != null) {
@@ -735,21 +721,24 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
   }
 
   Future<void> _saveCategory() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedIcon == null) {
-      _showErrorSnackBar('Vui lòng chọn biểu tượng');
+    // Prevent editing default categories
+    if (isEditing && widget.category!.isDefault) {
+      _showError('Không thể chỉnh sửa danh mục mặc định');
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (!_formKey.currentState!.validate()) return;
+    if (_selectedIcon == null) {
+      _showError('Vui lòng chọn biểu tượng');
+      return;
+    }
+
+    setState(() => _isLoading = true);
 
     try {
       final now = DateTime.now();
 
       if (isEditing) {
-        // Update existing category
         final updatedCategory = widget.category!.copyWith(
           name: _nameController.text.trim(),
           icon: _selectedIcon,
@@ -761,7 +750,6 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
 
         await _categoryService.updateCategory(updatedCategory);
       } else {
-        // Create new category
         final newCategory = CategoryModel(
           categoryId: '',
           userId: '',
@@ -780,27 +768,447 @@ class _AddEditCategoryScreenState extends State<AddEditCategoryScreen> {
 
       if (mounted) {
         Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isEditing 
+                  ? '✅ Cập nhật danh mục thành công!' 
+                  : '✅ Tạo danh mục thành công!',
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e) {
-      _showErrorSnackBar(
+      _showError(
         isEditing ? 'Lỗi cập nhật danh mục: $e' : 'Lỗi tạo danh mục: $e',
       );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _showErrorSnackBar(String message) {
+  void _showError(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppColors.error,
+        backgroundColor: Colors.red,
         behavior: SnackBarBehavior.floating,
       ),
+    );
+  }
+
+  Widget _buildIconWidget(String icon, CategoryIconType iconType) {
+    switch (iconType) {
+      case CategoryIconType.emoji:
+        return Text(
+          icon,
+          style: const TextStyle(fontSize: 24),
+        );
+      case CategoryIconType.material:
+        return Icon(
+          CategoryIconHelper.getIconData(icon),
+          color: _selectedColor,
+          size: 24,
+        );
+      case CategoryIconType.custom:
+        // For now, show material icon as fallback
+        return Icon(
+          CategoryIconHelper.getIconData('category'),
+          color: _selectedColor,
+          size: 24,
+        );
+    }
+  }
+}
+
+class _IconPickerDialog extends StatefulWidget {
+  final String? selectedIcon;
+  final CategoryIconType selectedIconType;
+  final Color selectedColor;
+
+  const _IconPickerDialog({
+    this.selectedIcon,
+    required this.selectedIconType,
+    required this.selectedColor,
+  });
+
+  @override
+  State<_IconPickerDialog> createState() => _IconPickerDialogState();
+}
+
+class _IconPickerDialogState extends State<_IconPickerDialog>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  CategoryIconType _currentIconType = CategoryIconType.emoji;
+  String? _selectedIcon;
+
+  // Predefined emojis for categories
+  final List<String> _emojis = [
+    '🍕', '🛒', '🚗', '⛽', '🎬', '🧾', '🏥', '🏠', '🎓', '⚽',
+    '✈️', '🏨', '🛍️', '💪', '🐕', '👶', '🎉', '☕', '🍺', '💼',
+    '🎁', '📈', '💰', '🏦', '💴', '🏢', '💵', '💲', '📁', '🏷️',
+    '🍔', '🍜', '🍳', '🥗', '🍎', '🍌', '🍓', '🥤', '🧃', '🍹',
+    '🏋️', '🎮', '📱', '💻', '📚', '✏️', '🎨', '🎵', '📷', '🎯',
+    '🚌', '🚇', '🚲', '🛴', '⛵', '🏊', '🎿', '🧗', '🏃', '🚶',
+    '👕', '👖', '👗', '👠', '👜', '💍', '⌚', '🕶️', '🧢', '🧤',
+    '🏪', '🏬', '🎪', '🎭', '🎨', '🎼', '🎤', '🎸', '🎹', '🥁',
+    '💊', '🩺', '🧴', '🧼', '🧽', '🧹', '🔧', '🔨', '⚡', '🔥',
+    '🌟', '⭐', '💫', '🌙', '☀️', '🌈', '🍀', '🌺', '🌸', '🌼'
+  ];
+
+  // Material icons for categories
+  final List<Map<String, String>> _materialIcons = [
+    {'name': 'restaurant', 'label': 'Ăn uống'},
+    {'name': 'shopping_cart', 'label': 'Mua sắm'},
+    {'name': 'directions_car', 'label': 'Xe cộ'},
+    {'name': 'local_gas_station', 'label': 'Xăng dầu'},
+    {'name': 'movie', 'label': 'Giải trí'},
+    {'name': 'receipt', 'label': 'Hóa đơn'},
+    {'name': 'local_hospital', 'label': 'Y tế'},
+    {'name': 'home', 'label': 'Nhà ở'},
+    {'name': 'school', 'label': 'Giáo dục'},
+    {'name': 'sports_soccer', 'label': 'Thể thao'},
+    {'name': 'flight', 'label': 'Du lịch'},
+    {'name': 'hotel', 'label': 'Khách sạn'},
+    {'name': 'shopping_bag', 'label': 'Thời trang'},
+    {'name': 'fitness_center', 'label': 'Gym'},
+    {'name': 'pets', 'label': 'Thú cưng'},
+    {'name': 'child_friendly', 'label': 'Trẻ em'},
+    {'name': 'celebration', 'label': 'Lễ hội'},
+    {'name': 'local_cafe', 'label': 'Cafe'},
+    {'name': 'local_bar', 'label': 'Đồ uống'},
+    {'name': 'work', 'label': 'Công việc'},
+    {'name': 'card_giftcard', 'label': 'Quà tặng'},
+    {'name': 'trending_up', 'label': 'Đầu tư'},
+    {'name': 'attach_money', 'label': 'Tiền'},
+    {'name': 'account_balance', 'label': 'Ngân hàng'},
+    {'name': 'savings', 'label': 'Tiết kiệm'},
+    {'name': 'business', 'label': 'Doanh nghiệp'},
+    {'name': 'payment', 'label': 'Thanh toán'},
+    {'name': 'monetization_on', 'label': 'Thu nhập'},
+    {'name': 'folder', 'label': 'Thư mục'},
+    {'name': 'local_offer', 'label': 'Ưu đãi'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _currentIconType = widget.selectedIconType;
+    _selectedIcon = widget.selectedIcon;
+    
+    // Set initial tab based on icon type
+    if (_currentIconType == CategoryIconType.material) {
+      _tabController.index = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _showEmojiKeyboard() async {
+    final TextEditingController controller = TextEditingController();
+    
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Nhập emoji'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'Nhập hoặc dán emoji từ bàn phím...',
+            border: OutlineInputBorder(),
+          ),
+          maxLength: 2, // Limit to emoji length
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 24),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () {
+              final text = controller.text.trim();
+              if (text.isNotEmpty) {
+                Navigator.pop(context, text);
+              }
+            },
+            child: const Text('Chọn'),
+          ),
+        ],
+      ),
+    );
+    
+    if (result != null && result.isNotEmpty) {
+      setState(() {
+        _selectedIcon = result;
+        _currentIconType = CategoryIconType.emoji;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.9,
+        height: MediaQuery.of(context).size.height * 0.7,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Header
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Chọn biểu tượng',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Tab Bar
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundLight,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                onTap: (index) {
+                  setState(() {
+                    _currentIconType = index == 0 
+                        ? CategoryIconType.emoji 
+                        : CategoryIconType.material;
+                    _selectedIcon = null; // Reset selection when switching
+                  });
+                },
+                indicator: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                labelColor: Colors.white,
+                unselectedLabelColor: AppColors.textSecondary,
+                dividerColor: Colors.transparent,
+                overlayColor: WidgetStateProperty.all(Colors.transparent),
+                splashFactory: NoSplash.splashFactory,
+                labelStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                unselectedLabelStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                labelPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                indicatorSize: TabBarIndicatorSize.tab,
+                tabs: const [
+                  Tab(
+                    height: 20,
+                    text: 'Emoji',
+                  ),
+                  Tab(
+                    height: 20,
+                    text: 'Material',
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildEmojiGrid(),
+                  _buildMaterialIconGrid(),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Actions
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Hủy'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _selectedIcon != null
+                      ? () => Navigator.pop(context, {
+                            'icon': _selectedIcon,
+                            'iconType': _currentIconType,
+                          })
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Chọn'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmojiGrid() {
+    return Column(
+      children: [
+        // Emoji from keyboard button
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 16),
+          child: ElevatedButton.icon(
+            onPressed: _showEmojiKeyboard,
+            icon: Icon(Icons.keyboard),
+            label: Text('Chọn từ bàn phím'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.backgroundLight,
+              foregroundColor: AppColors.textPrimary,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
+        
+        // Predefined emojis grid
+        Expanded(
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 6,
+              childAspectRatio: 1,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: _emojis.length,
+            itemBuilder: (context, index) {
+              final emoji = _emojis[index];
+              final isSelected = _selectedIcon == emoji && _currentIconType == CategoryIconType.emoji;
+              
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedIcon = emoji;
+                    _currentIconType = CategoryIconType.emoji;
+                  });
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected 
+                        ? widget.selectedColor.withValues(alpha: 0.2)
+                        : AppColors.backgroundLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected 
+                          ? widget.selectedColor 
+                          : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      emoji,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMaterialIconGrid() {
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 4,
+        childAspectRatio: 1,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+      ),
+      itemCount: _materialIcons.length,
+      itemBuilder: (context, index) {
+        final iconData = _materialIcons[index];
+        final iconName = iconData['name']!;
+        final isSelected = _selectedIcon == iconName && _currentIconType == CategoryIconType.material;
+        
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _selectedIcon = iconName;
+              _currentIconType = CategoryIconType.material;
+            });
+          },
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isSelected 
+                  ? widget.selectedColor.withValues(alpha: 0.2)
+                  : AppColors.backgroundLight,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected 
+                    ? widget.selectedColor 
+                    : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  CategoryIconHelper.getIconData(iconName),
+                  color: widget.selectedColor,
+                  size: 24,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  iconData['label']!,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
