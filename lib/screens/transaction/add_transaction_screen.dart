@@ -50,7 +50,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   String? _categoriesError;
 
   // AI auto-fill tracking for UI enhancement
-  Set<String> _aiFilledFields = {};
+  final Set<String> _aiFilledFields = {};
   bool _showAiFilledHint = false;
 
   final GetIt _getIt = GetIt.instance;
@@ -130,13 +130,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       bool hasTimedOut = false;
 
       // Create new subscription with improved error handling and retry logic
-      _logger.d('🔍 Starting category subscription for type: ${_selectedType.value}');
+      _logger.d('🔍 Starting category subscription for type: $_selectedType');
       _categoriesSubscription =
           _categoryService.getCategories(type: _selectedType).listen(
         (categories) async {
           _timeoutTimer?.cancel();
           if (mounted && !hasTimedOut) {
-            _logger.d('📦 Received ${categories.length} categories for type: ${_selectedType.value}');
+            _logger.d('📦 Received ${categories.length} categories for type: $_selectedType');
             
             // If no categories found, try to create default categories
             if (categories.isEmpty) {
@@ -223,9 +223,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       // Also test optimized version
       _logger.d('🔍 Debug: Testing getCategoriesOptimized for current type...');
       _categoryService.getCategoriesOptimized(type: _selectedType).listen((categories) {
-        _logger.d('📦 Optimized method returned: ${categories.length} categories for type: ${_selectedType.value}');
+        _logger.d('📦 Optimized method returned: ${categories.length} categories for type: $_selectedType');
         for (var cat in categories) {
-          _logger.d('   - ${cat.name} (${cat.type.value})');
+          _logger.d('   - ${cat.name} (${cat.type})');
         }
       });
     } catch (e) {
@@ -304,7 +304,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           _aiFilledFields.remove('type');
           if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
         });
-        _logger.d('📋 Loading categories for type: ${type.value}');
+        _logger.d('📋 Loading categories for type: $type');
         _loadCategories();
       },
       onAmountChanged: (value) {
@@ -382,7 +382,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
   Future<void> _applyScanResults(Map<String, dynamic> scanResults) async {
     // Debug log để kiểm tra dữ liệu AI trả về
-    print('📊 AI Scan Results: $scanResults');
+    _logger.d('📊 AI Scan Results: $scanResults');
     
     _aiFilledFields.clear(); // Reset tracking
     
@@ -427,10 +427,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       final typeString = scanResults['type']?.toString().toLowerCase() ?? 'expense';
       final newType = typeString == 'income' ? TransactionType.income : TransactionType.expense;
       
-      print('🔄 AI detected type: $typeString -> $newType');
+      _logger.d('🔄 AI detected type: $typeString -> $newType');
       
       if (newType != _selectedType) {
-        print('⚡ Switching transaction type from $_selectedType to $newType');
+        _logger.d('⚡ Switching transaction type from $_selectedType to $newType');
         setState(() {
           _selectedType = newType;
           _currentTransactionType = newType; // Keep current type in sync for category selector
@@ -439,9 +439,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         _aiFilledFields.add('type');
         
         // CRITICAL: Reload categories cho type mới và đợi hoàn thành
-        print('⏳ Loading categories for $newType...');
+        _logger.d('⏳ Loading categories for $newType...');
         await _loadCategoriesForType(newType);
-        print('✅ Categories loaded for $newType');
+        _logger.d('✅ Categories loaded for $newType');
       }
 
       // Điền date với fallback an toàn
@@ -464,7 +464,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
             _aiFilledFields.add('date');
           }
         } catch (e) {
-          print('⚠️ Error parsing date: $e');
+          _logger.w('⚠️ Error parsing date: $e');
           setState(() {
             _selectedDate = DateTime.now();
           });
@@ -482,23 +482,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     
     Future.delayed(Duration(milliseconds: delayMs), () {
       if (mounted) {
-        print('🔍 Attempting to auto-select category for ${_selectedType}...');
+        _logger.d('🔍 Attempting to auto-select category for $_selectedType...');
         final categoryName = scanResults['category_name'] ?? 
                             scanResults['category_suggestion'] ??
                             scanResults['categoryHint'];
         if (categoryName != null && categoryName.toString().isNotEmpty) {
-          print('🎯 Looking for category: ${categoryName.toString()}');
+          _logger.d('🎯 Looking for category: ${categoryName.toString()}');
           final foundCategory = _findCategoryByName(categoryName.toString());
           if (foundCategory != null) {
-            print('✅ Found and selecting category: ${foundCategory.name}');
+            _logger.d('✅ Found and selecting category: ${foundCategory.name}');
             setState(() {
               _selectedCategory = foundCategory;
               _aiFilledFields.add('category');
               _showAiFilledHint = _aiFilledFields.isNotEmpty;
             });
           } else {
-            print('❌ Category not found: ${categoryName.toString()}');
-            print('📋 Available categories: ${_categories.map((c) => c.name).join(', ')}');
+            _logger.w('❌ Category not found: ${categoryName.toString()}');
+            _logger.d('📋 Available categories: ${_categories.map((c) => c.name).join(', ')}');
           }
         }
       }
@@ -511,7 +511,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     try {
       // Chỉ tìm trong categories của type hiện tại
       final currentTypeCategories = _categories.where((cat) => cat.type == _currentTransactionType).toList();
-      print('🔍 Searching in ${currentTypeCategories.length} categories of type ${_currentTransactionType}');
+      _logger.d('🔍 Searching in ${currentTypeCategories.length} categories of type $_currentTransactionType');
       
       if (currentTypeCategories.isEmpty) return null;
       
@@ -519,7 +519,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       var exactMatch = currentTypeCategories.where((category) =>
           category.name.toLowerCase() == categoryName.toLowerCase()).firstOrNull;
       if (exactMatch != null) {
-        print('✅ Found exact match: ${exactMatch.name}');
+        _logger.d('✅ Found exact match: ${exactMatch.name}');
         return exactMatch;
       }
 
@@ -528,15 +528,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           category.name.toLowerCase().contains(categoryName.toLowerCase()) ||
           categoryName.toLowerCase().contains(category.name.toLowerCase())).firstOrNull;
       if (partialMatch != null) {
-        print('✅ Found partial match: ${partialMatch.name}');
+        _logger.d('✅ Found partial match: ${partialMatch.name}');
         return partialMatch;
       }
 
       // Fallback: return first category of current type
-      print('⚠️ No match found, returning first category of type ${_currentTransactionType}');
+      _logger.w('⚠️ No match found, returning first category of type $_currentTransactionType');
       return currentTypeCategories.firstOrNull;
     } catch (e) {
-      print('❌ Error in _findCategoryByName: $e');
+      _logger.e('❌ Error in _findCategoryByName: $e');
       return null;
     }
   }
@@ -843,7 +843,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       // Try other common formats...
       return DateTime.tryParse(cleanDate);
     } catch (e) {
-      print('⚠️ Failed to parse date: $dateString');
+      _logger.w('⚠️ Failed to parse date: $dateString');
       return null;
     }
   }
@@ -877,7 +877,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         });
       }
 
-      print('🔄 Loading categories for type: ${type.value}');
+      _logger.d('🔄 Loading categories for type: $type');
 
       // Create new subscription for specific type
       _categoriesSubscription =
@@ -885,7 +885,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         (categories) {
           _timeoutTimer?.cancel();
           if (mounted) {
-            print('✅ Loaded ${categories.length} categories for ${type.value}');
+            _logger.d('✅ Loaded ${categories.length} categories for $type');
             setState(() {
               _categories = categories;
               _isCategoriesLoading = false;
@@ -896,7 +896,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         onError: (error) {
           _timeoutTimer?.cancel();
           if (mounted) {
-            print('❌ Error loading categories: $error');
+            _logger.e('❌ Error loading categories: $error');
             setState(() {
               _isCategoriesLoading = false;
               _categoriesError = _formatErrorMessage(error);

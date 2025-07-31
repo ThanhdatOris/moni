@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import '../constants/app_colors.dart';
-import '../models/transaction_model.dart';
-import '../services/chart_data_service.dart';
-import 'charts/components/category_list.dart';
-import 'charts/components/combined_chart.dart';
-import 'charts/components/donut_chart.dart';
-import 'charts/components/filter.dart';
-import 'charts/components/trend_bar_chart.dart';
-import 'charts/models/chart_data_model.dart';
+import '../../../constants/app_colors.dart';
+import '../../../models/transaction_model.dart';
+import '../../../services/chart_data_service.dart';
+import '../../../widgets/charts/components/category_list.dart';
+import '../../../widgets/charts/components/combined_chart.dart';
+import '../../../widgets/charts/components/donut_chart.dart';
+import '../../../widgets/charts/components/filter.dart';
+import '../../../widgets/charts/components/trend_bar_chart.dart';
+import '../../../widgets/charts/models/chart_data_model.dart';
 
 /// Widget cho expense chart section trong home screen - Cấu trúc mới
 /// Header: Title + Chart type toggle

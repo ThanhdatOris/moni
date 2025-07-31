@@ -549,6 +549,7 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
       final now = DateTime.now();
 
       if (isEditing) {
+        // ignore: deprecated_member_use
         final updatedCategory = widget.category!.copyWith(
           name: _nameController.text.trim(),
           icon: _selectedIcon,
@@ -560,6 +561,7 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
 
         await _categoryService.updateCategory(updatedCategory);
       } else {
+        // ignore: deprecated_member_use
         final newCategory = CategoryModel(
           categoryId: '',
           userId: '',

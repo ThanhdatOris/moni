@@ -42,7 +42,7 @@ class CategoryColorSelector extends StatelessWidget {
       itemCount: colorPalette.length,
       itemBuilder: (context, index) {
         final color = colorPalette[index];
-        final isSelected = color.value == selectedColor.value;
+        final isSelected = color == selectedColor;
         
         return GestureDetector(
           onTap: isEnabled ? () => onColorChanged(color) : null,
@@ -58,7 +58,7 @@ class CategoryColorSelector extends StatelessWidget {
               boxShadow: [
                 if (isSelected)
                   BoxShadow(
-                    color: color.withValues(alpha: 0.4),
+                    color: color.withOpacity(0.4),
                     blurRadius: 8,
                     spreadRadius: 2,
                   ),

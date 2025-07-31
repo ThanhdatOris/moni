@@ -24,8 +24,6 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
 
   // Financial data
   double balance = 0.0;
-  double monthlyIncome = 0.0;
-  double monthlyExpense = 0.0;
   bool isLoadingFinancial = true;
   
   // Balance visibility
@@ -107,14 +105,9 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
       final transactionService = _getIt<TransactionService>();
       final currentBalance = await transactionService.getCurrentBalance();
       
-      // TODO: Load monthly income/expense data
-      // For now using placeholder data
-      
       if (mounted) {
         setState(() {
           balance = currentBalance;
-          monthlyIncome = 15000000; // Placeholder
-          monthlyExpense = 8500000; // Placeholder
           isLoadingFinancial = false;
         });
       }

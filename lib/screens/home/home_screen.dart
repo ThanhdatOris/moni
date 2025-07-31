@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../widgets/expense_chart_section.dart';
+import 'widgets/home_chart_section.dart';
 import '../../widgets/menubar.dart';
 import '../chatbot/chatbot_screen.dart';
 import '../history/transaction_history_screen.dart';
