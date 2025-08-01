@@ -3,13 +3,20 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../services/advanced_validation_service.dart';
+// New AI Services
+import '../../services/ai_analytics_service.dart';
+import '../../services/ai_budget_agent_service.dart';
 // Legacy Services - Simple architecture
 import '../../services/ai_processor_service.dart';
 import '../../services/anonymous_conversion_service.dart';
 import '../../services/auth_service.dart';
 import '../../services/budget_alert_service.dart';
 import '../../services/category_service.dart';
+import '../../services/chart_data_service.dart';
 import '../../services/chat_log_service.dart';
+import '../../services/conversation_service.dart';
+import '../../services/duplicate_detection_service.dart';
 import '../../services/environment_service.dart';
 import '../../services/firebase_service.dart';
 import '../../services/ocr_service.dart';
@@ -17,6 +24,7 @@ import '../../services/offline_service.dart';
 import '../../services/offline_sync_service.dart';
 import '../../services/report_service.dart';
 import '../../services/transaction_service.dart';
+import '../../services/transaction_validation_service.dart';
 
 final getIt = GetIt.instance;
 
@@ -54,6 +62,12 @@ Future<void> init() async {
         offlineService: getIt<OfflineService>(),
       ));
 
+  // Chart Data Service
+  getIt.registerLazySingleton<ChartDataService>(() => ChartDataService(
+        transactionService: getIt<TransactionService>(),
+        categoryService: getIt<CategoryService>(),
+      ));
+
   // Services that depend on TransactionService
   getIt.registerLazySingleton<BudgetAlertService>(() => BudgetAlertService(
         transactionService: getIt<TransactionService>(),
@@ -80,6 +94,26 @@ Future<void> init() async {
   getIt.registerLazySingleton<OCRService>(() => OCRService());
   getIt.registerLazySingleton<AIProcessorService>(() => AIProcessorService());
   getIt.registerLazySingleton<ChatLogService>(() => ChatLogService());
+  getIt.registerLazySingleton<ConversationService>(() => ConversationService());
+
+  // ==========================================================================
+  // NEW AI SERVICES
+  // ==========================================================================
+
+  // AI Analytics Service
+  getIt.registerLazySingleton<AIAnalyticsService>(() => AIAnalyticsService());
+
+  // AI Budget Agent Service
+  getIt.registerLazySingleton<AIBudgetAgentService>(
+      () => AIBudgetAgentService());
+
+  // Validation Services
+  getIt.registerLazySingleton<AdvancedValidationService>(
+      () => AdvancedValidationService());
+  getIt.registerLazySingleton<DuplicateDetectionService>(
+      () => DuplicateDetectionService());
+  getIt.registerLazySingleton<TransactionValidationService>(
+      () => TransactionValidationService());
 }
 
 /// Reset dependencies (for testing)
@@ -104,8 +138,20 @@ FirebaseService get firebaseService => getIt<FirebaseService>();
 AuthService get authService => getIt<AuthService>();
 TransactionService get transactionService => getIt<TransactionService>();
 CategoryService get categoryService => getIt<CategoryService>();
+ChartDataService get chartDataService => getIt<ChartDataService>();
 BudgetAlertService get budgetAlertService => getIt<BudgetAlertService>();
 ReportService get reportService => getIt<ReportService>();
 OCRService get ocrService => getIt<OCRService>();
 AIProcessorService get aiProcessorService => getIt<AIProcessorService>();
 ChatLogService get chatLogService => getIt<ChatLogService>();
+ConversationService get conversationService => getIt<ConversationService>();
+
+// AI Services
+AIAnalyticsService get aiAnalyticsService => getIt<AIAnalyticsService>();
+AIBudgetAgentService get aiBudgetAgentService => getIt<AIBudgetAgentService>();
+AdvancedValidationService get advancedValidationService =>
+    getIt<AdvancedValidationService>();
+DuplicateDetectionService get duplicateDetectionService =>
+    getIt<DuplicateDetectionService>();
+TransactionValidationService get transactionValidationService =>
+    getIt<TransactionValidationService>();

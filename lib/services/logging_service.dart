@@ -72,13 +72,13 @@ class LoggingService {
     _logger = Logger(
       level: kDebugMode ? Level.debug : Level.info,
       printer: PrettyPrinter(
-        methodCount: 2,
-        errorMethodCount: 5,
-        lineLength: 80,
+        methodCount: 1, // ✅ GIẢM: Từ 2 → 1 để giảm noise
+        errorMethodCount: 3, // ✅ GIẢM: Từ 5 → 3 để giảm noise
+        lineLength: 120, // ✅ TĂNG: Từ 80 → 120 để message không bị cắt
         colors: true,
         printEmojis: true,
-        printTime: true,
-        noBoxingByDefault: false,
+        dateTimeFormat: DateTimeFormat.onlyTime, // ✅ ĐƠN GIẢN HÓA: Chỉ hiện giờ
+        noBoxingByDefault: true, // ✅ TẮT BOXING: Giảm visual noise
       ),
       output: MultiOutput([
         ConsoleOutput(),
@@ -107,10 +107,19 @@ class LoggingService {
         _platform = Platform.operatingSystem;
         _deviceId = 'unknown';
       }
+      
+      // ✅ CHỈ LOG KHI DEBUG: Tránh spam logs trong production
+      if (kDebugMode) {
+        _logger.d('📱 Device Info loaded: $_platform | App: $_appVersion');
+      }
     } catch (e) {
       _platform = Platform.operatingSystem;
       _deviceId = 'unknown';
       _appVersion = 'unknown';
+      // ✅ CHỈ LOG LỖI THẬT SỰ CẦN THIẾT
+      if (kDebugMode) {
+        _logger.w('⚠️ Không thể tải thông tin thiết bị: $e');
+      }
     }
   }
 
@@ -146,10 +155,12 @@ class LoggingService {
   }) {
     if (_currentLogLevel.index > LogLevel.debug.index) return;
     
+    // ✅ ĐƠN GIẢN HÓA: Chỉ log message gốc, tránh double formatting
+    _logger.d(message);
+    
+    // Buffer cho export (format đầy đủ)
     final context = _createContext(className, methodName);
     final logEntry = _formatLogEntry(LogLevel.debug, message, context, data, error, stackTrace);
-    
-    _logger.d(logEntry);
     _addToBuffer(logEntry);
   }
 
@@ -162,10 +173,12 @@ class LoggingService {
   }) {
     if (_currentLogLevel.index > LogLevel.info.index) return;
     
+    // ✅ ĐƠN GIẢN HÓA: Chỉ log message gốc
+    _logger.i(message);
+    
+    // Buffer cho export (format đầy đủ)
     final context = _createContext(className, methodName);
     final logEntry = _formatLogEntry(LogLevel.info, message, context, data);
-    
-    _logger.i(logEntry);
     _addToBuffer(logEntry);
   }
 
@@ -180,10 +193,12 @@ class LoggingService {
   }) {
     if (_currentLogLevel.index > LogLevel.warning.index) return;
     
+    // ✅ ĐƠN GIẢN HÓA: Chỉ log message gốc
+    _logger.w(message);
+    
+    // Buffer cho export (format đầy đủ)
     final context = _createContext(className, methodName);
     final logEntry = _formatLogEntry(LogLevel.warning, message, context, data, error, stackTrace);
-    
-    _logger.w(logEntry);
     _addToBuffer(logEntry);
   }
 
@@ -196,13 +211,19 @@ class LoggingService {
     dynamic error,
     StackTrace? stackTrace,
   }) {
+    // ✅ ĐƠN GIẢN HÓA: Chỉ log message gốc với error
+    if (error != null) {
+      _logger.e('$message: $error');
+    } else {
+      _logger.e(message);
+    }
+    
+    // Buffer cho export và crash reporting (format đầy đủ)
     final context = _createContext(className, methodName);
     final logEntry = _formatLogEntry(LogLevel.error, message, context, data, error, stackTrace);
-    
-    _logger.e(logEntry);
     _addToBuffer(logEntry);
     
-    // Có thể gửi lên crash reporting service
+    // Gửi lên crash reporting service
     _reportCrash(message, error, stackTrace, context);
   }
 
@@ -215,17 +236,23 @@ class LoggingService {
     dynamic error,
     StackTrace? stackTrace,
   }) {
+    // ✅ ĐƠN GIẢN HÓA: Chỉ log message gốc với error
+    if (error != null) {
+      _logger.f('$message: $error');
+    } else {
+      _logger.f(message);
+    }
+    
+    // Buffer cho export và crash reporting (format đầy đủ)
     final context = _createContext(className, methodName);
     final logEntry = _formatLogEntry(LogLevel.fatal, message, context, data, error, stackTrace);
-    
-    _logger.f(logEntry);
     _addToBuffer(logEntry);
     
     // Luôn gửi lên crash reporting service
     _reportCrash(message, error, stackTrace, context);
   }
 
-  /// Format log entry
+  /// Format entry log để lưu vào buffer
   String _formatLogEntry(
     LogLevel level,
     String message,
@@ -241,15 +268,15 @@ class LoggingService {
     buffer.write(message);
     
     if (context.userId != null) {
-      buffer.write(' | User: ${context.userId}');
+      buffer.write(' | Người dùng: ${context.userId}');
     }
     
     if (data != null && data.isNotEmpty) {
-      buffer.write(' | Data: $data');
+      buffer.write(' | Dữ liệu: $data');
     }
     
     if (error != null) {
-      buffer.write(' | Error: $error');
+      buffer.write(' | Lỗi: $error');
     }
     
     if (stackTrace != null) {
@@ -259,7 +286,7 @@ class LoggingService {
     return buffer.toString();
   }
 
-  /// Gửi crash report (có thể tích hợp với Firebase Crashlytics)
+  /// Gửi báo cáo lỗi (có thể tích hợp với Firebase Crashlytics)
   void _reportCrash(
     String message,
     dynamic error,
@@ -270,7 +297,7 @@ class LoggingService {
     // FirebaseCrashlytics.instance.recordError(error, stackTrace);
   }
 
-  /// Thiết lập log level
+  /// Thiết lập mức độ log
   void setLogLevel(LogLevel level) {
     _currentLogLevel = level;
   }
@@ -280,7 +307,7 @@ class LoggingService {
     return List.from(_logBuffer);
   }
 
-  /// Xóa log buffer
+  /// Xóa buffer log
   void clearLogBuffer() {
     _logBuffer.clear();
   }
@@ -295,7 +322,7 @@ class LoggingService {
       
       return file.path;
     } catch (e) {
-      _logger.e('Lỗi xuất log: $e');
+      _logger.e('❌ Lỗi xuất log: $e');
       return null;
     }
   }
@@ -309,7 +336,7 @@ class FileOutput extends LogOutput {
   }
 }
 
-/// Extension để dễ dàng sử dụng logging
+/// Extension để dễ dàng sử dụng logging với tối ưu hóa
 extension AppLogger on Object {
   LoggingService get _log => LoggingService.instance;
   
@@ -319,10 +346,13 @@ extension AppLogger on Object {
     dynamic error,
     StackTrace? stackTrace,
   }) {
+    // ✅ CHỈ LOG DEBUG KHI CẦN THIẾT
+    if (!kDebugMode) return;
+    
     _log.debug(
       message,
       className: runtimeType.toString(),
-      methodName: _getCurrentMethodName(),
+      methodName: _getSimpleMethodName(),
       data: data,
       error: error,
       stackTrace: stackTrace,
@@ -336,7 +366,7 @@ extension AppLogger on Object {
     _log.info(
       message,
       className: runtimeType.toString(),
-      methodName: _getCurrentMethodName(),
+      methodName: _getSimpleMethodName(),
       data: data,
     );
   }
@@ -350,7 +380,7 @@ extension AppLogger on Object {
     _log.warning(
       message,
       className: runtimeType.toString(),
-      methodName: _getCurrentMethodName(),
+      methodName: _getSimpleMethodName(),
       data: data,
       error: error,
       stackTrace: stackTrace,
@@ -366,7 +396,7 @@ extension AppLogger on Object {
     _log.error(
       message,
       className: runtimeType.toString(),
-      methodName: _getCurrentMethodName(),
+      methodName: _getSimpleMethodName(),
       data: data,
       error: error,
       stackTrace: stackTrace,
@@ -382,24 +412,30 @@ extension AppLogger on Object {
     _log.fatal(
       message,
       className: runtimeType.toString(),
-      methodName: _getCurrentMethodName(),
+      methodName: _getSimpleMethodName(),
       data: data,
       error: error,
       stackTrace: stackTrace,
     );
   }
 
-  String _getCurrentMethodName() {
+  /// ✅ ĐƠN GIẢN HÓA: Method name detection đơn giản hơn, ít gây lỗi
+  String _getSimpleMethodName() {
     try {
       final trace = StackTrace.current;
       final frames = trace.toString().split('\n');
-      if (frames.length > 2) {
-        final frame = frames[2];
-        final match = RegExp(r'#\d+\s+(\w+)\.(\w+)').firstMatch(frame);
-        return match?.group(2) ?? 'unknown';
+      // Tìm frame có method name, bỏ qua các frame của extension
+      for (int i = 1; i < frames.length && i < 5; i++) {
+        final frame = frames[i];
+        if (frame.contains(runtimeType.toString())) {
+          final match = RegExp(r'\.(\w+)\s*\(').firstMatch(frame);
+          if (match != null) {
+            return match.group(1) ?? 'unknown';
+          }
+        }
       }
     } catch (e) {
-      // Ignore
+      // Bỏ qua lỗi, không log để tránh infinite loop
     }
     return 'unknown';
   }

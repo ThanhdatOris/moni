@@ -6,7 +6,7 @@ import 'package:logger/logger.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
-import '../utils/currency_formatter.dart';
+import '../utils/formatting/currency_formatter.dart';
 import 'category_service.dart';
 import 'environment_service.dart';
 import 'ocr_service.dart';
@@ -67,39 +67,43 @@ class AIProcessorService {
     ];
 
     // Try modern model first, with fallback options
+    String initializedModel = '';
     try {
       _model = GenerativeModel(
         model: 'gemini-1.5-flash',
         apiKey: apiKey,
         tools: [Tool(functionDeclarations: functions)],
       );
-      _logger.i(
-          'AI Processor Service initialized with gemini-1.5-flash and function calling');
+      initializedModel = 'gemini-1.5-flash';
     } catch (e) {
-      _logger
-          .w('Failed to initialize gemini-1.5-flash, trying alternative: $e');
-
       try {
         _model = GenerativeModel(
           model: 'gemini-1.5-flash-001',
           apiKey: apiKey,
           tools: [Tool(functionDeclarations: functions)],
         );
-        _logger.i(
-            'AI Processor Service initialized with gemini-1.5-flash-001 and function calling');
+        initializedModel = 'gemini-1.5-flash-001';
       } catch (e2) {
-        _logger.e('Failed to initialize any Gemini model: $e2');
+        _logger.e('❌ Failed to initialize Gemini models: $e2');
         throw Exception(
             'Could not initialize Gemini model. Please check your API key and internet connection.');
       }
     }
+
+    // ✅ IMPROVED: Single consolidated initialization log
+    _logger.i('🤖 AI Processor Service initialized successfully'
+        '\n  Model: $initializedModel'
+        '\n  Functions: ${functions.length} available'
+        '\n  Token Limit: $_dailyTokenLimit/day'
+        '\n  Cache Size: $_cacheMaxSize entries');
   }
 
   /// Trích xuất thông tin giao dịch từ hình ảnh sử dụng OCR + AI
   Future<Map<String, dynamic>> extractTransactionFromImageWithOCR(
       File imageFile) async {
     try {
-      _logger.i('Starting OCR + AI processing for transaction extraction...');
+      // ✅ IMPROVED: Single consolidated OCR processing log
+      _logger.i('📷 Starting OCR + AI processing for transaction extraction...');
 
       // Bước 1: Sử dụng OCR để trích xuất text
       final ocrService = _getIt<OCRService>();
@@ -108,9 +112,8 @@ class AIProcessorService {
       final extractedText = ocrResult['fullText'] as String;
       final ocrConfidence = ocrResult['confidence'] as int;
 
-      _logger.i('OCR extraction completed with confidence: $ocrConfidence%');
-
       if (extractedText.isEmpty) {
+        _logger.w('❌ OCR failed to extract text from image');
         return {
           'success': false,
           'error':
@@ -133,10 +136,16 @@ class AIProcessorService {
       // Bước 4: Kết hợp kết quả OCR và AI
       final finalResult = _combineOCRAndAI(ocrResult, ocrAnalysis, aiAnalysis);
 
-      _logger.i('Combined OCR + AI processing completed successfully');
+      // ✅ IMPROVED: Single consolidated success log
+      _logger.i('✅ OCR + AI processing completed successfully'
+          '\n  Confidence: $ocrConfidence%'
+          '\n  Text Length: ${extractedText.length} chars'
+          '\n  Processing Method: ${finalResult['processing_method']}'
+          '\n  Amount: ${finalResult['amount']}'
+          '\n  Category: ${finalResult['category_suggestion']}');
       return finalResult;
     } catch (e) {
-      _logger.e('Error in OCR + AI processing: $e');
+      _logger.e('❌ Error in OCR + AI processing: $e');
 
       String errorMessage = 'Không thể xử lý ảnh';
       if (e.toString().contains('network') ||
@@ -194,7 +203,6 @@ Hãy xác minh và cải thiện thông tin, trả về JSON với format:
 {
   "verified_amount": số_tiền_chính_xác (số, không có dấu phẩy),
   "description": "mô tả ngắn gọn về giao dịch", 
-  "merchant": "tên cửa hàng/dịch vụ",
   "category_suggestion": "danh mục phù hợp bằng tiếng Việt",
   "transaction_type": "expense" hoặc "income",
   "confidence_score": số từ 0-100,
@@ -205,6 +213,7 @@ Lưu ý:
 - Ưu tiên số tiền lớn nhất thường là tổng tiền
 - Danh mục: Ăn uống, Di chuyển, Mua sắm, Giải trí, Y tế, Học tập, Hóa đơn, v.v.
 - Hầu hết hóa đơn là "expense"
+- Mô tả nên bao gồm thông tin về giao dịch, không cần tách riêng tên cửa hàng
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
@@ -230,14 +239,17 @@ Lưu ý:
 
       if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart) {
         final jsonString = response.substring(jsonStart, jsonEnd + 1);
-        _logger.i('AI Analysis JSON: $jsonString');
+        
+        // ✅ IMPROVED: Only log JSON analysis in debug mode with length info
+        if (EnvironmentService.debugMode) {
+          _logger.d('🔍 AI Analysis JSON: ${jsonString.length} chars');
+        }
 
         // Tạm thời return structured data vì cần JSON parser
         // Trong thực tế sẽ parse JSON thật
         return {
           'verified_amount': 125000.0,
           'description': 'Cơm tấm Sài Gòn',
-          'merchant': 'Quán cơm tấm',
           'category_suggestion': 'Ăn uống',
           'transaction_type': 'expense',
           'confidence_score': 85,
@@ -247,7 +259,7 @@ Lưu ý:
 
       return {};
     } catch (e) {
-      _logger.e('Error parsing AI analysis response: $e');
+      _logger.e('❌ Error parsing AI analysis response: $e');
       return {};
     }
   }
@@ -255,7 +267,6 @@ Lưu ý:
   /// Kết hợp kết quả OCR và AI để có kết quả tối ưu
   Map<String, dynamic> _combineOCRAndAI(Map<String, dynamic> ocrResult,
       Map<String, dynamic> ocrAnalysis, Map<String, dynamic> aiAnalysis) {
-    // Ưu tiên AI nếu có confidence cao, nếu không dùng OCR
     final useAI =
         aiAnalysis.isNotEmpty && (aiAnalysis['confidence_score'] ?? 0) > 70;
 
@@ -266,10 +277,6 @@ Lưu ý:
     final description = useAI
         ? (aiAnalysis['description'] ?? 'Giao dịch từ hóa đơn')
         : (ocrAnalysis['merchantName'] ?? 'Giao dịch từ hóa đơn');
-
-    final merchant = useAI
-        ? (aiAnalysis['merchant'] ?? ocrAnalysis['merchantName'])
-        : ocrAnalysis['merchantName'];
 
     final category = useAI
         ? (aiAnalysis['category_suggestion'] ?? ocrAnalysis['categoryHint'])
@@ -289,13 +296,15 @@ Lưu ý:
       'success': true,
       'amount': amount,
       'description': description,
-      'merchant': merchant,
       'type': type,
       'category_suggestion': category,
       'date': DateTime.now().toIso8601String().split('T')[0],
       'confidence': combinedConfidence,
       'raw_text': ocrResult['fullText'],
       'processing_method': useAI ? 'OCR + AI' : 'OCR only',
+      // Đồng bộ với các module khác - chỉ giữ các trường cần thiết
+      'note': description, // Map description thành note cho TransactionModel
+      'category_name': category, // Lưu tên category để hiển thị
     };
   }
 
@@ -331,60 +340,6 @@ Lưu ý:
     }
   }
 
-  /// Parse JSON response cải tiến cho transaction extraction
-  Map<String, dynamic> _parseTransactionJsonResponse(String response) {
-    try {
-      // Tìm JSON trong response
-      final jsonStart = response.indexOf('{');
-      final jsonEnd = response.lastIndexOf('}');
-
-      if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart) {
-        final jsonString = response.substring(jsonStart, jsonEnd + 1);
-        _logger.i('Extracted JSON: $jsonString');
-
-        // Thử parse JSON
-        final decoded =
-            jsonString.replaceAll('```json', '').replaceAll('```', '').trim();
-
-        // Tạm thời return mock data với format chuẩn vì cần implement JSON parser
-        return {
-          'success': true,
-          'amount': 125000.0,
-          'description': 'Cơm tấm Sài Gòn',
-          'merchant': 'Quán cơm tấm Sài Gòn',
-          'type': 'expense',
-          'category_suggestion': 'Ăn uống',
-          'date': DateTime.now().toIso8601String().split('T')[0],
-          'confidence': 85,
-          'raw_text': 'COM TAM SAI GON - 125,000 VND',
-        };
-      }
-
-      // Nếu không tìm thấy JSON, trả về lỗi
-      return {
-        'success': false,
-        'error':
-            'Không thể đọc được thông tin từ ảnh. Ảnh có thể không rõ nét hoặc không chứa thông tin giao dịch.',
-        'amount': 0,
-        'description': 'Không đọc được',
-        'type': 'expense',
-        'category_suggestion': 'Khác',
-        'confidence': 0,
-      };
-    } catch (e) {
-      _logger.e('Lỗi khi parse JSON response: $e');
-      return {
-        'success': false,
-        'error': 'Lỗi xử lý dữ liệu từ AI.',
-        'amount': 0,
-        'description': 'Lỗi xử lý',
-        'type': 'expense',
-        'category_suggestion': 'Khác',
-        'confidence': 0,
-      };
-    }
-  }
-
   /// Xử lý đầu vào chat và trả về phản hồi từ AI
   Future<String> processChatInput(String input) async {
     try {
@@ -397,7 +352,10 @@ Lưu ý:
         return 'Xin lỗi, bạn đã sử dụng hết quota AI hôm nay. Vui lòng thử lại vào ngày mai! 😅';
       }
 
-      _logger.i('Processing chat input: $input');
+      // ✅ IMPROVED: Simplified debug log for chat processing
+      if (EnvironmentService.debugMode) {
+        _logger.d('💬 Processing chat input (${input.length} chars, ~$estimatedTokens tokens)');
+      }
 
       final prompt = '''
 You are Moni AI, a smart financial assistant with advanced category management. Analyze user input and:
@@ -463,8 +421,6 @@ User input: "$input"
 
       // Update token usage
       _dailyTokenCount += estimatedTokens;
-      _logger
-          .i('Token usage: $estimatedTokens (daily total: $_dailyTokenCount)');
 
       // Check if user is asking about categories or financial help
       final inputLower = input.toLowerCase();
@@ -487,8 +443,12 @@ User input: "$input"
 
       // Update token count (estimate response tokens too)
       final responseTokens = _estimateTokens(response.text ?? '');
-      _dailyTokenCount += estimatedTokens + responseTokens;
-      _logger.i('Token usage: $_dailyTokenCount / $_dailyTokenLimit');
+      _dailyTokenCount += responseTokens;
+
+      // ✅ IMPROVED: Consolidated token usage log (only when significant usage)
+      if (_dailyTokenCount > _dailyTokenLimit * 0.8) {
+        _logger.w('⚠️ High token usage: $_dailyTokenCount / $_dailyTokenLimit (${(_dailyTokenCount/_dailyTokenLimit*100).toStringAsFixed(1)}%)');
+      }
 
       // Check if AI wants to call functions
       if (response.functionCalls.isNotEmpty) {
@@ -503,25 +463,98 @@ User input: "$input"
       final result =
           response.text ?? 'Xin lỗi, tôi không hiểu yêu cầu của bạn.';
 
-      _logger.i(
-          'Processed chat input successfully. Response length: ${result.length}');
+      // ✅ IMPROVED: Only log successful processing in debug mode
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Chat processed successfully (${result.length} chars response)');
+      }
       return result;
     } catch (e) {
-      _logger.e('Lỗi khi xử lý đầu vào chat: $e');
+      _logger.e('❌ Error processing chat input: $e');
 
-      // Return more helpful error message based on error type
-      if (e.toString().contains('API key')) {
-        return 'Xin lỗi, có vấn đề với cấu hình API. Vui lòng kiểm tra lại API key.';
-      } else if (e.toString().contains('network') ||
-          e.toString().contains('connection')) {
-        return 'Xin lỗi, có vấn đề kết nối mạng. Vui lòng kiểm tra internet và thử lại.';
-      } else if (e.toString().contains('quota') ||
-          e.toString().contains('limit')) {
-        return 'Xin lỗi, đã vượt quá giới hạn sử dụng API. Vui lòng thử lại sau.';
-      } else {
-        return 'Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.\n\n(Lỗi: ${e.toString()})';
-      }
+      // ✅ IMPROVED: Comprehensive error handling with user-friendly messages
+      return _getErrorMessageForUser(e);
     }
+  }
+
+  /// Get user-friendly error message based on exception type
+  String _getErrorMessageForUser(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+    
+    // Server overload errors (503)
+    if (errorString.contains('503') || errorString.contains('overloaded')) {
+      return "🤖 AI đang quá tải hiện tại. Vui lòng thử lại sau ít phút.\n\nMôi trường AI hiện đang có nhiều người dùng, hãy kiên nhẫn một chút nhé! 😊";
+    }
+    
+    // Rate limit errors (429)
+    if (errorString.contains('429') || errorString.contains('rate limit')) {
+      return "⏰ Bạn đã gửi quá nhiều tin nhắn trong thời gian ngắn. Vui lòng chờ một chút trước khi tiếp tục.\n\nHãy thư giãn và thử lại sau vài giây! ☕";
+    }
+    
+    // Authentication errors (401, 403)
+    if (errorString.contains('401') || errorString.contains('403') || 
+        errorString.contains('api key') || errorString.contains('unauthorized')) {
+      return "🔐 Có vấn đề với xác thực AI. Vui lòng khởi động lại ứng dụng.\n\nNếu vấn đề vẫn tiếp tục, hãy liên hệ hỗ trợ! 📞";
+    }
+    
+    // Network connectivity errors
+    if (errorString.contains('network') || errorString.contains('connection') ||
+        errorString.contains('timeout') || errorString.contains('socket')) {
+      return "📶 Kết nối mạng không ổn định. Vui lòng kiểm tra internet và thử lại.\n\nHãy đảm bảo bạn có kết nối mạng tốt! 🌐";
+    }
+    
+    // Quota/limit exceeded errors  
+    if (errorString.contains('quota') || errorString.contains('limit') ||
+        errorString.contains('usage')) {
+      return "💳 Đã vượt quá giới hạn sử dụng AI hôm nay. Vui lòng thử lại vào ngày mai.\n\nChúng tôi sẽ reset quota vào 0h mỗi ngày! 🕛";
+    }
+    
+    // Model/AI specific errors
+    if (errorString.contains('model') || errorString.contains('unavailable') ||
+        errorString.contains('service')) {
+      return "🤖 Mô hình AI tạm thời không khả dụng. Vui lòng thử lại sau ít phút.\n\nChúng tôi đang khắc phục sự cố! 🔧";
+    }
+    
+    // Bad request errors (400)
+    if (errorString.contains('400') || errorString.contains('bad request')) {
+      return "📝 Yêu cầu không hợp lệ. Vui lòng thử nhập lại tin nhắn.\n\nHãy kiểm tra định dạng tin nhắn của bạn! ✏️";
+    }
+    
+    // Server errors (500, 502, 504)
+    if (errorString.contains('500') || errorString.contains('502') || 
+        errorString.contains('504') || errorString.contains('server error')) {
+      return "🔧 Máy chủ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.\n\nĐội ngũ kỹ thuật đang xử lý! 👨‍💻";
+    }
+    
+    // Content policy violations
+    if (errorString.contains('policy') || errorString.contains('content') ||
+        errorString.contains('violation')) {
+      return "⚠️ Nội dung tin nhắn không phù hợp với chính sách AI. Vui lòng thử tin nhắn khác.\n\nHãy sử dụng ngôn từ lịch sự và phù hợp! 🤝";
+    }
+    
+    // Generic fallback error
+    return "😅 Đã có lỗi không mong muốn xảy ra. Vui lòng thử lại sau ít phút.\n\nNếu vấn đề tiếp tục, hãy khởi động lại ứng dụng! 🔄\n\n(Mã lỗi: ${_getErrorCode(error)})";
+  }
+
+  /// Extract error code from exception for debugging
+  String _getErrorCode(dynamic error) {
+    final errorString = error.toString();
+    
+    // Extract HTTP status code
+    final statusMatch = RegExp(r'\b[45]\d{2}\b').firstMatch(errorString);
+    if (statusMatch != null) {
+      return statusMatch.group(0) ?? 'UNKNOWN';
+    }
+    
+    // Extract error type
+    if (errorString.contains('GenerativeAIException')) {
+      return 'AI_ERROR';
+    } else if (errorString.contains('SocketException')) {
+      return 'NETWORK_ERROR';
+    } else if (errorString.contains('TimeoutException')) {
+      return 'TIMEOUT_ERROR';
+    }
+    
+    return 'GENERIC_ERROR';
   }
 
   /// Handle adding transaction through function call
@@ -530,7 +563,7 @@ User input: "$input"
       final transactionService = _getIt<TransactionService>();
       final categoryService = _getIt<CategoryService>();
 
-      // Extract parameters with detailed logging
+      // Extract parameters
       final rawAmount = args['amount'];
       final amount = _parseAmount(rawAmount);
       final description = args['description'] as String;
@@ -538,9 +571,8 @@ User input: "$input"
       final typeStr = args['type'] as String? ?? 'expense';
       final dateStr = args['date'] as String?;
 
-      _logger.i('Function call args: $args');
-      _logger.i(
-          'Extracted - Amount: $amount, Description: $description, Category: $categoryName, Type: $typeStr');
+      // ✅ IMPROVED: Single comprehensive log for transaction processing
+      _logger.i('💰 Adding transaction: $typeStr ${CurrencyFormatter.formatAmountWithCurrency(amount)} - $categoryName');
 
       // Parse transaction type
       final transactionType = typeStr.toLowerCase() == 'income'
@@ -608,11 +640,14 @@ User input: "$input"
         updatedAt: DateTime.now(),
       );
 
-      // Save transaction
-      await transactionService.createTransaction(transaction);
+      // Save transaction and get transactionId
+      final transactionId =
+          await transactionService.createTransaction(transaction);
 
-      _logger.i(
-          'Transaction added successfully: $description - ${amount.toStringAsFixed(0)}đ');
+      // ✅ IMPROVED: Only log success in debug mode with essential info
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Transaction saved successfully: ID $transactionId');
+      }
 
       // Find category to get its emoji for display
       final category = await categoryService.getCategory(categoryId);
@@ -631,9 +666,9 @@ ${transactionType == TransactionType.expense ? '📉' : '📈'} **Loại:** ${tr
 
 💡 **Mẹo:** Bạn có thể quản lý danh mục và thay đổi emoji trong phần "Quản lý danh mục" của app.
 
-[EDIT_BUTTON]''';
+[EDIT_BUTTON:$transactionId]''';
     } catch (e) {
-      _logger.e('Error adding transaction: $e');
+      _logger.e('❌ Error adding transaction: $e');
       return 'Xin lỗi, có lỗi xảy ra khi thêm giao dịch. Vui lòng thử lại.\n\nLỗi: ${e.toString()}';
     }
   }
@@ -643,13 +678,19 @@ ${transactionType == TransactionType.expense ? '📉' : '📈'} **Loại:** ${tr
     // Kiểm tra cache trước
     final cacheKey = description.toLowerCase().trim();
     if (_categoryCache.containsKey(cacheKey)) {
-      _logger.i('Category cache hit for: $description');
+      // ✅ IMPROVED: Only log cache hits in debug mode
+      if (EnvironmentService.debugMode) {
+        _logger.d('📁 Category cache hit for: $description');
+      }
       return _categoryCache[cacheKey]!;
     }
 
     try {
       // Check rate limit
       await _checkRateLimit();
+
+      // ✅ IMPROVED: Single log for category suggestion processing
+      _logger.i('🤔 Suggesting category for: "$description"');
 
       final prompt = '''
 Suggest best category for transaction: "$description"
@@ -672,10 +713,13 @@ Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "G
       // Lưu vào cache
       _addToCache(_categoryCache, cacheKey, result);
 
-      _logger.i('Suggested category for "$description": $result');
+      // ✅ IMPROVED: Only log successful category suggestion in debug mode
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Category suggested: "$result" for "$description"');
+      }
       return result;
     } catch (e) {
-      _logger.e('Lỗi khi gợi ý danh mục: $e');
+      _logger.e('❌ Error suggesting category: $e');
       return 'Ăn uống'; // Default fallback category
     }
   }
@@ -683,6 +727,9 @@ Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "G
   /// Trả lời câu hỏi tài chính cá nhân
   Future<String> answerQuestion(String question) async {
     try {
+      // ✅ IMPROVED: Consolidated logging for financial Q&A
+      _logger.i('💡 Processing financial question (${question.length} chars)');
+
       final prompt = '''
 You are a personal finance expert. Answer professionally in Vietnamese with practical advice for Vietnam context.
 
@@ -693,10 +740,13 @@ Question: "$question"
       final result = response.text ??
           'Xin lỗi, tôi không thể trả lời câu hỏi này lúc này.';
 
-      _logger.i('Answered question: $result');
+      // ✅ IMPROVED: Only log successful answers in debug mode
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Financial question answered (${result.length} chars)');
+      }
       return result;
     } catch (e) {
-      _logger.e('Lỗi khi trả lời câu hỏi: $e');
+      _logger.e('❌ Error answering question: $e');
       return 'Xin lỗi, đã có lỗi xảy ra khi trả lời câu hỏi của bạn.';
     }
   }
@@ -705,6 +755,9 @@ Question: "$question"
   Future<String> analyzeSpendingHabits(
       Map<String, dynamic> transactionData) async {
     try {
+      // ✅ IMPROVED: Consolidated logging for spending analysis
+      _logger.i('📊 Analyzing spending habits (${transactionData.keys.length} data points)');
+
       final prompt = '''
 Analyze spending habits and give specific advice to improve personal finance. Answer in Vietnamese with clear structure.
 
@@ -712,13 +765,17 @@ Data: ${transactionData.toString()}
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
-      final result = response.text ?? 'Không thể phân tích dữ liệu này.';
+      final result = response.text ??
+          'Xin lỗi, không thể phân tích thói quen chi tiêu lúc này.';
 
-      _logger.i('Analyzed spending habits');
+      // ✅ IMPROVED: Only log successful analysis in debug mode  
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Spending analysis completed (${result.length} chars)');
+      }
       return result;
     } catch (e) {
-      _logger.e('Lỗi khi phân tích thói quen chi tiêu: $e');
-      return 'Xin lỗi, không thể phân tích dữ liệu này lúc này.';
+      _logger.e('❌ Error analyzing spending habits: $e');
+      return 'Xin lỗi, đã có lỗi xảy ra khi phân tích thói quen chi tiêu.';
     }
   }
 
@@ -830,25 +887,26 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
     return 0;
   }
 
-  /// Parse JSON response từ Gemini
-  Map<String, dynamic> _parseJsonResponse(String response) {
-    try {
-      // Tìm và trích xuất JSON từ response
-      final jsonStart = response.indexOf('{');
-      final jsonEnd = response.lastIndexOf('}');
+  // Unused for now, but may be useful for future JSON parsing
+  // /// Parse JSON response từ Gemini
+  // Map<String, dynamic> _parseJsonResponse(String response) {
+  //   try {
+  //     // Tìm và trích xuất JSON từ response
+  //     final jsonStart = response.indexOf('{');
+  //     final jsonEnd = response.lastIndexOf('}');
 
-      if (jsonStart != -1 && jsonEnd != -1) {
-        // final jsonString = response.substring(jsonStart, jsonEnd + 1);
-        // Có thể cần parse JSON ở đây, nhưng để đơn giản tạm thời return map rỗng
-        return {};
-      }
+  //     if (jsonStart != -1 && jsonEnd != -1) {
+  //       // final jsonString = response.substring(jsonStart, jsonEnd + 1);
+  //       // Có thể cần parse JSON ở đây, nhưng để đơn giản tạm thời return map rỗng
+  //       return {};
+  //     }
 
-      return {};
-    } catch (e) {
-      _logger.e('Lỗi khi parse JSON response: $e');
-      return {};
-    }
-  }
+  //     return {};
+  //   } catch (e) {
+  //     _logger.e('Lỗi khi parse JSON response: $e');
+  //     return {};
+  //   }
+  // }
 
   /// Check rate limit and token usage before API call
   Future<void> _checkRateLimit() async {
@@ -1083,5 +1141,126 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
         };
       }
     }
+  }
+
+  /// Map scan result thành TransactionModel
+  Future<TransactionModel> mapScanResultToTransaction(
+      Map<String, dynamic> scanResult, String userId) async {
+    try {
+      // Parse transaction type
+      final transactionType = scanResult['type'] == 'income'
+          ? TransactionType.income
+          : TransactionType.expense;
+
+      // Parse amount
+      final amount = (scanResult['amount'] ?? 0).toDouble();
+
+      // Parse date
+      DateTime transactionDate;
+      try {
+        transactionDate = DateTime.parse(scanResult['date'] ?? '');
+      } catch (e) {
+        transactionDate = DateTime.now();
+      }
+
+      // Tìm category ID
+      String categoryId = 'other';
+      String categoryName = scanResult['category_name'] ??
+          scanResult['category_suggestion'] ??
+          '';
+
+      if (categoryName.isNotEmpty) {
+        final categoryService = _getIt<CategoryService>();
+        final categoriesStream =
+            categoryService.getCategories(type: transactionType);
+        final categories = await categoriesStream.first;
+        final filteredCategories =
+            categories.where((cat) => !cat.isDeleted).toList();
+
+        // Tìm category chính xác
+        for (final category in filteredCategories) {
+          if (category.name.toLowerCase() == categoryName.toLowerCase()) {
+            categoryId = category.categoryId;
+            categoryName = category.name;
+            break;
+          }
+        }
+
+        // Nếu không tìm thấy, tìm partial match
+        if (categoryId == 'other') {
+          for (final category in filteredCategories) {
+            if (category.name
+                    .toLowerCase()
+                    .contains(categoryName.toLowerCase()) ||
+                categoryName
+                    .toLowerCase()
+                    .contains(category.name.toLowerCase())) {
+              categoryId = category.categoryId;
+              categoryName = category.name;
+              break;
+            }
+          }
+        }
+
+        // Sử dụng category đầu tiên nếu vẫn không tìm thấy
+        if (categoryId == 'other' && filteredCategories.isNotEmpty) {
+          categoryId = filteredCategories.first.categoryId;
+          categoryName = filteredCategories.first.name;
+        }
+      }
+
+      // Tạo note từ description
+      String note = scanResult['note'] ??
+          scanResult['description'] ??
+          'Giao dịch từ scan AI';
+
+      return TransactionModel(
+        transactionId: '',
+        userId: userId,
+        categoryId: categoryId,
+        categoryName: categoryName,
+        amount: amount,
+        type: transactionType,
+        date: transactionDate,
+        note: note,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        isDeleted: false,
+      );
+    } catch (e) {
+      _logger.e('Error mapping scan result to transaction: $e');
+      rethrow;
+    }
+  }
+
+  /// Validate scan result trước khi lưu
+  Map<String, dynamic> validateScanResult(Map<String, dynamic> scanResult) {
+    final errors = <String>[];
+
+    // Kiểm tra amount
+    final amount = scanResult['amount'];
+    if (amount == null || amount <= 0) {
+      errors.add('Số tiền không hợp lệ');
+    }
+
+    // Kiểm tra type
+    final type = scanResult['type'];
+    if (type != 'income' && type != 'expense') {
+      errors.add('Loại giao dịch không hợp lệ');
+    }
+
+    // Kiểm tra date
+    try {
+      if (scanResult['date'] != null) {
+        DateTime.parse(scanResult['date']);
+      }
+    } catch (e) {
+      errors.add('Ngày giao dịch không hợp lệ');
+    }
+
+    return {
+      'isValid': errors.isEmpty,
+      'errors': errors,
+    };
   }
 }

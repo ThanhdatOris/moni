@@ -114,4 +114,43 @@
 }
 
 # Security: Remove debug information
--renamesourcefileattribute SourceFile 
+-renamesourcefileattribute SourceFile
+
+# Google ML Kit Text Recognition rules
+-keep class com.google.mlkit.vision.text.** { *; }
+-keep class com.google.mlkit.vision.text.chinese.** { *; }
+-keep class com.google.mlkit.vision.text.devanagari.** { *; }
+-keep class com.google.mlkit.vision.text.japanese.** { *; }
+-keep class com.google.mlkit.vision.text.korean.** { *; }
+-keep class com.google.mlkit.vision.text.latin.** { *; }
+-dontwarn com.google.mlkit.vision.text.**
+
+# Google ML Kit Common rules
+-keep class com.google.mlkit.common.** { *; }
+-keep class com.google.mlkit.vision.common.** { *; }
+-dontwarn com.google.mlkit.common.**
+-dontwarn com.google.mlkit.vision.common.**
+
+# Google ML Kit specific text recognizer options
+-keep class com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions { *; }
+-keep class com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions$Builder { *; }
+-keep class com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions { *; }
+-keep class com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions$Builder { *; }
+-keep class com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions { *; }
+-keep class com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions$Builder { *; }
+-keep class com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions { *; }
+-keep class com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions$Builder { *; }
+
+# Google ML Kit Text Recognition plugin
+-keep class com.google_mlkit_text_recognition.** { *; }
+-dontwarn com.google_mlkit_text_recognition.**
+
+# Additional missing rules from R8 analysis
+-dontwarn com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions$Builder
+-dontwarn com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+-dontwarn com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions$Builder
+-dontwarn com.google.mlkit.vision.text.devanagari.DevanagariTextRecognizerOptions
+-dontwarn com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions$Builder
+-dontwarn com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
+-dontwarn com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions$Builder
+-dontwarn com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions 
