@@ -10,6 +10,7 @@ import '../../../widgets/charts/components/donut_chart.dart';
 import '../../../widgets/charts/components/filter.dart';
 import '../../../widgets/charts/components/trend_bar_chart.dart';
 import '../../../widgets/charts/models/chart_data_model.dart';
+import '../../history/transaction_history_screen.dart';
 
 /// Widget cho expense chart section trong home screen - Cấu trúc mới
 /// Header: Title + Chart type toggle
@@ -608,28 +609,79 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
     // Show category details and navigate to filtered history
     debugPrint('Donut category tapped: ${item.category} - Amount: ${item.amount}');
     widget.onCategoryTap?.call();
-    // TODO: Navigate to history with category filter for the selected category
-    widget.onNavigateToHistory?.call();
+    
+    // Navigate to history with category filter for the selected category
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TransactionHistoryScreen(
+          categoryId: item.categoryModel?.categoryId,
+          filterType: _getTransactionType(),
+        ),
+      ),
+    );
   }
 
   void _onCategoryItemTap(ChartDataModel item) {
     // Navigate to history with category filter
-    widget.onNavigateToHistory?.call();
     debugPrint('Category item tapped: ${item.category}');
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TransactionHistoryScreen(
+          categoryId: item.categoryModel?.categoryId,
+          filterType: _getTransactionType(),
+        ),
+      ),
+    );
   }
 
   void _onTrendBarTap(TrendData item) {
     // Show trend details or navigate to filtered history
     debugPrint('Trend bar tapped: ${item.label} - Income: ${item.income}, Expense: ${item.expense}');
-    // TODO: Navigate to history with date filter for the selected period
-    widget.onNavigateToHistory?.call();
+    
+    // Navigate to history with date filter for the selected period
+    try {
+      // Parse the period from TrendData to get the date
+      final periodDate = DateTime.parse(item.period);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TransactionHistoryScreen(
+            filterDate: DateTime(periodDate.year, periodDate.month, 1), // First day of month
+            filterType: _getTransactionType(),
+          ),
+        ),
+      );
+    } catch (e) {
+      // Fallback to current date if parsing fails
+      debugPrint('Error parsing trend period: $e');
+      widget.onNavigateToHistory?.call();
+    }
   }
 
   void _onCombinedCategoryTap(ChartDataModel item, String type) {
     // Show category details and navigate to filtered history with type
     debugPrint('Combined category tapped: ${item.category} - Type: $type - Amount: ${item.amount}');
     widget.onCategoryTap?.call();
-    // TODO: Navigate to history with category and type filter
-    widget.onNavigateToHistory?.call();
+    
+    // Navigate to history with category and type filter
+    TransactionType? filterType;
+    if (type == 'income') {
+      filterType = TransactionType.income;
+    } else if (type == 'expense') {
+      filterType = TransactionType.expense;
+    }
+    
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TransactionHistoryScreen(
+          categoryId: item.categoryModel?.categoryId,
+          filterType: filterType,
+        ),
+      ),
+    );
   }
 }

@@ -296,7 +296,7 @@ class CategoryService {
           .map((snapshot) {
         return snapshot.docs.map((doc) {
           return CategoryModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+              doc.data(), doc.id);
         }).toList();
       });
     } catch (e) {
@@ -533,7 +533,7 @@ class CategoryService {
 
       return snapshot.docs.map((doc) {
         return CategoryModel.fromMap(
-            doc.data() as Map<String, dynamic>, doc.id);
+            doc.data(), doc.id);
       }).toList();
     } catch (e) {
       _logger.e('❌ Error getting user categories: $e');

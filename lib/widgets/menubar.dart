@@ -53,11 +53,11 @@ class Menubar extends StatelessWidget {
                 Expanded(
                     child: _buildNavItem(Icons.home_filled, 0, 'Trang chủ')),
                 Expanded(
-                    child: _buildNavItem(Icons.history_rounded, 1, 'Lịch sử')),
+                    child:
+                        _buildNavItem(Icons.chat_bubble_rounded, 1, 'Trợ lý')),
                 const SizedBox(width: 60), // Khoảng trống cho nút giữa
                 Expanded(
-                    child:
-                        _buildNavItem(Icons.chat_bubble_rounded, 3, 'Trợ lý')),
+                    child: _buildNavItem(Icons.history_rounded, 3, 'Lịch sử')),
                 Expanded(
                     child: _buildNavItem(Icons.person_rounded, 4, 'Cá nhân')),
               ],

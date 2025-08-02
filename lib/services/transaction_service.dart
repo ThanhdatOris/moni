@@ -423,8 +423,8 @@ class TransactionService {
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        if (data != null) {
-          final map = data as Map<String, dynamic>;
+        if (data.isNotEmpty) {
+          final map = data;
           final transaction = TransactionModel.fromMap(map, doc.id);
 
           // Filter trong client
@@ -540,8 +540,8 @@ class TransactionService {
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        if (data != null) {
-          final map = data as Map<String, dynamic>;
+        if (data.isNotEmpty) {
+          final map = data;
           final transaction = TransactionModel.fromMap(map, doc.id);
 
           // Filter trong client

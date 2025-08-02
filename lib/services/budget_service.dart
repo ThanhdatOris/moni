@@ -1,13 +1,12 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:logger/logger.dart';
 
 import '../models/budget_model.dart';
-import '../models/transaction_model.dart';
-import 'base_service.dart';
-import 'transaction_service.dart';
+import '../services/base_service.dart';
 
-/// Budget Service - Quản lý ngân sách đơn giản và hiệu quả
+/// Service quản lý ngân sách - Tích hợp với Firestore
 class BudgetService extends BaseService {
   static final BudgetService _instance = BudgetService._internal();
   factory BudgetService() => _instance;
@@ -15,15 +14,79 @@ class BudgetService extends BaseService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final Logger _logger = Logger();
 
-  /// Tạo ngân sách mới
-  Future<String> createBudget(BudgetModel budget) async {
+  /// Get all budgets for current user
+  Stream<List<BudgetModel>> getBudgets() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      return Stream.value([]);
+    }
+
+    return _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('budgets')
+        .where('isActive', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => BudgetModel.fromFirestore(doc))
+            .toList());
+  }
+
+  /// Get budget by category ID
+  Future<BudgetModel?> getBudgetByCategory(String categoryId) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return null;
+
+      final snapshot = await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('budgets')
+          .where('categoryId', isEqualTo: categoryId)
+          .where('isActive', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isEmpty) return null;
+
+      final doc = snapshot.docs.first;
+      return BudgetModel.fromFirestore(doc);
+    } catch (e) {
+      logError('Error getting budget by category', e);
+      return null;
+    }
+  }
+
+  /// Create new budget
+  Future<String> createBudget({
+    required String categoryId,
+    required String categoryName,
+    required double monthlyLimit,
+  }) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        throw Exception('Người dùng chưa đăng nhập');
+        throw Exception('User not authenticated');
       }
+
+      final now = DateTime.now();
+      final startDate = DateTime(now.year, now.month, 1);
+      final endDate = DateTime(now.year, now.month + 1, 0);
+
+      final budget = BudgetModel(
+        id: '',
+        userId: user.uid,
+        categoryId: categoryId,
+        categoryName: categoryName,
+        monthlyLimit: monthlyLimit,
+        currentSpending: 0.0,
+        startDate: startDate,
+        endDate: endDate,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      );
 
       final docRef = await _firestore
           .collection('users')
@@ -31,42 +94,20 @@ class BudgetService extends BaseService {
           .collection('budgets')
           .add(budget.toFirestore());
 
-      _logger.i('Tạo ngân sách thành công: ${docRef.id}');
+      logInfo('Created budget for category: $categoryName');
       return docRef.id;
     } catch (e) {
-      _logger.e('Lỗi tạo ngân sách: $e');
-      throw Exception('Không thể tạo ngân sách: $e');
+      logError('Error creating budget', e);
+      rethrow;
     }
   }
 
-  /// Cập nhật ngân sách
-  Future<void> updateBudget(BudgetModel budget) async {
+  /// Update budget limit
+  Future<void> updateBudgetLimit(String budgetId, double newLimit) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        throw Exception('Người dùng chưa đăng nhập');
-      }
-
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('budgets')
-          .doc(budget.id)
-          .update(budget.toFirestore());
-
-      _logger.i('Cập nhật ngân sách thành công: ${budget.id}');
-    } catch (e) {
-      _logger.e('Lỗi cập nhật ngân sách: $e');
-      throw Exception('Không thể cập nhật ngân sách: $e');
-    }
-  }
-
-  /// Xóa ngân sách
-  Future<void> deleteBudget(String budgetId) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        throw Exception('Người dùng chưa đăng nhập');
+        throw Exception('User not authenticated');
       }
 
       await _firestore
@@ -74,259 +115,127 @@ class BudgetService extends BaseService {
           .doc(user.uid)
           .collection('budgets')
           .doc(budgetId)
-          .delete();
+          .update({
+        'monthlyLimit': newLimit,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-      _logger.i('Xóa ngân sách thành công: $budgetId');
+      logInfo('Updated budget limit: $newLimit');
     } catch (e) {
-      _logger.e('Lỗi xóa ngân sách: $e');
-      throw Exception('Không thể xóa ngân sách: $e');
+      logError('Error updating budget limit', e);
+      rethrow;
     }
   }
 
-  /// Lấy danh sách ngân sách của người dùng
-  Future<List<BudgetModel>> getUserBudgets() async {
+  /// Update current spending for a budget
+  Future<void> updateCurrentSpending(String categoryId, double spending) async {
     try {
       final user = _auth.currentUser;
-      if (user == null) {
-        return [];
-      }
+      if (user == null) return;
 
-      final snapshot = await _firestore
+      final budgetQuery = await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('budgets')
-          .where('is_active', isEqualTo: true)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => BudgetModel.fromFirestore(doc))
-          .toList();
-    } catch (e) {
-      _logger.e('Lỗi lấy danh sách ngân sách: $e');
-      return [];
-    }
-  }
-
-  /// Lấy ngân sách theo category
-  Future<BudgetModel?> getBudgetByCategory(String categoryId) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        return null;
-      }
-
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('budgets')
-          .where('category_id', isEqualTo: categoryId)
-          .where('is_active', isEqualTo: true)
+          .where('categoryId', isEqualTo: categoryId)
+          .where('isActive', isEqualTo: true)
           .limit(1)
           .get();
 
-      if (snapshot.docs.isEmpty) {
-        return null;
+      if (budgetQuery.docs.isNotEmpty) {
+        final budgetDoc = budgetQuery.docs.first;
+        await budgetDoc.reference.update({
+          'currentSpending': spending,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
       }
-
-      return BudgetModel.fromFirestore(snapshot.docs.first);
     } catch (e) {
-      _logger.e('Lỗi lấy ngân sách theo category: $e');
-      return null;
+      logError('Error updating current spending', e);
     }
   }
 
-  /// Cập nhật chi tiêu hiện tại cho ngân sách
-  Future<void> updateBudgetSpending(String categoryId, double amount) async {
-    try {
-      final budget = await getBudgetByCategory(categoryId);
-      if (budget == null) {
-        return; // Không có ngân sách cho category này
-      }
-
-      final updatedBudget = budget.copyWith(
-        currentSpending: budget.currentSpending + amount,
-        updatedAt: DateTime.now(),
-      );
-
-      await updateBudget(updatedBudget);
-
-      // Kiểm tra và tạo cảnh báo nếu cần
-      await _checkAndCreateAlert(updatedBudget);
-
-      _logger.i('Cập nhật chi tiêu ngân sách: ${budget.categoryName}');
-    } catch (e) {
-      _logger.e('Lỗi cập nhật chi tiêu ngân sách: $e');
-    }
-  }
-
-  /// Reset ngân sách hàng tháng
-  Future<void> resetMonthlyBudgets() async {
+  /// Calculate total budget and utilization
+  Future<Map<String, dynamic>> getBudgetSummary() async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        return;
-      }
-
-      final budgets = await getUserBudgets();
-      final now = DateTime.now();
-      final newStartDate = DateTime(now.year, now.month, 1);
-      final newEndDate = DateTime(now.year, now.month + 1, 0);
-
-      for (final budget in budgets) {
-        // Chỉ reset nếu đã hết tháng
-        if (now.isAfter(budget.endDate)) {
-          final resetBudget = budget.copyWith(
-            currentSpending: 0.0,
-            startDate: newStartDate,
-            endDate: newEndDate,
-            updatedAt: now,
-          );
-
-          await updateBudget(resetBudget);
-
-          // Tạo cảnh báo reset
-          await _createAlert(
-            budgetId: budget.id,
-            message: 'Ngân sách ${budget.categoryName} đã được reset cho tháng mới',
-            type: BudgetAlertType.reset,
-          );
-        }
-      }
-
-      _logger.i('Reset ngân sách hàng tháng thành công');
-    } catch (e) {
-      _logger.e('Lỗi reset ngân sách hàng tháng: $e');
-    }
-  }
-
-  /// Lấy thống kê ngân sách
-  Future<Map<String, dynamic>> getBudgetStats() async {
-    try {
-      final budgets = await getUserBudgets();
-      if (budgets.isEmpty) {
         return {
-          'totalBudgets': 0,
-          'totalLimit': 0.0,
-          'totalSpending': 0.0,
-          'averageUtilization': 0.0,
-          'overBudgetCount': 0,
-          'warningCount': 0,
+          'totalBudget': 0.0,
+          'utilizationRate': 0.0,
+          'categoriesWithBudgets': 0,
+          'categoriesWithoutBudgets': 0,
         };
       }
 
-      final totalLimit = budgets.fold(0.0, (sum, b) => sum + b.monthlyLimit);
-      final totalSpending = budgets.fold(0.0, (sum, b) => sum + b.currentSpending);
-      final averageUtilization = totalLimit > 0 ? totalSpending / totalLimit : 0.0;
-      final overBudgetCount = budgets.where((b) => b.isOverBudget).length;
-      final warningCount = budgets.where((b) => b.isNearLimit && !b.isOverBudget).length;
-
-      return {
-        'totalBudgets': budgets.length,
-        'totalLimit': totalLimit,
-        'totalSpending': totalSpending,
-        'averageUtilization': averageUtilization,
-        'overBudgetCount': overBudgetCount,
-        'warningCount': warningCount,
-      };
-    } catch (e) {
-      _logger.e('Lỗi lấy thống kê ngân sách: $e');
-      return {};
-    }
-  }
-
-  /// Tạo cảnh báo ngân sách
-  Future<void> _createAlert({
-    required String budgetId,
-    required String message,
-    required BudgetAlertType type,
-  }) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        return;
-      }
-
-      final alert = BudgetAlert(
-        id: '',
-        budgetId: budgetId,
-        message: message,
-        type: type,
-        createdAt: DateTime.now(),
-        isRead: false,
-      );
-
-      await _firestore
+      // Get all active budgets
+      final budgetsSnapshot = await _firestore
           .collection('users')
           .doc(user.uid)
-          .collection('budget_alerts')
-          .add(alert.toFirestore());
-
-      _logger.i('Tạo cảnh báo ngân sách: $message');
-    } catch (e) {
-      _logger.e('Lỗi tạo cảnh báo ngân sách: $e');
-    }
-  }
-
-  /// Kiểm tra và tạo cảnh báo nếu cần
-  Future<void> _checkAndCreateAlert(BudgetModel budget) async {
-    if (budget.isOverBudget) {
-      await _createAlert(
-        budgetId: budget.id,
-        message: 'Ngân sách ${budget.categoryName} đã vượt quá giới hạn!',
-        type: BudgetAlertType.overBudget,
-      );
-    } else if (budget.isNearLimit) {
-      await _createAlert(
-        budgetId: budget.id,
-        message: 'Ngân sách ${budget.categoryName} đã sử dụng ${(budget.utilizationRate * 100).toInt()}%',
-        type: BudgetAlertType.nearLimit,
-      );
-    }
-  }
-
-  /// Lấy danh sách cảnh báo ngân sách
-  Future<List<BudgetAlert>> getBudgetAlerts({int limit = 10}) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        return [];
-      }
-
-      final snapshot = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('budget_alerts')
-          .orderBy('created_at', descending: true)
-          .limit(limit)
+          .collection('budgets')
+          .where('isActive', isEqualTo: true)
           .get();
 
-      return snapshot.docs
-          .map((doc) => BudgetAlert.fromFirestore(doc))
+      final budgets = budgetsSnapshot.docs
+          .map((doc) => BudgetModel.fromFirestore(doc))
           .toList();
+
+      // Calculate spending for each budget
+      for (final budget in budgets) {
+        // Simplified spending calculation - can be enhanced later
+        final spending = 0.0; // TODO: Implement proper spending calculation
+        
+        // Update current spending in Firestore
+        await updateCurrentSpending(budget.categoryId, spending);
+      }
+
+      // Calculate summary
+      final totalBudget = budgets.fold(0.0, (sum, b) => sum + b.monthlyLimit);
+      final totalSpending = budgets.fold(0.0, (sum, b) => sum + b.currentSpending);
+      final utilizationRate = totalBudget > 0 ? totalSpending / totalBudget : 0.0;
+
+      // Count categories with/without budgets
+      final categoriesWithBudgets = budgets.length;
+      final categoriesWithoutBudgets = 0; // TODO: Implement proper category counting
+
+      return {
+        'totalBudget': totalBudget,
+        'utilizationRate': utilizationRate,
+        'categoriesWithBudgets': categoriesWithBudgets,
+        'categoriesWithoutBudgets': categoriesWithoutBudgets,
+      };
     } catch (e) {
-      _logger.e('Lỗi lấy cảnh báo ngân sách: $e');
-      return [];
+      logError('Error calculating budget summary', e);
+      return {
+        'totalBudget': 0.0,
+        'utilizationRate': 0.0,
+        'categoriesWithBudgets': 0,
+        'categoriesWithoutBudgets': 0,
+      };
     }
   }
 
-  /// Đánh dấu cảnh báo đã đọc
-  Future<void> markAlertAsRead(String alertId) async {
+  /// Delete budget
+  Future<void> deleteBudget(String budgetId) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        return;
+        throw Exception('User not authenticated');
       }
 
       await _firestore
           .collection('users')
           .doc(user.uid)
-          .collection('budget_alerts')
-          .doc(alertId)
-          .update({'is_read': true});
+          .collection('budgets')
+          .doc(budgetId)
+          .update({
+        'isActive': false,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
-      _logger.i('Đánh dấu cảnh báo đã đọc: $alertId');
+      logInfo('Deleted budget: $budgetId');
     } catch (e) {
-      _logger.e('Lỗi đánh dấu cảnh báo đã đọc: $e');
+      logError('Error deleting budget', e);
+      rethrow;
     }
   }
-} 
+}
