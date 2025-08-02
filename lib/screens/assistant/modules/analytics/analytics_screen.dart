@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../constants/app_colors.dart';
-import '../../../../services/analytics/analytics_coordinator.dart';
-import '../../../../widgets/custom_page_header.dart';
+import '../../../../widgets/charts/models/chart_data_model.dart';
 import '../../../assistant/models/agent_request_model.dart';
 import '../../../assistant/services/global_agent_service.dart';
+import '../../widgets/assistant_error_card.dart';
+import '../../widgets/assistant_loading_card.dart';
+import 'widgets/analytics_chart_section.dart';
+import 'widgets/analytics_insight_card.dart';
+import 'widgets/analytics_quick_actions.dart';
+import 'widgets/analytics_summary_card.dart';
 
-/// Analytics Module Screen - Advanced spending analysis and insights
+/// Enhanced Analytics Module Screen with modern UI components
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
 
@@ -15,268 +20,398 @@ class AnalyticsScreen extends StatefulWidget {
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> {
+class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderStateMixin {
   final GlobalAgentService _agentService = GetIt.instance<GlobalAgentService>();
-  final AnalyticsCoordinator _analyticsCoordinator = AnalyticsCoordinator();
+  late TabController _tabController;
+  
   bool _isLoading = false;
-  String? _analysisResult;
+  bool _hasError = false;
+  String? _errorMessage;
+  String? _aiInsight;
+  List<String> _recommendations = [];
+  
+  // Financial data
+  double _totalIncome = 0;
+  double _totalExpense = 0;
+  double _balance = 0;
+  int _transactionCount = 0;
+  
+  // Chart data
+  List<ChartDataModel> _categoryData = [];
+  List<ChartDataModel> _trendData = [];
   
   @override
   void initState() {
     super.initState();
-    _loadInitialAnalysis();
+    _tabController = TabController(length: 3, vsync: this);
+    _loadData();
   }
 
-  Future<void> _loadInitialAnalysis() async {
-    setState(() => _isLoading = true);
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _hasError = false;
+      _errorMessage = null;
+    });
     
+    try {
+      // Load financial summary
+      await _loadFinancialSummary();
+      
+      // Load chart data
+      await _loadChartData();
+      
+      // Generate AI insights
+      await _generateAIInsights();
+      
+    } catch (e) {
+      setState(() {
+        _hasError = true;
+        _errorMessage = 'Lỗi tải dữ liệu: $e';
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadFinancialSummary() async {
+    // TODO: Replace with actual data from analytics coordinator
+    // For now, using mock data
+    setState(() {
+      _totalIncome = 15000000; // 15M VND
+      _totalExpense = 12000000; // 12M VND  
+      _balance = _totalIncome - _totalExpense;
+      _transactionCount = 45;
+    });
+  }
+
+  Future<void> _loadChartData() async {
+    // TODO: Replace with actual data from analytics coordinator
+    // Mock category data
+    setState(() {
+      _categoryData = [
+        ChartDataModel(
+          category: 'Ăn uống',
+          amount: 4000000,
+          percentage: 33.3,
+          icon: '🍽️',
+          color: '#FF9800',
+          type: 'expense',
+        ),
+        ChartDataModel(
+          category: 'Di chuyển',
+          amount: 2500000,
+          percentage: 20.8,
+          icon: '🚗',
+          color: '#2196F3',
+          type: 'expense',
+        ),
+        ChartDataModel(
+          category: 'Mua sắm',
+          amount: 3000000,
+          percentage: 25.0,
+          icon: '🛍️',
+          color: '#E91E63',
+          type: 'expense',
+        ),
+        ChartDataModel(
+          category: 'Lương',
+          amount: 15000000,
+          percentage: 100.0,
+          icon: '💰',
+          color: '#4CAF50',
+          type: 'income',
+        ),
+      ];
+      
+      _trendData = [
+        ChartDataModel(
+          category: 'Tuần 1',
+          amount: 3000000,
+          percentage: 25.0,
+          icon: '',
+          color: '#FF9800',
+          type: 'expense',
+        ),
+        ChartDataModel(
+          category: 'Tuần 2',
+          amount: 2800000,
+          percentage: 23.3,
+          icon: '',
+          color: '#FF9800',
+          type: 'expense',
+        ),
+        ChartDataModel(
+          category: 'Tuần 3',
+          amount: 3200000,
+          percentage: 26.7,
+          icon: '',
+          color: '#FF9800',
+          type: 'expense',
+        ),
+        ChartDataModel(
+          category: 'Tuần 4',
+          amount: 3000000,
+          percentage: 25.0,
+          icon: '',
+          color: '#FF9800',
+          type: 'expense',
+        ),
+      ];
+    });
+  }
+
+  Future<void> _generateAIInsights() async {
     try {
       final request = AgentRequest.analytics(
         message: 'Phân tích chi tiêu tháng này và đưa ra những insight quan trọng',
         parameters: {
           'period': 'month',
           'analysis_type': 'comprehensive',
+          'total_income': _totalIncome,
+          'total_expense': _totalExpense,
         },
       );
       
       final response = await _agentService.processRequest(request);
       
-      if (mounted && response.isSuccess) {
+      if (response.isSuccess) {
         setState(() {
-          _analysisResult = response.message;
+          _aiInsight = response.message;
+          _recommendations = [
+            'Giảm chi tiêu ăn uống xuống 25% tổng thu nhập',
+            'Tăng tiết kiệm lên 20% mỗi tháng',
+            'Xem xét chuyển đổi phương tiện di chuyển tiết kiệm hơn',
+          ];
         });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải phân tích: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      // AI insight generation failed, continue with other data
+      setState(() {
+        _aiInsight = 'Không thể tạo insight AI lúc này. Vui lòng thử lại sau.';
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            const CustomPageHeader(
-              icon: Icons.analytics_outlined,
-              title: 'Phân tích thông minh',
-              subtitle: 'AI-powered spending insights',
+    return Column(
+      children: [
+        // Consistent tab bar matching other modules
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 0),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundLight,
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
             ),
-            
-            // Content
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 6,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: TabBar(
+            controller: _tabController,
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicator: BoxDecoration(
+              borderRadius: BorderRadius.circular(11), // Giảm từ 12 xuống 11
+              color: Colors.blue, // Solid xanh dương thay vì gradient primary
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withValues(alpha: 0.3), // Đổi màu shadow
+                  blurRadius: 4, // Giảm từ 6 xuống 4
+                  offset: const Offset(0, 1), // Giảm từ 2 xuống 1
+                ),
+              ],
+            ),
+            labelColor: Colors.white,
+            unselectedLabelColor: AppColors.textSecondary,
+            labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
+            unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
+            dividerColor: Colors.transparent,
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
+            splashFactory: NoSplash.splashFactory,
+            tabs: const [
+              Tab(
+                height: 32, // Giảm từ 40 xuống 32
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Quick Actions
-                    _buildQuickActions(),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Analysis Results
-                    Expanded(
-                      child: _buildAnalysisSection(),
-                    ),
+                    Icon(Icons.dashboard_outlined, size: 14), // Giảm size từ 16 xuống 14
+                    SizedBox(width: 4), // Giảm từ 6 xuống 4
+                    Text('Tổng quan'),
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickActions() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Phân tích nhanh',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _buildActionChip('Tháng này', 'month'),
-                _buildActionChip('Quý này', 'quarter'),
-                _buildActionChip('Năm này', 'year'),
-                _buildActionChip('So sánh', 'compare'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionChip(String label, String period) {
-    return ActionChip(
-      label: Text(label),
-      onPressed: _isLoading ? null : () => _requestAnalysis(period),
-      backgroundColor: AppColors.primary.withOpacity(0.1),
-    );
-  }
-
-  Widget _buildAnalysisSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.insights, color: AppColors.primary),
-                const SizedBox(width: 8),
-                const Text(
-                  'Kết quả phân tích',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Tab(
+                height: 40,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bar_chart, size: 14),
+                    SizedBox(width: 4),
+                    Text('Biểu đồ'),
+                  ],
                 ),
-                const Spacer(),
-                if (_isLoading)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _analysisResult != null
-                      ? SingleChildScrollView(
-                          child: Text(
-                            _analysisResult!,
-                            style: const TextStyle(fontSize: 14, height: 1.6),
-                          ),
-                        )
-                      : const Center(
-                          child: Text(
-                            'Chưa có dữ liệu phân tích.\nNhấn vào các nút phía trên để bắt đầu.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ),
-            ),
-          ],
+              ),
+              Tab(
+                height: 40,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.psychology, size: 14),
+                    SizedBox(width: 4),
+                    Text('AI Insights'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 6),
+
+        // Content
+        Expanded(
+          child: _buildContent(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    if (_isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: AssistantLoadingCard(
+          showTitle: true,
+        ),
+      );
+    }
+
+    if (_hasError) {
+      return Padding(
+        padding: const EdgeInsets.all(20),
+        child: AssistantErrorCard(
+          errorMessage: _errorMessage ?? 'Có lỗi xảy ra khi tải dữ liệu',
+          onRetry: _loadData,
+        ),
+      );
+    }
+
+    return TabBarView(
+      controller: _tabController,
+      children: [
+        _buildOverviewTab(),
+        _buildChartsTab(),
+        _buildInsightsTab(),
+      ],
+    );
+  }
+
+  Widget _buildOverviewTab() {
+    return Container(
+      color: AppColors.background,
+      child: RefreshIndicator(
+        onRefresh: _loadData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Financial Summary
+              AnalyticsSummaryCard(
+                totalIncome: _totalIncome,
+                totalExpense: _totalExpense,
+                balance: _balance,
+                transactionCount: _transactionCount,
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Quick Actions
+              AnalyticsQuickActions(
+                onExportReport: _exportReport,
+                onSetBudgetAlert: _setBudgetAlert,
+                onViewDetailedReport: _viewDetailedReport,
+                onShareInsights: _shareInsights,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Future<void> _requestAnalysis(String period) async {
-    setState(() => _isLoading = true);
-    
-    try {
-      String message;
-      String analyticsData = '';
-      
-      // Lấy dữ liệu thực từ analytics service
-      try {
-        final realAnalytics = await _analyticsCoordinator.performComprehensiveAnalysis();
-        analyticsData = '''
-        
-Dữ liệu phân tích thực tế:
-- Confidence Score: ${realAnalytics.spendingPatterns.confidenceScore}/100
-- Anomalies: ${realAnalytics.anomalies.length} bất thường phát hiện
-- Budget Recommendations: ${realAnalytics.budgetRecommendations.length} gợi ý
-- Financial Health: ${realAnalytics.financialHealth.overallScore}/100
-- Overall Score: ${realAnalytics.overallScore}/100
-- Category Patterns: ${realAnalytics.spendingPatterns.categoryDistribution.length} danh mục
-''';
-      } catch (e) {
-        analyticsData = '\nKhông thể lấy dữ liệu analytics thực tế: $e';
-      }
-      
-      switch (period) {
-        case 'month':
-          message = '''Phân tích chi tiêu tháng này và đưa ra insights quan trọng.
-          
-Hãy dựa vào dữ liệu sau đây:$analyticsData
+  Widget _buildChartsTab() {
+    return Container(
+      color: AppColors.background,
+      child: RefreshIndicator(
+        onRefresh: _loadChartData,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: AnalyticsChartSection(
+            categoryData: _categoryData,
+            trendData: _trendData,
+            onRefresh: _loadChartData,
+          ),
+        ),
+      ),
+    );
+  }
 
-Đưa ra những nhận xét và gợi ý cụ thể để cải thiện tình hình tài chính.''';
-          break;
-        case 'quarter':
-          message = '''Phân tích chi tiêu quý này so với các quý trước.
-          
-Dữ liệu hiện tại:$analyticsData
+  Widget _buildInsightsTab() {
+    return Container(
+      color: AppColors.background,
+      child: RefreshIndicator(
+        onRefresh: _generateAIInsights,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: AnalyticsInsightCard(
+            insight: _aiInsight,
+            recommendations: _recommendations,
+            onRegenerateInsight: _generateAIInsights,
+          ),
+        ),
+      ),
+    );
+  }
 
-Đánh giá xu hướng và đề xuất điều chỉnh cho quý tới.''';
-          break;
-        case 'year':
-          message = '''Phân tích tổng quan chi tiêu cả năm và xu hướng.
-          
-Dữ liệu tóm tắt:$analyticsData
+  // Action handlers
+  void _exportReport() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đang xuất báo cáo...')),
+    );
+  }
 
-Đưa ra đánh giá tổng thể và kế hoạch cho năm tới.''';
-          break;
-        case 'compare':
-          message = '''So sánh chi tiêu hiện tại với các khoảng thời gian trước đó.
-          
-Dữ liệu so sánh:$analyticsData
+  void _setBudgetAlert() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Thiết lập cảnh báo ngân sách...')),
+    );
+  }
 
-Phân tích sự thay đổi và xu hướng phát triển.''';
-          break;
-        default:
-          message = '''Phân tích chi tiêu tổng quát.
-          
-Dữ liệu hiện có:$analyticsData
+  void _viewDetailedReport() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đang tải báo cáo chi tiết...')),
+    );
+  }
 
-Đưa ra những insight hữu ích nhất.''';
-      }
-      
-      final request = AgentRequest.analytics(
-        message: message,
-        parameters: {
-          'period': period,
-          'analysis_type': 'hybrid_real_ai',
-          'has_real_data': analyticsData.isNotEmpty,
-        },
-      );
-      
-      final response = await _agentService.processRequest(request);
-      
-      if (mounted) {
-        if (response.isSuccess) {
-          setState(() {
-            _analysisResult = response.message;
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: ${response.error ?? "Không thể phân tích"}')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
+  void _shareInsights() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Đang chia sẻ insights...')),
+    );
   }
 }

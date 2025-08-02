@@ -1,7 +1,4 @@
-/// Models cho tối ưu hóa danh mục
-/// Được tách từ AIAnalyticsService để cải thiện maintainability
-
-/// Kết quả tối ưu hóa danh mục tổng quan
+/// Models cho tối ưu hóa danh mục Được tách từ AIAnalyticsService để cải thiện maintainability - Kết quả tối ưu hóa danh mục tổng quan
 class CategoryOptimization {
   final List<CategoryMergeRecommendation> suggestedMerges;
   final List<CategorySplitRecommendation> suggestedSplits;
@@ -150,7 +147,7 @@ class CategoryMergeRecommendation {
   }
 
   /// Get recommended action text
-  String get actionText => 'Gộp ${categoryCount} danh mục thành "$suggestedName"';
+  String get actionText => 'Gộp $categoryCount danh mục thành "$suggestedName"';
 
   /// Get impact estimate
   String get estimatedImpact {
@@ -224,7 +221,7 @@ class CategorySplitRecommendation {
   }
 
   /// Get recommended action text
-  String get actionText => 'Tách thành ${splitCount} danh mục: ${suggestedSplits.join(", ")}';
+  String get actionText => 'Tách thành $splitCount danh mục: ${suggestedSplits.join(", ")}';
 
   /// Get impact estimate
   String get estimatedImpact {
@@ -318,14 +315,20 @@ class CategoryAnalysisData {
     double score = 0.0;
     
     // Usage frequency (40% weight)
-    if (transactionCount >= 10) score += 0.4;
-    else score += (transactionCount / 10) * 0.4;
-    
+    if (transactionCount >= 10) {
+      score += 0.4;
+    } else {
+      score += (transactionCount / 10) * 0.4;
+    }
+
     // Recency (30% weight)
     final daysSinceLastUsed = DateTime.now().difference(lastUsed).inDays;
-    if (daysSinceLastUsed <= 30) score += 0.3;
-    else if (daysSinceLastUsed <= 90) score += 0.15;
-    
+    if (daysSinceLastUsed <= 30) {
+      score += 0.3;
+    } else if (daysSinceLastUsed <= 90) {
+      score += 0.15;
+    }
+
     // Uniqueness (30% weight)
     score += (1.0 - similarity) * 0.3;
     

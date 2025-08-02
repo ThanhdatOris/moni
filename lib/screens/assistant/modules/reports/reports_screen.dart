@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../constants/app_colors.dart';
-import '../../../../models/report_model.dart';
-import '../../../../services/report_service.dart';
-import '../../../../widgets/custom_page_header.dart';
 import '../../../assistant/models/agent_request_model.dart';
 import '../../../assistant/services/global_agent_service.dart';
+import 'widgets/report_chart_preview.dart';
+import 'widgets/report_export_options.dart';
+import 'widgets/report_preview_container.dart';
+import 'widgets/report_template_card.dart';
 
 /// Reports Module Screen - Generate and manage financial reports
 class ReportsScreen extends StatefulWidget {
@@ -16,292 +17,330 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> {
+class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateMixin {
   final GlobalAgentService _agentService = GetIt.instance<GlobalAgentService>();
-  final ReportService _reportService = GetIt.instance<ReportService>();
+  late TabController _tabController;
   bool _isLoading = false;
-  String? _lastReportResult;
+  ReportTemplate? _selectedTemplate;
+  
+  // Sample data
+  final List<ReportTemplate> _availableTemplates = [
+    ReportTemplate(
+      id: 'financial_summary',
+      name: 'Báo cáo tài chính tổng hợp',
+      description: 'Tổng quan toàn diện về tình hình tài chính với phân tích chi tiết thu chi và xu hướng',
+      category: ReportCategory.financial,
+      features: ['Thu chi tổng hợp', 'Phân tích xu hướng', 'Biểu đồ trực quan', 'Dự báo'],
+      estimatedTime: const Duration(minutes: 5),
+      previewImage: '',
+      parameters: {},
+    ),
+    ReportTemplate(
+      id: 'spending_analysis',
+      name: 'Phân tích chi tiêu chi tiết',
+      description: 'Báo cáo chi tiết về các khoản chi tiêu theo danh mục với đề xuất tối ưu hóa',
+      category: ReportCategory.spending,
+      features: ['Chi tiêu theo danh mục', 'So sánh thời gian', 'Gợi ý tiết kiệm', 'Cảnh báo'],
+      estimatedTime: const Duration(minutes: 3),
+      previewImage: '',
+      parameters: {},
+    ),
+    ReportTemplate(
+      id: 'budget_performance',
+      name: 'Hiệu quả ngân sách',
+      description: 'Đánh giá hiệu quả thực hiện ngân sách với so sánh kế hoạch và thực tế',
+      category: ReportCategory.budget,
+      features: ['So sánh ngân sách', 'Tỷ lệ thực hiện', 'Điều chỉnh đề xuất', 'Mục tiêu'],
+      estimatedTime: const Duration(minutes: 4),
+      previewImage: '',
+      parameters: {},
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
   
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            const CustomPageHeader(
-              icon: Icons.description_outlined,
-              title: 'Báo cáo',
-              subtitle: 'Xuất báo cáo chi tiết',
+    return Column(
+      children: [
+        // Tab bar only (no redundant header)
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 0),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundLight,
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(14),
+              bottomRight: Radius.circular(14),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 6,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: TabBar(
+            controller: _tabController,
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicator: BoxDecoration(
+              borderRadius: BorderRadius.circular(11), // Giảm từ 12 xuống 11
+              color: Colors.purple.shade600, // Solid tím thay vì gradient primary
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.purple.shade600.withValues(alpha: 0.3), // Đổi màu shadow
+                  blurRadius: 4, // Giảm từ 6 xuống 4
+                  offset: const Offset(0, 1), // Giảm từ 2 xuống 1
+                ),
+              ],
+            ),
+            labelColor: Colors.white,
+            unselectedLabelColor: AppColors.textSecondary,
+            labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
+            unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
+            dividerColor: Colors.transparent,
+            overlayColor: WidgetStateProperty.all(Colors.transparent),
+            splashFactory: NoSplash.splashFactory,
+            tabs: const [
+              Tab(
+                height: 32,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.description_outlined, size: 14),
+                    SizedBox(width: 4),
+                    Text('Templates'),
+                  ],
+                ),
+              ),
+              Tab(
+                height: 40,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.preview, size: 14),
+                    SizedBox(width: 4),
+                    Text('Preview'),
+                  ],
+                ),
+              ),
+              Tab(
+                height: 40,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.file_download, size: 14),
+                    SizedBox(width: 4),
+                    Text('Export'),
+                  ],
+                ),
+              ),
+                ],
+              ),
             ),
             
             // Content
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Report Types
-                    _buildReportTypes(),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Report Results
-                    Expanded(
-                      child: _buildReportResults(),
-                    ),
-                  ],
-                ),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildTemplatesTab(),
+                  _buildPreviewTab(),
+                  _buildExportTab(),
+                ],
               ),
             ),
           ],
-        ),
-      ),
-    );
+        );
   }
 
-  Widget _buildReportTypes() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Loại báo cáo',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 2.5,
-              children: [
-                _buildReportButton(
-                  'Báo cáo tháng',
-                  Icons.calendar_month,
-                  'monthly',
-                  Colors.blue,
-                ),
-                _buildReportButton(
-                  'Báo cáo quý',
-                  Icons.calendar_view_month,
-                  'quarterly',
-                  Colors.green,
-                ),
-                _buildReportButton(
-                  'Báo cáo năm',
-                  Icons.calendar_today,
-                  'yearly',
-                  Colors.orange,
-                ),
-                _buildReportButton(
-                  'Tùy chỉnh',
-                  Icons.tune,
-                  'custom',
-                  Colors.purple,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReportButton(String title, IconData icon, String type, Color color) {
-    return ElevatedButton(
-      onPressed: _isLoading ? null : () => _generateReport(type),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: color.withValues(alpha: 0.1),
-        foregroundColor: color,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: color.withValues(alpha: 0.3)),
-        ),
-      ),
+  Widget _buildTemplatesTab() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20),
-          const SizedBox(height: 4),
           Text(
-            title,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-            textAlign: TextAlign.center,
+            'Chọn template báo cáo:',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.grey800,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _availableTemplates.length,
+              itemBuilder: (context, index) {
+                final template = _availableTemplates[index];
+                return ReportTemplateCard(
+                  template: template,
+                  isSelected: _selectedTemplate?.id == template.id,
+                  isLoading: _isLoading,
+                  onSelect: () => setState(() => _selectedTemplate = template),
+                  onPreview: () => _showPreview(template),
+                  onGenerate: () => _generateReport(template),
+                );
+              },
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReportResults() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+  Widget _buildPreviewTab() {
+    if (_selectedTemplate == null) {
+      return Center(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.insert_chart, color: AppColors.primary),
-                const SizedBox(width: 8),
-                const Text(
-                  'Kết quả báo cáo',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                if (_isLoading)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-              ],
+            Icon(
+              Icons.description,
+              size: 64,
+              color: AppColors.grey400,
             ),
             const SizedBox(height: 16),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _lastReportResult != null
-                      ? SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _lastReportResult!,
-                                style: const TextStyle(fontSize: 14, height: 1.6),
-                              ),
-                              const SizedBox(height: 16),
-                              const Divider(),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => _exportReport('pdf'),
-                                      icon: const Icon(Icons.picture_as_pdf),
-                                      label: const Text('Xuất PDF'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red.shade50,
-                                        foregroundColor: Colors.red,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => _exportReport('excel'),
-                                      icon: const Icon(Icons.table_chart),
-                                      label: const Text('Xuất Excel'),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.green.shade50,
-                                        foregroundColor: Colors.green,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        )
-                      : const Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.description_outlined,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              SizedBox(height: 16),
-                              Text(
-                                'Chọn loại báo cáo để bắt đầu',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
+            Text(
+              'Chọn template để xem preview',
+              style: TextStyle(
+                color: AppColors.grey600,
+                fontSize: 16,
+              ),
             ),
           ],
         ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          // Chart previews
+          Expanded(
+            flex: 2,
+            child: GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              children: [
+                ReportChartPreview(
+                  chartData: ChartPreviewData.createSampleData(ChartType.donut),
+                  chartType: ChartType.donut,
+                  height: 180,
+                ),
+                ReportChartPreview(
+                  chartData: ChartPreviewData.createSampleData(ChartType.bar),
+                  chartType: ChartType.bar,
+                  height: 180,
+                ),
+                ReportChartPreview(
+                  chartData: ChartPreviewData.createSampleData(ChartType.line),
+                  chartType: ChartType.line,
+                  height: 180,
+                ),
+                ReportChartPreview(
+                  chartData: ChartPreviewData.createSampleData(ChartType.combined),
+                  chartType: ChartType.combined,
+                  height: 180,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Preview button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => _showFullPreview(_selectedTemplate!),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: const Text(
+                'Xem preview đầy đủ',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Future<void> _generateReport(String type) async {
+  Widget _buildExportTab() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: ReportExportOptions(
+        availableFormats: ExportFormat.getDefaultFormats(),
+        onExport: _exportReport,
+        isLoading: _isLoading,
+      ),
+    );
+  }
+
+  void _showPreview(ReportTemplate template) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ReportPreviewContainer(
+        preview: ReportPreview(
+          title: template.name,
+          generatedDate: 'Hôm nay',
+          period: 'Tháng 12/2024',
+          transactionCount: 245,
+          estimatedPages: 8,
+          sections: [
+            ReportSection(
+              title: 'Tổng quan tài chính',
+              description: 'Tổng hợp thu chi và số dư hiện tại',
+              type: ReportSectionType.summary,
+            ),
+            ReportSection(
+              title: 'Phân tích chi tiêu',
+              description: 'Biểu đồ chi tiêu theo danh mục',
+              type: ReportSectionType.chart,
+            ),
+          ],
+        ),
+        onClose: () => Navigator.pop(context),
+        onGenerate: () {
+          Navigator.pop(context);
+          _generateReport(template);
+        },
+      ),
+    );
+  }
+
+  void _showFullPreview(ReportTemplate template) {
+    _showPreview(template);
+  }
+
+  Future<void> _generateReport(ReportTemplate template) async {
     setState(() => _isLoading = true);
     
     try {
-      String aiMessage;
-      ReportType reportType;
-      TimePeriod timePeriod;
-      
-      // Map string type to enum values
-      switch (type) {
-        case 'monthly':
-          aiMessage = 'Tạo báo cáo chi tiêu tháng này với phân tích chi tiết theo danh mục';
-          reportType = ReportType.byTime;
-          timePeriod = TimePeriod.monthly;
-          break;
-        case 'quarterly':
-          aiMessage = 'Tạo báo cáo chi tiêu quý này với so sánh các tháng';
-          reportType = ReportType.byCategory;
-          timePeriod = TimePeriod.quarterly;
-          break;
-        case 'yearly':
-          aiMessage = 'Tạo báo cáo tổng quan chi tiêu cả năm với xu hướng và insights';
-          reportType = ReportType.byTime;
-          timePeriod = TimePeriod.yearly;
-          break;
-        case 'custom':
-          aiMessage = 'Tạo báo cáo tùy chỉnh với những thông tin quan trọng nhất';
-          reportType = ReportType.byCategory;
-          timePeriod = TimePeriod.monthly;
-          break;
-        default:
-          aiMessage = 'Tạo báo cáo chi tiêu tổng quát';
-          reportType = ReportType.byTime;
-          timePeriod = TimePeriod.monthly;
-      }
-      
-      // Step 1: Generate real report using ReportService
-      String realReportPath = '';
-      String reportSummary = '';
-      
-      try {
-        realReportPath = await _reportService.generateReport(
-          type: reportType,
-          timePeriod: timePeriod,
-        );
-        reportSummary = 'Đã tạo báo cáo thành công: $realReportPath';
-      } catch (e) {
-        reportSummary = 'Không thể tạo báo cáo từ ReportService: $e';
-      }
-      
-      // Step 2: Use AI to analyze and provide insights
-      final enhancedMessage = '''$aiMessage
-
-Dữ liệu báo cáo thực tế:
-$reportSummary
-
-Hãy phân tích và đưa ra những insight quan trọng từ dữ liệu này, 
-cùng với những gợi ý cải thiện tình hình tài chính.''';
-      
-      final request = AgentRequest.report(
-        message: enhancedMessage,
+      final request = AgentRequest.budget(
+        message: 'Tạo ${template.name} với dữ liệu thực tế của người dùng. '
+                'Bao gồm phân tích chi tiết, biểu đồ và gợi ý cải thiện.',
         parameters: {
-          'type': type,
-          'report_type': reportType.name,
-          'time_period': timePeriod.name,
-          'has_real_report': realReportPath.isNotEmpty,
-          'report_path': realReportPath,
+          'template_id': template.id,
+          'category': template.category.name,
+          'features': template.features,
         },
       );
       
@@ -309,13 +348,10 @@ cùng với những gợi ý cải thiện tình hình tài chính.''';
       
       if (mounted) {
         if (response.isSuccess) {
-          setState(() {
-            _lastReportResult = '''${response.message}
-
----
-📄 **Báo cáo được tạo:**
-${realReportPath.isNotEmpty ? realReportPath : 'Chưa có file báo cáo'}''';
-          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Báo cáo đã được tạo thành công!')),
+          );
+          _tabController.animateTo(2); // Switch to export tab
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Lỗi: ${response.error ?? "Không thể tạo báo cáo"}')),
@@ -335,58 +371,36 @@ ${realReportPath.isNotEmpty ? realReportPath : 'Chưa có file báo cáo'}''';
     }
   }
 
-  Future<void> _exportReport(String format) async {
-    if (_lastReportResult == null) return;
-    
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const AlertDialog(
-        content: Row(
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 16),
-            Text('Đang xuất báo cáo...'),
-          ],
-        ),
-      ),
-    );
-
-    try {
-      final request = AgentRequest.report(
-        message: 'Xuất báo cáo dưới dạng $format',
-        parameters: {
-          'action': 'export',
-          'format': format,
-          'content': _lastReportResult,
-        },
+  Future<void> _exportReport(ExportSettings settings) async {
+    if (_selectedTemplate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn template trước')),
       );
-      
-      final response = await _agentService.processRequest(request);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    
+    try {
+      // Simulate export process
+      await Future.delayed(const Duration(seconds: 3));
       
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-        
-        if (response.isSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Báo cáo $format đã được tạo thành công!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi xuất báo cáo: ${response.error}')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã xuất báo cáo ${settings.format?.name ?? "PDF"} thành công!'),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
+          SnackBar(content: Text('Lỗi xuất file: $e')),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }

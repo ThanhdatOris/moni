@@ -3,9 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
 import '../models/budget_model.dart';
-import '../models/transaction_model.dart';
 import 'base_service.dart';
-import 'transaction_service.dart';
 
 /// Budget Service - Quản lý ngân sách đơn giản và hiệu quả
 class BudgetService extends BaseService {

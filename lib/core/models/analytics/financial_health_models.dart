@@ -1,5 +1,4 @@
-/// Models cho đánh giá sức khỏe tài chính
-/// Được tách từ AIAnalyticsService để cải thiện maintainability
+/// Models cho đánh giá sức khỏe tài chính - Được tách từ AIAnalyticsService để cải thiện maintainability
 
 /// Điểm số sức khỏe tài chính tổng quan
 class FinancialHealthScore {

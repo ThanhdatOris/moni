@@ -1,7 +1,6 @@
+import '../../../models/transaction_model.dart';
 /// Models cho phân tích mẫu chi tiêu
 /// Được tách từ AIAnalyticsService để cải thiện maintainability
-
-import '../../../models/transaction_model.dart';
 
 /// Kết quả phân tích mẫu chi tiêu tổng quan
 class SpendingPatternAnalysis {
