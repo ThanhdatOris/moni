@@ -740,14 +740,17 @@ class _AuthScreenState extends State<AuthScreen> {
                                             _isLoading = true;
                                           });
 
+                                          // Cache context trước async operations
+                                          final scaffoldMessenger = ScaffoldMessenger.of(context);
+                                          final contextForError = context;
+
                                           try {
                                             final authService = AuthService();
                                             final userModel = await authService
                                                 .signInAnonymously();
 
                                             if (userModel != null && mounted) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
+                                              scaffoldMessenger.showSnackBar(
                                                 SnackBar(
                                                   content: Text(
                                                       'Đăng nhập khách thành công! Chào mừng ${userModel.name}'),
@@ -762,14 +765,13 @@ class _AuthScreenState extends State<AuthScreen> {
                                               if (e is AppError) {
                                                 ErrorHandler.instance
                                                     .handleErrorWithUI(
-                                                  context,
+                                                  contextForError,
                                                   e,
                                                   contextInfo:
                                                       'Đăng nhập khách',
                                                 );
                                               } else {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
+                                                scaffoldMessenger.showSnackBar(
                                                   SnackBar(
                                                       content: Text(
                                                           'Lỗi đăng nhập khách: $e')),
@@ -862,6 +864,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                               _isLoading = true;
                                             });
 
+                                            // Cache context trước async operations
+                                            final scaffoldMessenger = ScaffoldMessenger.of(context);
+
                                             try {
                                               await FirebaseAuth.instance
                                                   .signInWithEmailAndPassword(
@@ -870,8 +875,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                               );
                                             } catch (e) {
                                               if (mounted) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(
+                                                scaffoldMessenger.showSnackBar(
                                                   SnackBar(
                                                       content: Text('Lỗi: $e')),
                                                 );

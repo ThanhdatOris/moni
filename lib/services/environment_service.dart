@@ -117,20 +117,15 @@ class EnvironmentService {
     return dotenv.env[key] ?? fallback;
   }
 
-  /// Log current environment configuration (chỉ non-sensitive data)
+  /// Log current environment configuration (consolidated report)
   static void logConfiguration() {
     if (!loggingEnabled) return;
     
-    _logger.i('=== Environment Configuration ===');
-    _logger.i('App Name: $appName');
-    _logger.i('Version: $appVersion');
-    _logger.i('Package: $packageName');
-    _logger.i('Environment: $environment');
-    _logger.i('Debug Mode: $debugMode');
-    _logger.i('Logging Enabled: $loggingEnabled');
-    _logger.i('Crashlytics: $crashlyticsEnabled');
-    _logger.i('Has Firebase Config: ${firebaseProjectId.isNotEmpty}');
-    _logger.i('Has Gemini API Key: ${geminiApiKey.isNotEmpty}');
-    _logger.i('=================================');
+    // ✅ IMPROVED: Consolidated environment configuration in 2 structured logs instead of 8+ separate logs
+    _logger.i('🚀 Environment: $environment | $appName v$appVersion | Debug: $debugMode | Logging: $loggingEnabled | Crashlytics: $crashlyticsEnabled');
+    
+    if (debugMode) {
+      _logger.d('🔧 Services: Firebase: ${firebaseProjectId.isNotEmpty ? "✓" : "✗"} | Gemini AI: ${geminiApiKey.isNotEmpty ? "✓" : "✗"} | Package: $packageName');
+    }
   }
 } 

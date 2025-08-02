@@ -31,6 +31,7 @@ class TransactionModel {
   final String transactionId;
   final String userId;
   final String categoryId;
+  final String? categoryName; // Optional category name for display purposes
   final double amount;
   final DateTime date;
   final TransactionType type;
@@ -43,6 +44,7 @@ class TransactionModel {
     required this.transactionId,
     required this.userId,
     required this.categoryId,
+    this.categoryName,
     required this.amount,
     required this.date,
     required this.type,
@@ -58,6 +60,7 @@ class TransactionModel {
       transactionId: id,
       userId: map['user_id'] ?? '',
       categoryId: map['category_id'] ?? '',
+      categoryName: map['category_name'], // Optional field
       amount: (map['amount'] as num).toDouble(),
       date: (map['date'] as Timestamp).toDate(),
       type: TransactionType.fromString(map['type'] ?? 'EXPENSE'),
@@ -70,7 +73,7 @@ class TransactionModel {
 
   /// Chuyển TransactionModel thành Map để lưu vào Firestore
   Map<String, dynamic> toMap() {
-    return {
+    final map = {
       'user_id': userId,
       'category_id': categoryId,
       'amount': amount,
@@ -81,6 +84,13 @@ class TransactionModel {
       'updated_at': Timestamp.fromDate(updatedAt),
       'is_deleted': isDeleted,
     };
+    
+    // Only include categoryName if it's provided (optional field)
+    if (categoryName != null) {
+      map['category_name'] = categoryName;
+    }
+    
+    return map;
   }
 
   /// Tạo bản sao TransactionModel với một số trường được cập nhật
@@ -88,6 +98,7 @@ class TransactionModel {
     String? transactionId,
     String? userId,
     String? categoryId,
+    String? categoryName,
     double? amount,
     DateTime? date,
     TransactionType? type,
@@ -100,6 +111,7 @@ class TransactionModel {
       transactionId: transactionId ?? this.transactionId,
       userId: userId ?? this.userId,
       categoryId: categoryId ?? this.categoryId,
+      categoryName: categoryName ?? this.categoryName,
       amount: amount ?? this.amount,
       date: date ?? this.date,
       type: type ?? this.type,
@@ -112,7 +124,7 @@ class TransactionModel {
 
   @override
   String toString() {
-    return 'TransactionModel(transactionId: $transactionId, userId: $userId, categoryId: $categoryId, amount: $amount, date: $date, type: $type, note: $note, createdAt: $createdAt, updatedAt: $updatedAt, isDeleted: $isDeleted)';
+    return 'TransactionModel(transactionId: $transactionId, userId: $userId, categoryId: $categoryId, categoryName: $categoryName, amount: $amount, date: $date, type: $type, note: $note, createdAt: $createdAt, updatedAt: $updatedAt, isDeleted: $isDeleted)';
   }
 
   @override
@@ -123,6 +135,7 @@ class TransactionModel {
         other.transactionId == transactionId &&
         other.userId == userId &&
         other.categoryId == categoryId &&
+        other.categoryName == categoryName &&
         other.amount == amount &&
         other.date == date &&
         other.type == type &&
@@ -137,6 +150,7 @@ class TransactionModel {
     return transactionId.hashCode ^
         userId.hashCode ^
         categoryId.hashCode ^
+        categoryName.hashCode ^
         amount.hashCode ^
         date.hashCode ^
         type.hashCode ^

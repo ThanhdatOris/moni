@@ -1,4 +1,4 @@
-rules_version = '2';
+rules_version = '33';
 service cloud.firestore {
   match /databases/{database}/documents {
     
@@ -54,11 +54,20 @@ service cloud.firestore {
     }
     
     function isValidChatLog(data) {
-      return data.keys().hasAll(['message', 'response', 'type', 'createdAt']) &&
-             data.message is string &&
+      return data.keys().hasAll(['question', 'response', 'conversationId', 'createdAt']) &&
+             data.question is string &&
              data.response is string &&
-             data.type in ['text', 'image', 'voice'] &&
+             data.conversationId is string &&
              data.createdAt is timestamp;
+    }
+    
+    function isValidConversation(data) {
+      return data.keys().hasAll(['title', 'isActive', 'messageCount', 'createdAt', 'updatedAt']) &&
+             data.title is string &&
+             data.isActive is bool &&
+             data.messageCount is number &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
     }
     
     // Users collection
@@ -114,6 +123,20 @@ service cloud.firestore {
         allow create: if isOwner(userId) && 
                          isValidReport(request.resource.data) &&
                          get(/databases/$(database)/documents/users/$(userId)).data.reportsCount < 100;
+      }
+      
+      // Conversations subcollection
+      match /conversations/{conversationId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                         isValidConversation(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         isValidConversation(request.resource.data);
+        allow delete: if isOwner(userId);
+        
+        // Limit queries to prevent abuse
+        allow list: if isOwner(userId) && 
+                       request.query.limit <= 20;
       }
       
       // Chat logs subcollection

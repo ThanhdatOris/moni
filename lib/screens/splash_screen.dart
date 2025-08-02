@@ -30,8 +30,8 @@ class _SplashScreenState extends State<SplashScreen>
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
+        statusBarIconBrightness: Brightness.dark, // Dark icons for light mode
+        statusBarBrightness: Brightness.light, // Light background
       ),
     );
 
@@ -184,7 +184,7 @@ class _SplashScreenState extends State<SplashScreen>
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Text(
-                    'Smart Finance for the Young',
+                    'Quản lý tài chính thông minh',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,

@@ -49,13 +49,17 @@ class Menubar extends StatelessWidget {
               ],
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildNavItem(Icons.home_filled, 0, 'Trang chủ'),
-                _buildNavItem(Icons.receipt_long_rounded, 1, 'Giao dịch'),
+                Expanded(
+                    child: _buildNavItem(Icons.home_filled, 0, 'Trang chủ')),
+                Expanded(
+                    child: _buildNavItem(Icons.history_rounded, 1, 'Lịch sử')),
                 const SizedBox(width: 60), // Khoảng trống cho nút giữa
-                _buildNavItem(Icons.chat_bubble_rounded, 3, 'Trợ lý'),
-                _buildNavItem(Icons.person_rounded, 4, 'Cá nhân'),
+                Expanded(
+                    child:
+                        _buildNavItem(Icons.chat_bubble_rounded, 3, 'Trợ lý')),
+                Expanded(
+                    child: _buildNavItem(Icons.person_rounded, 4, 'Cá nhân')),
               ],
             ),
           ),
@@ -114,6 +118,8 @@ class Menubar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(5),
