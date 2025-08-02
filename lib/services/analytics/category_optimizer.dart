@@ -1,7 +1,7 @@
 /// Category Optimizer - Chuyên tối ưu hóa danh mục chi tiêu
 /// Được tách từ AIAnalyticsService để cải thiện maintainability
 
-import '../../models/analytics/analytics_models.dart';
+import '../../core/models/analytics/analytics_models.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../base_service.dart';

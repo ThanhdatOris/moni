@@ -3,7 +3,7 @@
 
 import 'dart:math';
 
-import '../../models/analytics/analytics_models.dart';
+import '../../core/models/analytics/analytics_models.dart';
 import '../../models/transaction_model.dart';
 import '../base_service.dart';
 import '../offline_service.dart';
@@ -51,9 +51,9 @@ class FinancialHealthCalculator extends BaseService {
         _calculateSavingsScore(savingsData),
       ]);
 
-      final spendingScore = scores[0] as double;
-      final budgetScore = scores[1] as double;
-      final savingsScore = scores[2] as double;
+      final spendingScore = scores[0];
+      final budgetScore = scores[1];
+      final savingsScore = scores[2];
       final overallScore = (spendingScore + budgetScore + savingsScore) / 3;
 
       // Generate recommendations

@@ -3,7 +3,7 @@
 
 import 'dart:math';
 
-import '../../models/analytics/analytics_models.dart';
+import '../../core/models/analytics/analytics_models.dart';
 import '../../models/transaction_model.dart';
 import '../../utils/logging/logging_utils.dart';
 import '../base_service.dart';

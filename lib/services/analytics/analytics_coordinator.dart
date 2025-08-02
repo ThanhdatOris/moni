@@ -1,7 +1,7 @@
 /// Analytics Coordinator - Main entry point cho tất cả analytics services
 /// Được tách từ AIAnalyticsService để cải thiện maintainability và Single Responsibility
 
-import '../../models/analytics/analytics_models.dart';
+import '../../core/models/analytics/analytics_models.dart';
 import '../base_service.dart';
 import 'anomaly_detector.dart';
 import 'budget_recommender.dart';

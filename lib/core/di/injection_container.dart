@@ -3,10 +3,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../screens/assistant/services/global_agent_service.dart';
 import '../../services/advanced_validation_service.dart';
-// New AI Services
-import '../../services/ai_analytics_service.dart';
-import '../../services/ai_budget_agent_service.dart';
 // Legacy Services - Simple architecture
 import '../../services/ai_processor_service.dart';
 import '../../services/anonymous_conversion_service.dart';
@@ -100,12 +98,11 @@ Future<void> init() async {
   // NEW AI SERVICES
   // ==========================================================================
 
-  // AI Analytics Service
-  getIt.registerLazySingleton<AIAnalyticsService>(() => AIAnalyticsService());
+  // Global Agent Service (Assistant Module Coordinator)
+  getIt.registerLazySingleton<GlobalAgentService>(() => GlobalAgentService());
 
-  // AI Budget Agent Service
-  getIt.registerLazySingleton<AIBudgetAgentService>(
-      () => AIBudgetAgentService());
+  // Initialize GlobalAgentService after registration
+  await getIt<GlobalAgentService>().initialize();
 
   // Validation Services
   getIt.registerLazySingleton<AdvancedValidationService>(
@@ -147,8 +144,7 @@ ChatLogService get chatLogService => getIt<ChatLogService>();
 ConversationService get conversationService => getIt<ConversationService>();
 
 // AI Services
-AIAnalyticsService get aiAnalyticsService => getIt<AIAnalyticsService>();
-AIBudgetAgentService get aiBudgetAgentService => getIt<AIBudgetAgentService>();
+GlobalAgentService get globalAgentService => getIt<GlobalAgentService>();
 AdvancedValidationService get advancedValidationService =>
     getIt<AdvancedValidationService>();
 DuplicateDetectionService get duplicateDetectionService =>

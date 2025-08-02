@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import 'widgets/home_chart_section.dart';
 import '../../widgets/menubar.dart';
-import '../chatbot/chatbot_screen.dart';
+import '../assistant/assistant_screen.dart';
 import '../history/transaction_history_screen.dart';
 import '../profile/profile_screen.dart';
 import '../transaction/add_transaction_screen.dart';
 import 'widgets/anonymous_user_banner.dart';
 import 'widgets/category_quick_access.dart';
 import 'widgets/home_banner.dart';
+import 'widgets/home_chart_section.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_recent_transactions.dart';
 import 'widgets/simple_offline_status_banner.dart';
@@ -37,7 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const TransactionHistoryScreen(),
         const Center(),
-        const ChatbotPage(),
+        const AssistantScreen(),
         const ProfileScreen(),
       ];
 
