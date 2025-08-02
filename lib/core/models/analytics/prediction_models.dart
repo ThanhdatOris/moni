@@ -1,6 +1,3 @@
-/// Models cho dự đoán và phân tích cash flow
-/// Được tách từ AIAnalyticsService để cải thiện maintainability
-
 /// Dự đoán cash flow tổng quan
 class CashFlowPrediction {
   final List<MonthlyPrediction> predictions;

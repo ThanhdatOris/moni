@@ -56,7 +56,7 @@ class BudgetAdvancedValidationDialog extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 ...validationResult.warnings.entries.map((entry) => 
-                  _buildWarningItem(entry.key, entry.value)).toList(),
+                  _buildWarningItem(entry.key, entry.value)),
               ],
               
               if (recurringSuggestion != null) ...[
@@ -379,7 +379,7 @@ class BudgetPatternInsightsWidget extends StatelessWidget {
                 ),
               ],
             ),
-          )).toList(),
+          )),
         ],
       ),
     );

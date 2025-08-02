@@ -1,4 +1,4 @@
-/// Models cho tối ưu hóa danh mục Được tách từ AIAnalyticsService để cải thiện maintainability - Kết quả tối ưu hóa danh mục tổng quan
+/// Kết quả tối ưu hóa danh mục tổng quan
 class CategoryOptimization {
   final List<CategoryMergeRecommendation> suggestedMerges;
   final List<CategorySplitRecommendation> suggestedSplits;

@@ -1,13 +1,14 @@
-/// Financial Health Calculator - Chuyên tính toán sức khỏe tài chính
-/// Được tách từ AIAnalyticsService để cải thiện maintainability
-
 import 'dart:math';
 
-import '../../core/models/analytics/analytics_models.dart';
-import '../../models/transaction_model.dart';
-import '../base_service.dart';
-import '../offline_service.dart';
-import '../transaction_service.dart';
+/// Financial Health Calculator - Chuyên tính toán sức khỏe tài chính
+/// Migrated from lib/services/analytics/ để tăng tính modularity
+
+import '../../../../../core/models/analytics/analytics_models.dart';
+import '../../../../../models/transaction_model.dart';
+import '../../../../../services/base_service.dart';
+import '../../../../../services/budget_service.dart';
+import '../../../../../services/offline_service.dart';
+import '../../../../../services/transaction_service.dart';
 
 /// Service chuyên tính toán và đánh giá sức khỏe tài chính
 class FinancialHealthCalculator extends BaseService {
@@ -16,11 +17,13 @@ class FinancialHealthCalculator extends BaseService {
   FinancialHealthCalculator._internal();
 
   late final TransactionService _transactionService;
+  late final BudgetService _budgetService;
 
   /// Initialize services (call this before using)
   void _initializeServices() {
     final offlineService = OfflineService();
     _transactionService = TransactionService(offlineService: offlineService);
+    _budgetService = BudgetService();
   }
 
   /// Main method: Calculate comprehensive financial health score
@@ -189,12 +192,14 @@ class FinancialHealthCalculator extends BaseService {
   }
 
   Future<BudgetData> _getBudgetData() async {
-    // Mock budget data - in real app, get from budget service
+    // Get real budget data from BudgetService
+    final budgetSummary = await _budgetService.getBudgetSummary();
+    
     return BudgetData(
-      totalBudget: 50000000, // 50M VND
-      utilizationRate: 0.8,
-      categoriesWithBudgets: 5,
-      categoriesWithoutBudgets: 3,
+      totalBudget: budgetSummary['totalBudget'] as double,
+      utilizationRate: budgetSummary['utilizationRate'] as double,
+      categoriesWithBudgets: budgetSummary['categoriesWithBudgets'] as int,
+      categoriesWithoutBudgets: budgetSummary['categoriesWithoutBudgets'] as int,
     );
   }
 

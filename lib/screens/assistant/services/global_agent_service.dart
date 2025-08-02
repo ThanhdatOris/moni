@@ -135,21 +135,15 @@ class GlobalAgentService {
       final reportType = request.parameters?['type'] ?? 'byTime';
       final timePeriod = request.parameters?['timePeriod'] ?? 'thisMonth';
       
-      // Convert string types to enums (this is a placeholder for proper enum conversion)
-      final reportTypeEnum = ReportType.values.firstWhere(
-        (e) => e.name == reportType,
-        orElse: () => ReportType.byTime,
-      );
-      final timePeriodEnum = TimePeriod.values.firstWhere(
-        (e) => e.name == timePeriod,
-        orElse: () => TimePeriod.monthly,
-      );
+      // Convert string types to enums with proper type safety
+      final reportTypeEnum = _parseReportType(reportType);
+      final timePeriodEnum = _parseTimePeriod(timePeriod);
       
       final reportUrl = await _reportService.generateReport(
         type: reportTypeEnum,
         timePeriod: timePeriodEnum,
       );
-      
+
       return AgentResponse.success(
         message: 'Báo cáo đã được tạo thành công',
         type: AgentResponseType.report,
@@ -164,8 +158,61 @@ class GlobalAgentService {
       return AgentResponse.error('Không thể tạo báo cáo');
     }
   }
-  
-  /// Build specialized prompt for analytics requests
+
+  /// Parse report type string to enum with validation
+  ReportType _parseReportType(String reportType) {
+    try {
+      // Try using the model's fromString method first
+      return ReportType.fromString(reportType);
+    } catch (e) {
+      // Fallback: try matching by name
+      final lowerType = reportType.toLowerCase();
+      switch (lowerType) {
+        case 'bytime':
+        case 'by_time':
+        case 'time':
+          return ReportType.byTime;
+        case 'bycategory':
+        case 'by_category':
+        case 'category':
+          return ReportType.byCategory;
+        default:
+          _logger.w('Unknown report type: $reportType, using default byTime');
+          return ReportType.byTime;
+      }
+    }
+  }
+
+  /// Parse time period string to enum with validation
+  TimePeriod _parseTimePeriod(String timePeriod) {
+    try {
+      // Try using the model's fromString method first
+      return TimePeriod.fromString(timePeriod);
+    } catch (e) {
+      // Fallback: try matching by name and common variations
+      final lowerPeriod = timePeriod.toLowerCase();
+      switch (lowerPeriod) {
+        case 'monthly':
+        case 'month':
+        case 'thismonth':
+        case 'this_month':
+          return TimePeriod.monthly;
+        case 'quarterly':
+        case 'quarter':
+        case 'thisquarter':
+        case 'this_quarter':
+          return TimePeriod.quarterly;
+        case 'yearly':
+        case 'year':
+        case 'thisyear':
+        case 'this_year':
+          return TimePeriod.yearly;
+        default:
+          _logger.w('Unknown time period: $timePeriod, using default monthly');
+          return TimePeriod.monthly;
+      }
+    }
+  }  /// Build specialized prompt for analytics requests
   String _buildAnalyticsPrompt(String userMessage, Map<String, dynamic>? parameters) {
     final period = parameters?['period'] ?? 'tháng này';
     final categories = parameters?['categories']?.join(', ') ?? 'tất cả danh mục';

@@ -1,13 +1,12 @@
+import '../../../../../core/models/analytics/analytics_models.dart';
+import '../../../../../models/category_model.dart';
+import '../../../../../models/transaction_model.dart';
+import '../../../../../services/base_service.dart';
+import '../../../../../services/category_service.dart';
+import '../../../../../services/offline_service.dart';
+import '../../../../../services/transaction_service.dart';
 /// Category Optimizer - Chuyên tối ưu hóa danh mục chi tiêu
-/// Được tách từ AIAnalyticsService để cải thiện maintainability
-
-import '../../core/models/analytics/analytics_models.dart';
-import '../../models/category_model.dart';
-import '../../models/transaction_model.dart';
-import '../base_service.dart';
-import '../category_service.dart';
-import '../offline_service.dart';
-import '../transaction_service.dart';
+/// Migrated from lib/services/analytics/ để tăng tính modularity
 
 /// Service chuyên tối ưu hóa danh mục và đưa ra gợi ý cải thiện
 class CategoryOptimizer extends BaseService {
@@ -394,7 +393,7 @@ class CategoryOptimizer extends BaseService {
     }
 
     // Frequency similarity
-    if (cat1Transactions.length > 0 && cat2Transactions.length > 0) {
+    if (cat1Transactions.isNotEmpty && cat2Transactions.isNotEmpty) {
       final freq1 = cat1Transactions.length;
       final freq2 = cat2Transactions.length;
       final freqSimilarity = 1.0 - (freq1 - freq2).abs() / (freq1 + freq2);

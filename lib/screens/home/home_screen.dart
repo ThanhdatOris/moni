@@ -17,7 +17,7 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -26,7 +26,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _navigateToHistoryTab() {
     setState(() {
-      _selectedIndex = 1; // Tab History
+      _selectedIndex = 3; // Tab History (đã chuyển từ index 1 sang 3)
     });
   }
 
@@ -35,9 +35,9 @@ class _HomeScreenState extends State<HomeScreen> {
           key: _homeTabKey,
           onNavigateToHistory: _navigateToHistoryTab,
         ),
-        const TransactionHistoryScreen(),
-        const Center(),
         const AssistantScreen(),
+        const Center(),
+        const TransactionHistoryScreen(),
         const ProfileScreen(),
       ];
 

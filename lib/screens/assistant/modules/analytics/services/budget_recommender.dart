@@ -1,17 +1,15 @@
-/// Budget Recommender - Chuyên đưa ra gợi ý ngân sách thông minh
-/// Được tách từ AIAnalyticsService để cải thiện maintainability
-
 import 'dart:math';
-
 import 'package:uuid/uuid.dart';
+/// Budget Recommender - Chuyên đưa ra gợi ý ngân sách thông minh
+/// Migrated from lib/services/analytics/ để tăng tính modularity
 
-import '../../core/models/analytics/analytics_models.dart';
-import '../../models/category_model.dart';
-import '../../models/transaction_model.dart';
-import '../base_service.dart';
-import '../category_service.dart';
-import '../offline_service.dart';
-import '../transaction_service.dart';
+import '../../../../../core/models/analytics/analytics_models.dart';
+import '../../../../../models/category_model.dart';
+import '../../../../../models/transaction_model.dart';
+import '../../../../../services/base_service.dart';
+import '../../../../../services/category_service.dart';
+import '../../../../../services/offline_service.dart';
+import '../../../../../services/transaction_service.dart';
 
 /// Service chuyên tạo gợi ý ngân sách thông minh
 class BudgetRecommender extends BaseService {
@@ -411,7 +409,6 @@ class BudgetRecommender extends BaseService {
     final averages = <double>[];
     for (final categoryId in categorySpending.keys) {
       final total = categorySpending[categoryId]!;
-      final count = categoryCount[categoryId]!;
       final monthlyAverage = total / 6; // 6 months
       averages.add(monthlyAverage);
     }

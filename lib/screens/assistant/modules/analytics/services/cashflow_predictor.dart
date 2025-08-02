@@ -1,13 +1,12 @@
-/// CashFlow Predictor - Chuyên dự đoán dòng tiền
-/// Được tách từ AIAnalyticsService để cải thiện maintainability
-
 import 'dart:math';
+/// CashFlow Predictor - Chuyên dự đoán dòng tiền
+/// Migrated from lib/services/analytics/ để tăng tính modularity
 
-import '../../core/models/analytics/analytics_models.dart';
-import '../../models/transaction_model.dart';
-import '../base_service.dart';
-import '../offline_service.dart';
-import '../transaction_service.dart';
+import '../../../../../core/models/analytics/analytics_models.dart';
+import '../../../../../models/transaction_model.dart';
+import '../../../../../services/base_service.dart';
+import '../../../../../services/offline_service.dart';
+import '../../../../../services/transaction_service.dart';
 
 /// Service chuyên dự đoán cash flow và xu hướng tài chính
 class CashFlowPredictor extends BaseService {

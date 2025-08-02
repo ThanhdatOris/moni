@@ -60,8 +60,7 @@ class BudgetDuplicateWarningDialog extends StatelessWidget {
               const SizedBox(height: 8),
               ...result.duplicates
                   .take(3)
-                  .map((duplicate) => _buildDuplicateItem(duplicate))
-                  .toList(),
+                  .map((duplicate) => _buildDuplicateItem(duplicate)),
             ],
           ],
         ),

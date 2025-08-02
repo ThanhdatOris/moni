@@ -27,7 +27,7 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
   
   int _currentStep = 0;
   BudgetPeriod _selectedPeriod = BudgetPeriod.monthly;
-  List<String> _selectedCategories = [];
+  final List<String> _selectedCategories = [];
   double _riskTolerance = 0.5; // 0 = conservative, 1 = aggressive
   
   final List<String> _availableCategories = [

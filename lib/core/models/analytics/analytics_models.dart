@@ -6,8 +6,3 @@ export 'optimization_models.dart';
 export 'prediction_models.dart';
 // Spending Pattern Models
 export 'spending_pattern_models.dart'; 
-
-/// Barrel export file cho tất cả Analytics Models
-/// Được tách từ AIAnalyticsService để cải thiện maintainability
-/// Usage
-/// import '../../../core/models/analytics/analytics_models.dart';

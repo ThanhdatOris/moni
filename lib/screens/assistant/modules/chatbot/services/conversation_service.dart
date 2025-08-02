@@ -16,7 +16,7 @@ class ConversationService {
 
   // Current conversation state
   String? _currentConversationId;
-  List<ChatMessage> _currentMessages = [];
+  final List<ChatMessage> _currentMessages = [];
   bool _welcomeMessageShown = false;
 
   // Getters

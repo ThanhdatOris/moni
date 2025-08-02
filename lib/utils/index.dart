@@ -24,6 +24,5 @@ export 'helpers/list_helper.dart';
 export 'helpers/string_helper.dart';
 // Logging utilities
 export 'logging/logging_utils.dart';
-export 'logging/logging_utils.dart' show LoggingUtils;
 // Validation utilities
 export 'validation/input_validator.dart';

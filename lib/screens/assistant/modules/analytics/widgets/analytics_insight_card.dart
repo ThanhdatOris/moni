@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../constants/app_colors.dart';
 import '../../../widgets/assistant_action_button.dart';
 import '../../../widgets/assistant_base_card.dart';
+import '../insights_detail_screen.dart';
 
 /// Card displaying AI-generated insights and recommendations
 class AnalyticsInsightCard extends StatelessWidget {
@@ -33,11 +34,11 @@ class AnalyticsInsightCard extends StatelessWidget {
           AppColors.info.withValues(alpha: 0.8),
         ],
       ),
-      child: isLoading ? const SizedBox.shrink() : _buildInsightContent(),
+      child: isLoading ? const SizedBox.shrink() : _buildInsightContent(context),
     );
   }
 
-  Widget _buildInsightContent() {
+  Widget _buildInsightContent(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -49,26 +50,14 @@ class AnalyticsInsightCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  color: Colors.white.withValues(alpha: 0.8),
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    insight!,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
+            child: Text(
+              insight!,
+              style: const TextStyle(
+                fontSize: 16,
+                height: 1.5,
+                color: Colors.white,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -77,15 +66,15 @@ class AnalyticsInsightCard extends StatelessWidget {
         // Recommendations
         if (recommendations.isNotEmpty) ...[
           Text(
-            'Gợi ý cải thiện:',
+            'Gợi ý hành động:',
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 14,
               fontWeight: FontWeight.w600,
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: 8),
-          ...recommendations.take(3).map((recommendation) => 
+          ...recommendations.map((recommendation) => 
             _buildRecommendationItem(recommendation)
           ),
           const SizedBox(height: 16),
@@ -113,7 +102,15 @@ class AnalyticsInsightCard extends StatelessWidget {
                 backgroundColor: Colors.white.withValues(alpha: 0.2),
                 textColor: Colors.white,
                 onPressed: () {
-                  // TODO: Navigate to detailed insights
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => InsightsDetailScreen(
+                        initialInsight: insight,
+                        initialRecommendations: recommendations,
+                      ),
+                    ),
+                  );
                 },
               ),
             ),

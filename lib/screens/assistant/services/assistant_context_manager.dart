@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:logger/logger.dart';
 
-import '../../../services/analytics/analytics_coordinator.dart';
 import '../models/agent_request_model.dart';
+import '../modules/analytics/services/analytics_module_coordinator.dart';
 
 /// Enhanced Cross-module context manager for seamless data sharing
 class AssistantContextManager {
@@ -176,7 +176,7 @@ class AssistantContextManager {
   /// Fetch analytics context (simplified version)
   Future<Map<String, dynamic>> _fetchAnalyticsContext() async {
     try {
-      final coordinator = AnalyticsCoordinator();
+      final coordinator = AnalyticsModuleCoordinator();
       final analysis = await coordinator.performComprehensiveAnalysis();
       
       return {

@@ -61,8 +61,7 @@ class BudgetLimitWarningDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             ...result.warnings
-                .map((warning) => _buildWarningItem(warning))
-                .toList(),
+                .map((warning) => _buildWarningItem(warning)),
           ],
         ),
       ),
@@ -399,8 +398,7 @@ class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
                           });
                         },
                         contentPadding: EdgeInsets.zero,
-                      ))
-                  .toList(),
+                      )),
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('Cho phép vượt giới hạn'),

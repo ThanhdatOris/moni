@@ -1,20 +1,19 @@
-/// Analytics Coordinator - Main entry point cho tất cả analytics services
-/// Được tách từ AIAnalyticsService để cải thiện maintainability và Single Responsibility
-
-import '../../core/models/analytics/analytics_models.dart';
-import '../base_service.dart';
+import '../../../../../core/models/analytics/analytics_models.dart';
+import '../../../../../services/base_service.dart';
 import 'anomaly_detector.dart';
 import 'budget_recommender.dart';
 import 'cashflow_predictor.dart';
 import 'category_optimizer.dart';
 import 'financial_health_calculator.dart';
 import 'spending_pattern_analyzer.dart';
+/// Analytics Module Coordinator - Analytics services for Assistant Module
+/// Migrated from lib/services/analytics/ untuk modularity yang lebih baik
 
-/// Main coordinator cho tất cả analytics functions
-class AnalyticsCoordinator extends BaseService {
-  static final AnalyticsCoordinator _instance = AnalyticsCoordinator._internal();
-  factory AnalyticsCoordinator() => _instance;
-  AnalyticsCoordinator._internal();
+/// Analytics coordinator khusus untuk module Assistant/Analytics
+class AnalyticsModuleCoordinator extends BaseService {
+  static final AnalyticsModuleCoordinator _instance = AnalyticsModuleCoordinator._internal();
+  factory AnalyticsModuleCoordinator() => _instance;
+  AnalyticsModuleCoordinator._internal();
 
   // Analytics services - Lazy initialization
   SpendingPatternAnalyzer? _spendingAnalyzer;
@@ -201,8 +200,7 @@ class AnalyticsCoordinator extends BaseService {
       // Get recommendations from all services
       final healthRecommendations = await healthCalculator.getPriorityRecommendations();
       final budgetRecommendations = await budgetRecommender.getHighPriorityRecommendations();
-      // TODO: Use categoryOptimizations when needed
-      // final categoryOptimizations = await categoryOptimizer.getUrgentOptimizations();
+      final categoryOptimizations = await categoryOptimizer.getUrgentOptimizations();
 
       // Convert to priority actions
       for (final rec in healthRecommendations) {
@@ -222,6 +220,16 @@ class AnalyticsCoordinator extends BaseService {
           description: rec.reasoning,
           priority: rec.priority,
           action: 'budget_adjustment',
+        ));
+      }
+
+      for (final opt in categoryOptimizations) {
+        actions.add(PriorityAction(
+          type: 'category',
+          title: opt['title'] as String,
+          description: opt['description'] as String,
+          priority: (opt['priority'] as num).toDouble(),
+          action: 'optimize_category',
         ));
       }
 
@@ -419,4 +427,4 @@ class PriorityAction {
     required this.priority,
     required this.action,
   });
-} 
+}

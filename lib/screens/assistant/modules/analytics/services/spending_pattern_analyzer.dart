@@ -1,15 +1,14 @@
-/// Spending Pattern Analyzer - Chuyên phân tích mẫu chi tiêu
-/// Được tách từ AIAnalyticsService để cải thiện maintainability
-
 import 'dart:math';
+/// Spending Pattern Analyzer - Chuyên phân tích mẫu chi tiêu
+/// Migrated from lib/services/analytics/ để tăng tính modularity
 
-import '../../core/models/analytics/analytics_models.dart';
-import '../../models/transaction_model.dart';
-import '../../utils/logging/logging_utils.dart';
-import '../base_service.dart';
-import '../category_service.dart';
-import '../offline_service.dart';
-import '../transaction_service.dart';
+import '../../../../../core/models/analytics/analytics_models.dart';
+import '../../../../../models/transaction_model.dart';
+import '../../../../../services/base_service.dart';
+import '../../../../../services/category_service.dart';
+import '../../../../../services/offline_service.dart';
+import '../../../../../services/transaction_service.dart';
+import '../../../../../utils/logging/logging_utils.dart';
 
 /// Service chuyên phân tích mẫu chi tiêu của người dùng
 class SpendingPatternAnalyzer extends BaseService {
