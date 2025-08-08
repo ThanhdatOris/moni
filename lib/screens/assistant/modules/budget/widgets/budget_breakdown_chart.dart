@@ -27,26 +27,32 @@ class BudgetBreakdownChart extends StatelessWidget {
 
     return AssistantChartContainer(
       title: 'Phân bổ ngân sách',
-      subtitle: 'Tổng: ${CurrencyFormatter.formatAmountWithCurrency(totalBudget)}',
-      height: 350,
+      subtitle:
+          'Tổng: ${CurrencyFormatter.formatAmountWithCurrency(totalBudget)}',
+      // Không giới hạn chiều cao cứng để bao quanh nội dung
+      height: null,
       chart: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Donut chart
-          Expanded(
-            flex: 2,
-            child: DonutChart(
-              data: _convertToChartData(),
-              size: 200,
-            ),
-          ),
-          
+          LayoutBuilder(builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth;
+            final donutSize = maxWidth < 280 ? 160.0 : 200.0;
+            return SizedBox(
+              height: donutSize + 20,
+              child: Center(
+                child: DonutChart(
+                  data: _convertToChartData(),
+                  size: donutSize,
+                ),
+              ),
+            );
+          }),
+
           const SizedBox(height: 20),
-          
+
           // Legend with percentages
-          Expanded(
-            flex: 1,
-            child: _buildLegend(),
-          ),
+          _buildLegend(),
         ],
       ),
     );
@@ -69,12 +75,12 @@ class BudgetBreakdownChart extends StatelessWidget {
   Widget _buildLegend() {
     return GridView.builder(
       shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const ClampingScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 8,
-        childAspectRatio: 3.5,
+        childAspectRatio: 2.6,
       ),
       itemCount: allocations.length,
       itemBuilder: (context, index) {
@@ -86,7 +92,7 @@ class BudgetBreakdownChart extends StatelessWidget {
 
   Widget _buildLegendItem(BudgetAllocation allocation) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: _parseColor(allocation.color).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
@@ -114,7 +120,7 @@ class BudgetBreakdownChart extends StatelessWidget {
                 Text(
                   allocation.category,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
                   ),
@@ -124,7 +130,7 @@ class BudgetBreakdownChart extends StatelessWidget {
                 Text(
                   '${allocation.percentage.toStringAsFixed(1)}%',
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     color: AppColors.textSecondary,
                   ),
                 ),
@@ -137,14 +143,16 @@ class BudgetBreakdownChart extends StatelessWidget {
   }
 
   List<ChartDataModel> _convertToChartData() {
-    return allocations.map((allocation) => ChartDataModel(
-      category: allocation.category,
-      amount: allocation.amount,
-      percentage: allocation.percentage,
-      icon: allocation.icon,
-      color: allocation.color,
-      type: 'expense',
-    )).toList();
+    return allocations
+        .map((allocation) => ChartDataModel(
+              category: allocation.category,
+              amount: allocation.amount,
+              percentage: allocation.percentage,
+              icon: allocation.icon,
+              color: allocation.color,
+              type: 'expense',
+            ))
+        .toList();
   }
 
   Color _parseColor(String colorString) {

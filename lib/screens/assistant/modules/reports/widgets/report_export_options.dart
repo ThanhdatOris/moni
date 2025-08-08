@@ -39,9 +39,7 @@ class _ReportExportOptionsState extends State<ReportExportOptions> {
     return AssistantBaseCard(
       title: 'Tùy chọn xuất báo cáo',
       titleIcon: Icons.settings,
-      gradient: LinearGradient(
-        colors: [AppColors.primary, AppColors.primaryDark],
-      ),
+      gradient: AppColors.purpleGradient,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -77,68 +75,115 @@ class _ReportExportOptionsState extends State<ReportExportOptions> {
           ),
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: widget.availableFormats.map((format) {
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 2.2,
+          ),
+          itemCount: widget.availableFormats.length,
+          itemBuilder: (context, index) {
+            final format = widget.availableFormats[index];
             final isSelected = format == _selectedFormat;
             return GestureDetector(
               onTap: () => setState(() => _selectedFormat = format),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: isSelected 
-                    ? Colors.white.withValues(alpha: 0.3)
-                    : Colors.white.withValues(alpha: 0.1),
+                  color: isSelected
+                      ? Colors.white.withValues(alpha: 0.3)
+                      : Colors.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected 
-                      ? Colors.white.withValues(alpha: 0.6)
-                      : Colors.transparent,
+                    color: isSelected
+                        ? Colors.white.withValues(alpha: 0.6)
+                        : Colors.transparent,
                     width: 1,
                   ),
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       _getFormatIcon(format),
-                      color: Colors.white.withValues(alpha: 0.9),
-                      size: 18,
+                      color: Colors.white.withValues(alpha: 0.95),
+                      size: 20,
                     ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          format.name,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.95),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            format.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.95),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        Text(
-                          format.description,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            fontSize: 11,
+                          const SizedBox(height: 2),
+                          Text(
+                            format.description,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.75),
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
             );
-          }).toList(),
+          },
         ),
       ],
     );
   }
 
   Widget _buildExportSettings() {
+    final settings = [
+      (
+        title: 'Bao gồm biểu đồ',
+        desc: 'Thêm các biểu đồ phân tích vào báo cáo',
+        value: _settings.includeCharts,
+        onChanged: (bool v) =>
+            setState(() => _settings = _settings.copyWith(includeCharts: v)),
+      ),
+      (
+        title: 'Bao gồm bảng dữ liệu',
+        desc: 'Thêm bảng chi tiết các giao dịch',
+        value: _settings.includeTables,
+        onChanged: (bool v) =>
+            setState(() => _settings = _settings.copyWith(includeTables: v)),
+      ),
+      (
+        title: 'Phân tích AI',
+        desc: 'Thêm nhận xét và gợi ý từ AI',
+        value: _settings.includeAnalysis,
+        onChanged: (bool v) =>
+            setState(() => _settings = _settings.copyWith(includeAnalysis: v)),
+      ),
+      (
+        title: 'Watermark',
+        desc: 'Thêm logo và thông tin ứng dụng',
+        value: _settings.includeWatermark,
+        onChanged: (bool v) =>
+            setState(() => _settings = _settings.copyWith(includeWatermark: v)),
+      ),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -151,84 +196,77 @@ class _ReportExportOptionsState extends State<ReportExportOptions> {
           ),
         ),
         const SizedBox(height: 12),
-        _buildSettingToggle(
-          'Bao gồm biểu đồ',
-          'Thêm các biểu đồ phân tích vào báo cáo',
-          _settings.includeCharts,
-          (value) => setState(() => _settings = _settings.copyWith(includeCharts: value)),
-        ),
-        _buildSettingToggle(
-          'Bao gồm bảng dữ liệu',
-          'Thêm bảng chi tiết các giao dịch',
-          _settings.includeTables,
-          (value) => setState(() => _settings = _settings.copyWith(includeTables: value)),
-        ),
-        _buildSettingToggle(
-          'Phân tích AI',
-          'Thêm nhận xét và gợi ý từ AI',
-          _settings.includeAnalysis,
-          (value) => setState(() => _settings = _settings.copyWith(includeAnalysis: value)),
-        ),
-        _buildSettingToggle(
-          'Watermark',
-          'Thêm logo và thông tin ứng dụng',
-          _settings.includeWatermark,
-          (value) => setState(() => _settings = _settings.copyWith(includeWatermark: value)),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: 2.4,
+          ),
+          itemCount: settings.length,
+          itemBuilder: (context, index) {
+            final item = settings[index];
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.95),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          item.desc,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.75),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Switch(
+                    value: item.value,
+                    onChanged: item.onChanged,
+                    activeColor: Colors.white,
+                    activeTrackColor: Colors.white.withValues(alpha: 0.3),
+                    inactiveThumbColor: Colors.white.withValues(alpha: 0.6),
+                    inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ],
     );
   }
 
-  Widget _buildSettingToggle(
-    String title,
-    String description,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  description,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.7),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: Colors.white,
-            activeTrackColor: Colors.white.withValues(alpha: 0.3),
-            inactiveThumbColor: Colors.white.withValues(alpha: 0.6),
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
-          ),
-        ],
-      ),
-    );
-  }
+  // (unused legacy toggle builder removed)
 
   Widget _buildQualitySettings() {
     return Column(
@@ -284,9 +322,8 @@ class _ReportExportOptionsState extends State<ReportExportOptions> {
                   min: 0.5,
                   max: 1.0,
                   divisions: 2,
-                  onChanged: (value) => setState(() => 
-                    _settings = _settings.copyWith(imageQuality: value)
-                  ),
+                  onChanged: (value) => setState(() =>
+                      _settings = _settings.copyWith(imageQuality: value)),
                 ),
               ),
             ],
@@ -321,6 +358,8 @@ class _ReportExportOptionsState extends State<ReportExportOptions> {
         return Icons.table_view;
       case ExportType.word:
         return Icons.description;
+      case ExportType.csv:
+        return Icons.grid_on;
       case ExportType.image:
         return Icons.image;
     }
@@ -376,6 +415,15 @@ class ExportFormat {
         type: ExportType.word,
         extension: '.docx',
         maxSizeMB: 8,
+      ),
+      // Mock CSV option
+      ExportFormat(
+        id: 'csv',
+        name: 'CSV',
+        description: 'Comma-Separated Values',
+        type: ExportType.csv,
+        extension: '.csv',
+        maxSizeMB: 3,
       ),
     ];
   }
@@ -437,5 +485,6 @@ enum ExportType {
   pdf,
   excel,
   word,
+  csv,
   image,
 }

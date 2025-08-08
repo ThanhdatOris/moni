@@ -39,7 +39,7 @@ class CategoryService {
           .add(categoryData.toMap());
 
       // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode) {
+      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
         _logger.d('📁 Category created: ${category.name} (${docRef.id})');
       }
       return docRef.id;
@@ -69,7 +69,7 @@ class CategoryService {
           .update(updatedCategory.toMap());
 
       // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode) {
+      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
         _logger.d(
             '📝 Category updated: ${category.name} (${category.categoryId})');
       }
@@ -105,7 +105,7 @@ class CategoryService {
           .delete();
 
       // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode) {
+      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
         _logger.d('🗑️ Category deleted: $categoryId');
       }
     } catch (e) {
@@ -133,7 +133,7 @@ class CategoryService {
       });
 
       // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode) {
+      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
         _logger.d('🔗 Category parent set: $categoryId → $parentId');
       }
     } catch (e) {
@@ -217,7 +217,7 @@ class CategoryService {
       // Áp dụng filter type nếu có
       if (type != null) {
         // ✅ IMPROVED: Only log filtering in debug mode
-        if (EnvironmentService.debugMode) {
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
           _logger.d('🔍 Filtering categories by type: ${type.value}');
         }
         query = query.where('type', isEqualTo: type.value);
@@ -229,7 +229,7 @@ class CategoryService {
 
       return query.snapshots().map((snapshot) {
         // ✅ IMPROVED: Reduce log spam với throttling
-        if (EnvironmentService.debugMode) {
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
           final now = DateTime.now();
           final cacheKey = 'categories_log_${type?.value ?? 'all'}';
           final lastLogTime = _lastLogTimes[cacheKey];
@@ -391,7 +391,7 @@ class CategoryService {
 
       if (existingCategories.docs.isNotEmpty) {
         // ✅ IMPROVED: Only log in debug mode
-        if (EnvironmentService.debugMode) {
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
           _logger.d('📁 Default categories already exist, skipping creation');
         }
         return;

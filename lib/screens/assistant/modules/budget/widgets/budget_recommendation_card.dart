@@ -35,7 +35,8 @@ class BudgetRecommendationCard extends StatelessWidget {
           AppColors.warning.withValues(alpha: 0.8),
         ],
       ),
-      child: isLoading ? const SizedBox.shrink() : _buildRecommendationContent(),
+      child:
+          isLoading ? const SizedBox.shrink() : _buildRecommendationContent(),
     );
   }
 

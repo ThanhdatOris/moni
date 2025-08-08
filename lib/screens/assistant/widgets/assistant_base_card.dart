@@ -32,6 +32,7 @@ class AssistantBaseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Height is optional; card shrink-wraps content by default
     return Container(
       height: height,
       margin: margin ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -62,16 +63,21 @@ class AssistantBaseCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: padding ?? const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (title != null) ...[
-                  _buildHeader(),
-                  const SizedBox(height: 16),
-                ],
-                _buildContent(),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // We intentionally shrink-wrap content instead of forcing flex under unbounded constraints
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (title != null) ...[
+                      _buildHeader(),
+                      const SizedBox(height: 16),
+                    ],
+                    _buildContent(),
+                  ],
+                );
+              },
             ),
           ),
         ),

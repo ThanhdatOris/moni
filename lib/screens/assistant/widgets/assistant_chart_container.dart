@@ -31,27 +31,30 @@ class AssistantChartContainer extends StatelessWidget {
     return Container(
       height: height,
       margin: margin ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      decoration: showBackground ? BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ) : null,
+      decoration: showBackground
+          ? BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            )
+          : null,
       child: Padding(
         padding: padding ?? const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (title != null || trailing != null) ...[
               _buildHeader(),
               const SizedBox(height: 16),
             ],
-            Expanded(child: chart),
+            chart,
           ],
         ),
       ),

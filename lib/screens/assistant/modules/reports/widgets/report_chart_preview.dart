@@ -31,6 +31,9 @@ class ReportChartPreview extends StatelessWidget {
         title: chartData.title,
         subtitle: chartData.subtitle,
         height: height,
+        // Loại padding nội dung ở subtab export để khớp layout chặt hơn
+        padding: EdgeInsets.zero,
+        margin: EdgeInsets.zero,
       ),
     );
   }
@@ -68,7 +71,7 @@ class ReportChartPreview extends StatelessWidget {
 
   Widget _buildBarChart() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.zero,
       child: Column(
         children: [
           Expanded(
@@ -78,9 +81,11 @@ class ReportChartPreview extends StatelessWidget {
               children: chartData.data.asMap().entries.map((entry) {
                 final index = entry.key;
                 final item = entry.value;
-                final maxValue = chartData.data.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+                final maxValue = chartData.data
+                    .map((e) => e.value)
+                    .reduce((a, b) => a > b ? a : b);
                 final barHeight = (item.value / maxValue) * 120;
-                
+
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -99,7 +104,8 @@ class ReportChartPreview extends StatelessWidget {
                       height: barHeight,
                       decoration: BoxDecoration(
                         color: _parseColor(item.color),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(4)),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -128,7 +134,7 @@ class ReportChartPreview extends StatelessWidget {
 
   Widget _buildLineChart() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.zero,
       child: CustomPaint(
         size: Size.infinite,
         painter: LineChartPainter(
@@ -183,10 +189,11 @@ class LineChartPainter extends CustomPainter {
 
     final path = Path();
     final fillPath = Path();
-    
+
     for (int i = 0; i < data.length; i++) {
       final x = (i / (data.length - 1)) * size.width;
-      final y = size.height - ((data[i].value - minValue) / valueRange) * size.height;
+      final y =
+          size.height - ((data[i].value - minValue) / valueRange) * size.height;
 
       if (i == 0) {
         path.moveTo(x, y);
@@ -259,7 +266,7 @@ class ChartPreviewData {
           total: 18000000,
           centerText: '18M',
         );
-      
+
       case ChartType.bar:
         return ChartPreviewData(
           title: 'Chi tiêu theo tháng',
@@ -274,7 +281,7 @@ class ChartPreviewData {
           ],
           total: 105000000,
         );
-      
+
       case ChartType.line:
         return ChartPreviewData(
           title: 'Xu hướng tiết kiệm',
@@ -290,7 +297,7 @@ class ChartPreviewData {
           total: 17800000,
           primaryColor: '#4CAF50',
         );
-      
+
       case ChartType.combined:
         return ChartPreviewData(
           title: 'Thu chi và tăng trưởng',

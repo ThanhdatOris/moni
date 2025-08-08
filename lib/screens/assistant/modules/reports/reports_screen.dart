@@ -269,7 +269,7 @@ class _ReportsScreenState extends State<ReportsScreen>
     }
 
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(0),
       child: Column(
         children: [
           // Chart previews
@@ -328,16 +328,15 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Widget _buildExportTab() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
+    return SingleChildScrollView(
+      padding: EdgeInsets.zero,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: ReportExportOptions(
-              availableFormats: ExportFormat.getDefaultFormats(),
-              onExport: _exportReport,
-              isLoading: _isLoading,
-            ),
+          ReportExportOptions(
+            availableFormats: ExportFormat.getDefaultFormats(),
+            onExport: _exportReport,
+            isLoading: _isLoading,
           ),
           // Bottom spacing for menubar
           const SizedBox(height: 120),

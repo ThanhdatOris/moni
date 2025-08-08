@@ -21,23 +21,27 @@ class BudgetInputForm extends StatefulWidget {
 }
 
 class _BudgetInputFormState extends State<BudgetInputForm> {
-  final PageController _pageController = PageController();
   final TextEditingController _incomeController = TextEditingController();
   final TextEditingController _savingsGoalController = TextEditingController();
-  
+
   int _currentStep = 0;
   BudgetPeriod _selectedPeriod = BudgetPeriod.monthly;
   final List<String> _selectedCategories = [];
   double _riskTolerance = 0.5; // 0 = conservative, 1 = aggressive
-  
+
   final List<String> _availableCategories = [
-    'Ăn uống', 'Di chuyển', 'Mua sắm', 'Giải trí',
-    'Y tế', 'Học tập', 'Tiết kiệm', 'Đầu tư'
+    'Ăn uống',
+    'Di chuyển',
+    'Mua sắm',
+    'Giải trí',
+    'Y tế',
+    'Học tập',
+    'Tiết kiệm',
+    'Đầu tư'
   ];
 
   @override
   void dispose() {
-    _pageController.dispose();
     _incomeController.dispose();
     _savingsGoalController.dispose();
     super.dispose();
@@ -57,27 +61,22 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Step indicator
           _buildStepIndicator(),
           const SizedBox(height: 20),
-          
-          // Form pages
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildIncomeStep(),
-                _buildCategoriesStep(),
-                _buildGoalsStep(),
-                _buildSummaryStep(),
-              ],
-            ),
+
+          // Form pages - hiển thị động theo step, không cố định chiều cao
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            switchInCurve: Curves.easeInOut,
+            switchOutCurve: Curves.easeInOut,
+            child: _buildCurrentStep(),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Navigation buttons
           _buildNavigationButtons(),
         ],
@@ -85,12 +84,38 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
     );
   }
 
+  Widget _buildCurrentStep() {
+    switch (_currentStep) {
+      case 0:
+        return KeyedSubtree(
+          key: const ValueKey('step_income'),
+          child: _buildIncomeStep(),
+        );
+      case 1:
+        return KeyedSubtree(
+          key: const ValueKey('step_categories'),
+          child: _buildCategoriesStep(),
+        );
+      case 2:
+        return KeyedSubtree(
+          key: const ValueKey('step_goals'),
+          child: _buildGoalsStep(),
+        );
+      case 3:
+      default:
+        return KeyedSubtree(
+          key: const ValueKey('step_summary'),
+          child: _buildSummaryStep(),
+        );
+    }
+  }
+
   Widget _buildStepIndicator() {
     return Row(
       children: List.generate(4, (index) {
         final isActive = index <= _currentStep;
         final isCurrent = index == _currentStep;
-        
+
         return Expanded(
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -99,8 +124,8 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
                 Container(
                   height: 4,
                   decoration: BoxDecoration(
-                    color: isActive 
-                        ? Colors.white 
+                    color: isActive
+                        ? Colors.white
                         : Colors.white.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
@@ -109,8 +134,8 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
                 Text(
                   _getStepTitle(index),
                   style: TextStyle(
-                    color: isCurrent 
-                        ? Colors.white 
+                    color: isCurrent
+                        ? Colors.white
                         : Colors.white.withValues(alpha: 0.7),
                     fontSize: 11,
                     fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
@@ -125,147 +150,157 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
   }
 
   Widget _buildIncomeStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Thu nhập của bạn',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Thu nhập của bạn',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Nhập thu nhập để AI tạo ngân sách phù hợp',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 14,
+          const SizedBox(height: 8),
+          Text(
+            'Nhập thu nhập để AI tạo ngân sách phù hợp',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 14,
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        
-        // Income input
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Thu nhập hàng tháng',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _incomeController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(12),
-                ],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-                decoration: InputDecoration(
-                  hintText: '10,000,000',
-                  hintStyle: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                  suffixText: 'VNĐ',
-                  suffixStyle: TextStyle(
+          const SizedBox(height: 20),
+
+          // Income input
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Thu nhập hàng tháng',
+                  style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 18,
+                    fontSize: 14,
                   ),
-                  border: InputBorder.none,
                 ),
-              ),
-            ],
-          ),
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Period selector
-        Text(
-          'Chu kỳ ngân sách',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: BudgetPeriod.values.map((period) {
-            final isSelected = _selectedPeriod == period;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setState(() => _selectedPeriod = period),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isSelected 
-                        ? Colors.white.withValues(alpha: 0.3)
-                        : Colors.white.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: isSelected ? Border.all(
-                      color: Colors.white.withValues(alpha: 0.5),
-                    ) : null,
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _incomeController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(12),
+                  ],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: Text(
-                    period.displayName,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.7),
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  decoration: InputDecoration(
+                    hintText: '10,000,000',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                    suffixText: 'VNĐ',
+                    suffixStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 18,
+                    ),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Period selector
+          Text(
+            'Chu kỳ ngân sách',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: BudgetPeriod.values.map((period) {
+              final isSelected = _selectedPeriod == period;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setState(() => _selectedPeriod = period),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.white.withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: isSelected
+                          ? Border.all(
+                              color: Colors.white.withValues(alpha: 0.5),
+                            )
+                          : null,
+                    ),
+                    child: Text(
+                      period.displayName,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white
+                            .withValues(alpha: isSelected ? 1.0 : 0.7),
+                        fontSize: 12,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
+              );
+            }).toList(),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildCategoriesStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Ưu tiên chi tiêu',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Ưu tiên chi tiêu',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Chọn các danh mục quan trọng với bạn',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 14,
+          const SizedBox(height: 8),
+          Text(
+            'Chọn các danh mục quan trọng với bạn',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 14,
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        
-        // Categories grid
-        Expanded(
-          child: GridView.builder(
+          const SizedBox(height: 20),
+
+          // Categories grid - cho phép tự mở rộng theo nội dung
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 12,
@@ -276,7 +311,7 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
             itemBuilder: (context, index) {
               final category = _availableCategories[index];
               final isSelected = _selectedCategories.contains(category);
-              
+
               return GestureDetector(
                 onTap: () {
                   setState(() {
@@ -290,21 +325,25 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isSelected 
+                    color: isSelected
                         ? Colors.white.withValues(alpha: 0.3)
                         : Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: isSelected ? Border.all(
-                      color: Colors.white.withValues(alpha: 0.5),
-                    ) : null,
+                    border: isSelected
+                        ? Border.all(
+                            color: Colors.white.withValues(alpha: 0.5),
+                          )
+                        : null,
                   ),
                   child: Center(
                     child: Text(
                       category,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: isSelected ? 1.0 : 0.7),
+                        color: Colors.white
+                            .withValues(alpha: isSelected ? 1.0 : 0.7),
                         fontSize: 13,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -312,167 +351,176 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
               );
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildGoalsStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Mục tiêu tiết kiệm',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Mục tiêu tiết kiệm',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Thiết lập mục tiêu và phong cách quản lý',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 14,
+          const SizedBox(height: 8),
+          Text(
+            'Thiết lập mục tiêu và phong cách quản lý',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 14,
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        
-        // Savings goal
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Mục tiêu tiết kiệm (% thu nhập)',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.8),
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _savingsGoalController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(2),
-                ],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-                decoration: InputDecoration(
-                  hintText: '20',
-                  hintStyle: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5),
-                  ),
-                  suffixText: '%',
-                  suffixStyle: TextStyle(
+          const SizedBox(height: 20),
+
+          // Savings goal
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mục tiêu tiết kiệm (% thu nhập)',
+                  style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 18,
+                    fontSize: 14,
                   ),
-                  border: InputBorder.none,
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _savingsGoalController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(2),
+                  ],
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: '20',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                    suffixText: '%',
+                    suffixStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 18,
+                    ),
+                    border: InputBorder.none,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        
-        const SizedBox(height: 20),
-        
-        // Risk tolerance
-        Text(
-          'Phong cách quản lý: ${_getRiskToleranceLabel()}',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+
+          const SizedBox(height: 20),
+
+          // Risk tolerance
+          Text(
+            'Phong cách quản lý: ${_getRiskToleranceLabel()}',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: Colors.white,
-            inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
-            thumbColor: Colors.white,
-            overlayColor: Colors.white.withValues(alpha: 0.2),
+          const SizedBox(height: 8),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: Colors.white,
+              inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
+              thumbColor: Colors.white,
+              overlayColor: Colors.white.withValues(alpha: 0.2),
+            ),
+            child: Slider(
+              value: _riskTolerance,
+              onChanged: (value) => setState(() => _riskTolerance = value),
+              min: 0,
+              max: 1,
+              divisions: 2,
+            ),
           ),
-          child: Slider(
-            value: _riskTolerance,
-            onChanged: (value) => setState(() => _riskTolerance = value),
-            min: 0,
-            max: 1,
-            divisions: 2,
+          Text(
+            _getRiskToleranceDescription(),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 12,
+            ),
           ),
-        ),
-        Text(
-          _getRiskToleranceDescription(),
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 12,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   Widget _buildSummaryStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Xác nhận thông tin',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.9),
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Xác nhận thông tin',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        
-        // Summary items
-        _buildSummaryItem('Thu nhập', '${_incomeController.text} VNĐ/${_selectedPeriod.displayName}'),
-        _buildSummaryItem('Danh mục ưu tiên', '${_selectedCategories.length} danh mục'),
-        _buildSummaryItem('Mục tiêu tiết kiệm', '${_savingsGoalController.text}%'),
-        _buildSummaryItem('Phong cách', _getRiskToleranceLabel()),
-        
-        const Spacer(),
-        
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                color: Colors.white.withValues(alpha: 0.8),
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'AI sẽ tạo ngân sách phù hợp dựa trên thông tin của bạn',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 13,
+          const SizedBox(height: 20),
+
+          // Summary items
+          _buildSummaryItem('Thu nhập',
+              '${_incomeController.text} VNĐ/${_selectedPeriod.displayName}'),
+          _buildSummaryItem(
+              'Danh mục ưu tiên', '${_selectedCategories.length} danh mục'),
+          _buildSummaryItem(
+              'Mục tiêu tiết kiệm', '${_savingsGoalController.text}%'),
+          _buildSummaryItem('Phong cách', _getRiskToleranceLabel()),
+
+          const SizedBox(height: 12),
+
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.auto_awesome,
+                  color: Colors.white.withValues(alpha: 0.8),
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'AI sẽ tạo ngân sách phù hợp dựa trên thông tin của bạn',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 13,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -538,19 +586,11 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
   void _nextStep() {
     if (_canProceedToNextStep()) {
       setState(() => _currentStep++);
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
     }
   }
 
   void _previousStep() {
     setState(() => _currentStep--);
-    _pageController.previousPage(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
   }
 
   void _generateBudget() {
@@ -561,7 +601,7 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
       savingsGoal: double.tryParse(_savingsGoalController.text) ?? 20,
       riskTolerance: _riskTolerance,
     );
-    
+
     widget.onBudgetGenerated(data);
   }
 
@@ -580,11 +620,16 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
 
   String _getStepTitle(int index) {
     switch (index) {
-      case 0: return 'Thu nhập';
-      case 1: return 'Ưu tiên';
-      case 2: return 'Mục tiêu';
-      case 3: return 'Xác nhận';
-      default: return '';
+      case 0:
+        return 'Thu nhập';
+      case 1:
+        return 'Ưu tiên';
+      case 2:
+        return 'Mục tiêu';
+      case 3:
+        return 'Xác nhận';
+      default:
+        return '';
     }
   }
 

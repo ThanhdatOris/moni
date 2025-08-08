@@ -42,7 +42,8 @@ class AssistantActionButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: borderRadius ?? BorderRadius.circular(12),
           ),
-          padding: padding ?? const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: padding ??
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           minimumSize: const Size(0, 48),
         ),
         child: isLoading ? _buildLoadingContent() : _buildButtonContent(),
@@ -51,26 +52,33 @@ class AssistantActionButton extends StatelessWidget {
   }
 
   Widget _buildButtonContent() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (icon != null) ...[
-          Icon(
-            icon!,
-            color: _getTextColor(),
-            size: 18,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(
+              icon!,
+              color: _getTextColor(),
+              size: 18,
+            ),
+            const SizedBox(width: 6),
+          ],
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: TextStyle(
+                color: _getTextColor(),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-          const SizedBox(width: 8),
         ],
-        Text(
-          text,
-          style: TextStyle(
-            color: _getTextColor(),
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -98,13 +106,16 @@ class AssistantActionButton extends StatelessWidget {
             ],
           ),
           borderRadius: borderRadius ?? BorderRadius.circular(12),
-          boxShadow: isEnabled ? [
-            BoxShadow(
-              color: (backgroundColor ?? AppColors.primary).withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ] : null,
+          boxShadow: isEnabled
+              ? [
+                  BoxShadow(
+                    color: (backgroundColor ?? AppColors.primary)
+                        .withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         );
       case ButtonType.secondary:
         return BoxDecoration(
@@ -129,7 +140,7 @@ class AssistantActionButton extends StatelessWidget {
 
   Color _getTextColor() {
     if (!isEnabled) return AppColors.grey400;
-    
+
     switch (type) {
       case ButtonType.primary:
         return textColor ?? Colors.white;
@@ -161,12 +172,14 @@ class AssistantQuickActionChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selectedColor ?? AppColors.primary;
-    
+
     return Container(
       decoration: BoxDecoration(
-        gradient: isSelected ? LinearGradient(
-          colors: [color, color.withValues(alpha: 0.8)],
-        ) : null,
+        gradient: isSelected
+            ? LinearGradient(
+                colors: [color, color.withValues(alpha: 0.8)],
+              )
+            : null,
         color: isSelected ? null : AppColors.grey100,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(

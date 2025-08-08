@@ -441,9 +441,9 @@ class ReportPreviewContainer extends StatelessWidget {
             child: AssistantActionButton(
               text: 'Tùy chỉnh',
               icon: Icons.tune,
-              type: ButtonType.outline,
-              backgroundColor: AppColors.primary,
-              textColor: AppColors.primary,
+              type: ButtonType.secondary,
+              backgroundColor: Colors.white,
+              textColor: AppColors.textPrimary,
               onPressed: onCustomize,
             ),
           ),

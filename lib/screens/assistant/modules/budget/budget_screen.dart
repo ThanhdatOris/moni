@@ -45,6 +45,7 @@ class _BudgetScreenState extends State<BudgetScreen>
   real_data.BudgetData? _budgetData;
   List<BudgetTip> _budgetTips = [];
   List<real_data.CategoryBudgetProgress> _categoryProgress = [];
+  String? _aiRecommendationText;
 
   @override
   void initState() {
@@ -112,6 +113,23 @@ class _BudgetScreenState extends State<BudgetScreen>
         .toList();
   }
 
+  List<BudgetAllocation> _mapAllocationsFromReal() {
+    if (_budgetData == null || _budgetData!.categoryProgress.isEmpty) return [];
+    final list = _budgetData!.categoryProgress
+        .map((c) => BudgetAllocation(
+              category: c.name,
+              amount: c.budget,
+              percentage:
+                  c.budget > 0 ? (c.spent / (c.budget)).clamp(0, 1) * 100 : 0,
+              icon: c.icon,
+              color: c.color,
+              description:
+                  'Đã chi: ${c.spent.toStringAsFixed(0)} / Ngân sách: ${c.budget.toStringAsFixed(0)}',
+            ))
+        .toList();
+    return list;
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -142,6 +160,7 @@ class _BudgetScreenState extends State<BudgetScreen>
           ),
           child: TabBar(
             controller: _tabController,
+            isScrollable: false,
             indicatorSize: TabBarIndicatorSize.tab,
             indicator: BoxDecoration(
               borderRadius: BorderRadius.circular(11), // Giảm từ 12 xuống 11
@@ -169,35 +188,44 @@ class _BudgetScreenState extends State<BudgetScreen>
             tabs: const [
               Tab(
                 height: 32,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.account_balance_wallet_outlined, size: 14),
-                    SizedBox(width: 4),
-                    Text('Tạo ngân sách'),
-                  ],
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.account_balance_wallet_outlined, size: 14),
+                      SizedBox(width: 4),
+                      Text('Tạo mới'),
+                    ],
+                  ),
                 ),
               ),
               Tab(
                 height: 40,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.trending_up, size: 14),
-                    SizedBox(width: 4),
-                    Text('Theo dõi'),
-                  ],
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.trending_up, size: 14),
+                      SizedBox(width: 4),
+                      Text('Theo dõi'),
+                    ],
+                  ),
                 ),
               ),
               Tab(
                 height: 40,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.psychology, size: 14),
-                    SizedBox(width: 4),
-                    Text('Gợi ý AI'),
-                  ],
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.psychology, size: 14),
+                      SizedBox(width: 4),
+                      Text('Gợi ý AI'),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -221,70 +249,23 @@ class _BudgetScreenState extends State<BudgetScreen>
 
   Widget _buildCreateBudgetTab() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
       child: SingleChildScrollView(
         child: Column(
           children: [
-            SizedBox(
-              height: 300,
-              child: BudgetInputForm(
-                onBudgetGenerated: (budgetData) {
-                  // Handle budget generation
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ngân sách đã được tạo!')),
-                  );
-                  _tabController.animateTo(1); // Switch to tracking tab
-                },
-              ),
+            BudgetInputForm(
+              onBudgetGenerated: (budgetData) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Ngân sách đã được tạo!')),
+                );
+                _tabController.animateTo(1);
+              },
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              height: 300,
-              child: BudgetBreakdownChart(
-                allocations: [
-                  BudgetAllocation(
-                    category: 'Ăn uống',
-                    amount: 8000000,
-                    color: '#FF7043',
-                    percentage: 32.0,
-                    icon: 'restaurant',
-                    description: 'Chi phí ăn uống hàng ngày',
-                  ),
-                  BudgetAllocation(
-                    category: 'Di chuyển',
-                    amount: 3000000,
-                    color: '#42A5F5',
-                    percentage: 12.0,
-                    icon: 'directions_car',
-                    description: 'Phí di chuyển và xăng xe',
-                  ),
-                  BudgetAllocation(
-                    category: 'Mua sắm',
-                    amount: 5000000,
-                    color: '#66BB6A',
-                    percentage: 20.0,
-                    icon: 'shopping_bag',
-                    description: 'Mua sắm và nhu yếu phẩm',
-                  ),
-                  BudgetAllocation(
-                    category: 'Tiết kiệm',
-                    amount: 7000000,
-                    color: '#FFA726',
-                    percentage: 28.0,
-                    icon: 'savings',
-                    description: 'Tiết kiệm cho tương lai',
-                  ),
-                  BudgetAllocation(
-                    category: 'Giải trí',
-                    amount: 2000000,
-                    color: '#AB47BC',
-                    percentage: 8.0,
-                    icon: 'movie',
-                    description: 'Giải trí và thư giãn',
-                  ),
-                ],
-                totalBudget: 25000000,
-              ),
+            BudgetBreakdownChart(
+              allocations: _mapAllocationsFromReal(),
+              totalBudget: _budgetData?.totalBudget ?? 0,
+              isLoading: _isLoading,
             ),
             // Bottom spacing for menubar
             const SizedBox(height: 120),
@@ -296,7 +277,7 @@ class _BudgetScreenState extends State<BudgetScreen>
 
   Widget _buildTrackBudgetTab() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
       child: SingleChildScrollView(
         child: Column(
           children: [
@@ -309,9 +290,7 @@ class _BudgetScreenState extends State<BudgetScreen>
               onViewDetails: () {
                 // Navigate to detailed budget tracking
               },
-              onAdjustBudget: () {
-                _tabController.animateTo(0); // Go back to create budget
-              },
+              onAdjustBudget: _showAdjustBudgetDialog,
             ),
             // Bottom spacing for menubar
             const SizedBox(height: 120),
@@ -323,20 +302,17 @@ class _BudgetScreenState extends State<BudgetScreen>
 
   Widget _buildRecommendationTab() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
       child: SingleChildScrollView(
         child: Column(
           children: [
             BudgetRecommendationCard(
-              recommendation:
+              recommendation: _aiRecommendationText ??
                   (_budgetData?.recommendations ?? const []).join('\n• '),
               tips: _budgetTips,
               isLoading: _isLoading,
               onRegenerateRecommendation: _generateNewRecommendation,
-              onApplyBudget: () {
-                _tabController
-                    .animateTo(0); // Go to create budget with AI suggestions
-              },
+              onApplyBudget: _applyRecommendation,
             ),
             // Bottom spacing for menubar
             const SizedBox(height: 120),
@@ -367,6 +343,9 @@ class _BudgetScreenState extends State<BudgetScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Đã tạo gợi ý mới!')),
           );
+          setState(() {
+            _aiRecommendationText = response.message;
+          });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -386,5 +365,111 @@ class _BudgetScreenState extends State<BudgetScreen>
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _showAdjustBudgetDialog() {
+    final totalController = TextEditingController(
+      text: (_budgetData?.totalBudget ?? 0).toStringAsFixed(0),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Điều chỉnh tổng ngân sách'),
+          content: TextField(
+            controller: totalController,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Tổng ngân sách mới (VNĐ)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final newTotal = double.tryParse(totalController.text) ?? 0;
+                if (newTotal <= 0 || _budgetData == null) {
+                  Navigator.pop(context);
+                  return;
+                }
+                final oldTotal = _budgetData!.totalBudget;
+                final ratio = oldTotal > 0 ? newTotal / oldTotal : 1.0;
+                final updated = _budgetData!.categoryProgress.map((c) {
+                  return real_data.CategoryBudgetProgress(
+                    categoryId: c.categoryId,
+                    name: c.name,
+                    color: c.color,
+                    budget: (c.budget * ratio),
+                    spent: c.spent,
+                    icon: c.icon,
+                    percentage: (c.budget * ratio) > 0
+                        ? (c.spent / (c.budget * ratio)) * 100
+                        : 0,
+                  );
+                }).toList();
+
+                setState(() {
+                  _budgetData = real_data.BudgetData(
+                    totalBudget: newTotal,
+                    totalSpent: _budgetData!.totalSpent,
+                    categoryProgress: updated,
+                    budgetPeriod: _budgetData!.budgetPeriod,
+                    recommendations: _budgetData!.recommendations,
+                  );
+                  _categoryProgress = updated;
+                });
+
+                Navigator.pop(context);
+              },
+              child: const Text('Lưu'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _applyRecommendation() {
+    if (_budgetData == null) return;
+    final text = _aiRecommendationText ?? '';
+    if (text.isEmpty) return;
+
+    // Tăng ngân sách 10% cho các danh mục được nhắc đến trong gợi ý
+    final updated = _budgetData!.categoryProgress.map((c) {
+      final mentioned = text.toLowerCase().contains(c.name.toLowerCase());
+      final newBudget = mentioned ? c.budget * 1.1 : c.budget;
+      return real_data.CategoryBudgetProgress(
+        categoryId: c.categoryId,
+        name: c.name,
+        color: c.color,
+        budget: newBudget,
+        spent: c.spent,
+        icon: c.icon,
+        percentage: newBudget > 0 ? (c.spent / newBudget) * 100 : 0,
+      );
+    }).toList();
+
+    final newTotal = updated.fold(0.0, (sum, c) => sum + c.budget);
+
+    setState(() {
+      _budgetData = real_data.BudgetData(
+        totalBudget: newTotal,
+        totalSpent: _budgetData!.totalSpent,
+        categoryProgress: updated,
+        budgetPeriod: _budgetData!.budgetPeriod,
+        recommendations: _budgetData!.recommendations,
+      );
+      _categoryProgress = updated;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Đã áp dụng điều chỉnh ngân sách theo gợi ý AI')),
+    );
   }
 }

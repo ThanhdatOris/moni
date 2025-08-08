@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
 import '../models/transaction_model.dart';
+import 'environment_service.dart';
 import 'offline_service.dart';
 
 /// Service quản lý giao dịch tài chính
@@ -12,6 +13,8 @@ class TransactionService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _logger = Logger();
   final OfflineService _offlineService;
+  // Chống spam log
+  final Map<String, DateTime> _lastLogTimes = {};
 
   TransactionService({
     required OfflineService offlineService,
@@ -674,8 +677,22 @@ class TransactionService {
       // Sort by date descending
       transactions.sort((a, b) => b.date.compareTo(a.date));
 
-      _logger.i(
-          'Lấy ${transactions.length} giao dịch từ ${startDate.toIso8601String()} đến ${endDate.toIso8601String()}');
+      // Chỉ log ở debug mode và có throttling để tránh trùng lặp
+      if (EnvironmentService.debugMode) {
+        // Gom theo ngày để tránh spam với các request gần nhau
+        final dayStart =
+            DateTime(startDate.year, startDate.month, startDate.day);
+        final dayEnd = DateTime(endDate.year, endDate.month, endDate.day);
+        final String key =
+            'getRange_${dayStart.toIso8601String()}_${dayEnd.toIso8601String()}';
+        final now = DateTime.now();
+        final last = _lastLogTimes[key];
+        if (last == null || now.difference(last).inSeconds > 5) {
+          _logger.d(
+              '💡 Lấy ${transactions.length} giao dịch từ ${startDate.toIso8601String()} đến ${endDate.toIso8601String()}');
+          _lastLogTimes[key] = now;
+        }
+      }
       return transactions;
     } catch (e) {
       _logger.e('Lỗi lấy giao dịch theo khoảng thời gian: $e');
