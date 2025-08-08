@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../../../constants/app_colors.dart';
+import '../../../../../../services/category_service.dart';
 import '../../../../../../services/transaction_service.dart';
+import '../../../../../../utils/helpers/category_icon_helper.dart';
 import '../../../../history/transaction_detail_screen.dart';
 import '../../../models/chat_message_model.dart';
 
@@ -77,6 +79,12 @@ class ChatMessageWidget extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (!message.isUser && message.transactionId != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: _buildTransactionCategoryBadge(
+                          message.transactionId!),
+                    ),
                   // Render content với markdown support
                   if (message.isUser)
                     Text(
@@ -88,7 +96,7 @@ class ChatMessageWidget extends StatelessWidget {
                       ),
                     )
                   else
-                    _buildAIMessage(message.text),
+                    _buildAIMessage(message),
 
                   const SizedBox(height: 8),
 
@@ -159,10 +167,27 @@ class ChatMessageWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildAIMessage(String text) {
+  Widget _buildAIMessage(ChatMessage msg) {
     // Clean up the text and separate edit button markers
-    String cleanText =
-        text.replaceAll('[EDIT_BUTTON]', '').replaceAll('[/EDIT_BUTTON]', '');
+    String cleanText = msg.text
+        .replaceAll('[EDIT_BUTTON]', '')
+        .replaceAll('[/EDIT_BUTTON]', '');
+
+    // Nếu đã hiển thị badge danh mục ở header, loại bỏ dòng Danh mục trong nội dung
+    if (!msg.isUser && msg.transactionId != null) {
+      final filtered = cleanText
+          .split('\n')
+          .where((line) {
+            final t = line.trimLeft().toLowerCase();
+            if (t.startsWith('📁')) return false;
+            if (t.contains('danh mục') || t.contains('danh muc')) return false;
+            if (t.contains('category:')) return false;
+            return true;
+          })
+          .toList()
+          .join('\n');
+      cleanText = filtered;
+    }
 
     return SelectableText.rich(
       _parseMarkdownText(cleanText),
@@ -171,6 +196,52 @@ class ChatMessageWidget extends StatelessWidget {
         fontSize: 15,
         height: 1.4,
       ),
+    );
+  }
+
+  Widget _buildTransactionCategoryBadge(String transactionId) {
+    final transactionService = GetIt.instance<TransactionService>();
+    final categoryService = GetIt.instance<CategoryService>();
+
+    return FutureBuilder(
+      future: transactionService.getTransaction(transactionId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+        final tx = snapshot.data;
+        if (tx == null) return const SizedBox.shrink();
+        return FutureBuilder(
+          future: categoryService.getCategory(tx.categoryId),
+          builder: (context, catSnap) {
+            if (!catSnap.hasData || catSnap.data == null) {
+              return const SizedBox.shrink();
+            }
+            final category = catSnap.data!;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CategoryIconHelper.buildIcon(
+                  category,
+                  size: 18,
+                  showBackground: true,
+                  backgroundColor: Colors.white,
+                  isCompact: true,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  category.name,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
