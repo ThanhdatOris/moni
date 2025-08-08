@@ -16,7 +16,16 @@ import 'widgets/history_summary_item.dart';
 import 'widgets/history_transaction_item.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
-  const TransactionHistoryScreen({super.key});
+  final String? categoryId;
+  final TransactionType? filterType;
+  final DateTime? filterDate;
+
+  const TransactionHistoryScreen({
+    super.key,
+    this.categoryId,
+    this.filterType,
+    this.filterDate,
+  });
 
   @override
   State<TransactionHistoryScreen> createState() =>
@@ -45,8 +54,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _selectedDay = DateTime.now();
-    _focusedDay = DateTime.now();
+
+    // Initialize with filter data or defaults
+    _selectedDay = widget.filterDate ?? DateTime.now();
+    _focusedDay = widget.filterDate ?? DateTime.now();
+    _filterType = widget.filterType;
+
     _transactionService = _getIt<TransactionService>();
     _loadTransactions();
   }
@@ -100,8 +113,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
       );
 
       // Lấy tất cả giao dịch cho list view
-      _allTransactionsSubscription =
-          _transactionService.getTransactions().listen(
+      _allTransactionsSubscription = _transactionService
+          .getTransactions(
+        categoryId: widget.categoryId,
+      )
+          .listen(
         (transactions) {
           if (mounted) {
             setState(() {

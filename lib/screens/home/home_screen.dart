@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
-import 'widgets/home_chart_section.dart';
 import '../../widgets/menubar.dart';
-import '../chatbot/chatbot_screen.dart';
+import '../assistant/assistant_screen.dart';
+import '../assistant/services/ui_optimization_service.dart';
+import '../assistant/widgets/global_insight_panel.dart';
 import '../history/transaction_history_screen.dart';
 import '../profile/profile_screen.dart';
 import '../transaction/add_transaction_screen.dart';
 import 'widgets/anonymous_user_banner.dart';
 import 'widgets/category_quick_access.dart';
 import 'widgets/home_banner.dart';
+import 'widgets/home_chart_section.dart';
 import 'widgets/home_header.dart';
 import 'widgets/home_recent_transactions.dart';
 import 'widgets/simple_offline_status_banner.dart';
@@ -17,16 +19,17 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   Key _homeTabKey = UniqueKey();
+  final UIOptimizationService _uiOptimization = UIOptimizationService();
 
   void _navigateToHistoryTab() {
     setState(() {
-      _selectedIndex = 1; // Tab History
+      _selectedIndex = 3; // Tab History (đã chuyển từ index 1 sang 3)
     });
   }
 
@@ -35,9 +38,9 @@ class _HomeScreenState extends State<HomeScreen> {
           key: _homeTabKey,
           onNavigateToHistory: _navigateToHistoryTab,
         ),
-        const TransactionHistoryScreen(),
+        const AssistantScreen(),
         const Center(),
-        const ChatbotPage(),
+        const TransactionHistoryScreen(),
         const ProfileScreen(),
       ];
 
@@ -71,9 +74,25 @@ class _HomeScreenState extends State<HomeScreen> {
           _widgetOptions.elementAt(_selectedIndex),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Menubar(
-              selectedIndex: _selectedIndex,
-              onItemTapped: _onItemTapped,
+            child: AnimatedBuilder(
+              animation: _uiOptimization,
+              builder: (context, child) {
+                return AnimatedSlide(
+                  offset: _uiOptimization.shouldHideMenubar
+                      ? const Offset(0, 1.2) // Slide down để ẩn
+                      : Offset.zero, // Vị trí bình thường
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: AnimatedOpacity(
+                    opacity: _uiOptimization.shouldHideMenubar ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Menubar(
+                      selectedIndex: _selectedIndex,
+                      onItemTapped: _onItemTapped,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -139,6 +158,12 @@ class _HomeTabContentState extends State<HomeTabContent> {
           ),
 
           const SizedBox(height: 20),
+
+          // Global AI Insight cho trang chủ (phục vụ phân tích tổng quan)
+          const GlobalInsightPanel(
+            moduleId: 'home',
+            title: 'AI Insights tổng quan',
+          ),
 
           // Category Quick Access
           const CategoryQuickAccess(),

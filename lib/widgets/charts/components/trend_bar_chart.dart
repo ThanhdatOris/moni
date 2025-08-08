@@ -26,7 +26,7 @@ class _TrendBarChartState extends State<TrendBarChart> {
   @override
   Widget build(BuildContext context) {
     if (widget.data.isEmpty) {
-      return Container(
+      return SizedBox(
         height: widget.height,
         child: const Center(
           child: Text(

@@ -21,14 +21,17 @@ class FirebaseService {
         return;
       }
 
-      // Khởi tạo Environment Service trước
-      await EnvironmentService.initialize();
+      // Kiểm tra Environment Service đã khởi tạo chưa (tránh duplicate)
+      if (!EnvironmentService.isInitialized) {
+        await EnvironmentService.initialize();
+      }
 
       if (!EnvironmentService.isInitialized) {
-        _logger.w('⚠️ Khởi tạo Environment Service không thành công, sử dụng fallback');
+        _logger.w(
+            '⚠️ Khởi tạo Environment Service không thành công, sử dụng fallback');
       } else {
-        // ✅ IMPROVED: Consolidated environment status - logConfiguration already optimized
-        if (EnvironmentService.loggingEnabled) {
+        // ✅ IMPROVED: Consolidated environment status - chỉ log khi thật sự cần
+        if (EnvironmentService.loggingEnabled && EnvironmentService.debugMode) {
           EnvironmentService.logConfiguration();
         }
       }

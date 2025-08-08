@@ -3,24 +3,25 @@ echo Deploying Firestore indexes and rules...
 
 echo.
 echo Checking Firebase CLI...
-firebase --version
+npx firebase --version
 if %errorlevel% neq 0 (
     echo Firebase CLI not found. Please install it first:
     echo npm install -g firebase-tools
+    echo OR use: npx firebase
     exit /b 1
 )
 
 echo.
-echo Logging in to Firebase...
-firebase login
+echo Using existing login session...
+echo (Run 'npx firebase login' manually if needed)
 
 echo.
 echo Deploying Firestore rules...
-firebase deploy --only firestore:rules
+npx firebase deploy --only firestore:rules
 
 echo.
 echo Deploying Firestore indexes...
-firebase deploy --only firestore:indexes
+npx firebase deploy --only firestore:indexes
 
 echo.
 echo Deployment completed!

@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,25 +12,49 @@ class SpendingLimitService {
   static const String _limitsKey = 'spending_limits';
   static const String _spendingHistoryKey = 'spending_history';
   static const String _notificationSettingsKey = 'limit_notifications';
-  
+
   final Logger _logger = Logger();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Lưu giới hạn chi tiêu
   Future<void> setSpendingLimit(SpendingLimit limit) async {
     try {
+      // Đồng bộ Firestore trước
+      final user = _auth.currentUser;
+      if (user != null) {
+        final docRef = _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('limits')
+            .doc(limit.id);
+
+        await docRef.set({
+          'id': limit.id,
+          'categoryId': limit.categoryId,
+          'categoryName': limit.categoryName,
+          'amount': limit.amount,
+          'type': limit.type.toString(),
+          'isActive': limit.isActive,
+          'allowOverride': limit.allowOverride,
+          'created_at': Timestamp.fromDate(limit.createdAt),
+          'updated_at': Timestamp.fromDate(limit.updatedAt),
+        }, SetOptions(merge: true));
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final limits = await getSpendingLimits();
-      
+
       // Cập nhật hoặc thêm mới
-      final existingIndex = limits.indexWhere((l) => 
-        l.categoryId == limit.categoryId && l.type == limit.type);
-      
+      final existingIndex = limits.indexWhere(
+          (l) => l.categoryId == limit.categoryId && l.type == limit.type);
+
       if (existingIndex >= 0) {
         limits[existingIndex] = limit;
       } else {
         limits.add(limit);
       }
-      
+
       final limitsJson = limits.map((l) => l.toJson()).toList();
       await prefs.setString(_limitsKey, jsonEncode(limitsJson));
     } catch (e) {
@@ -39,11 +65,47 @@ class SpendingLimitService {
   /// Lấy tất cả giới hạn chi tiêu
   Future<List<SpendingLimit>> getSpendingLimits() async {
     try {
+      // Ưu tiên đọc Firestore
+      final user = _auth.currentUser;
+      if (user != null) {
+        final snapshot = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('limits')
+            .orderBy('updated_at', descending: true)
+            .get();
+
+        final limits = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return SpendingLimit(
+            id: data['id'] ?? doc.id,
+            categoryId: data['categoryId'] ?? 'all',
+            categoryName: data['categoryName'] ?? 'Tất cả',
+            amount: (data['amount'] as num?)?.toDouble() ?? 0,
+            type: _parseLimitType(data['type'] as String?),
+            isActive: data['isActive'] ?? true,
+            allowOverride: data['allowOverride'] ?? false,
+            createdAt:
+                (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            updatedAt:
+                (data['updated_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          );
+        }).toList();
+
+        // Cache local
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          final limitsJson = limits.map((l) => l.toJson()).toList();
+          await prefs.setString(_limitsKey, jsonEncode(limitsJson));
+        } catch (_) {}
+
+        return limits;
+      }
+
+      // Fallback local
       final prefs = await SharedPreferences.getInstance();
       final limitsString = prefs.getString(_limitsKey);
-      
       if (limitsString == null) return [];
-      
       final limitsJson = jsonDecode(limitsString) as List;
       return limitsJson.map((json) => SpendingLimit.fromJson(json)).toList();
     } catch (e) {
@@ -55,11 +117,27 @@ class SpendingLimitService {
   /// Xóa giới hạn chi tiêu
   Future<void> removeSpendingLimit(String categoryId, LimitType type) async {
     try {
+      // Xóa trên Firestore
+      final user = _auth.currentUser;
+      if (user != null) {
+        // Tìm doc theo categoryId + type
+        final query = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('limits')
+            .where('categoryId', isEqualTo: categoryId)
+            .where('type', isEqualTo: type.toString())
+            .get();
+        for (final doc in query.docs) {
+          await doc.reference.delete();
+        }
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final limits = await getSpendingLimits();
-      
+
       limits.removeWhere((l) => l.categoryId == categoryId && l.type == type);
-      
+
       final limitsJson = limits.map((l) => l.toJson()).toList();
       await prefs.setString(_limitsKey, jsonEncode(limitsJson));
     } catch (e) {
@@ -77,23 +155,23 @@ class SpendingLimitService {
     try {
       final limits = await getSpendingLimits();
       final warnings = <LimitWarning>[];
-      
+
       for (final limit in limits) {
         if (limit.categoryId != categoryId && limit.categoryId != 'all') {
           continue;
         }
-        
+
         final currentSpending = await _calculateCurrentSpending(
           categoryId: limit.categoryId,
           limitType: limit.type,
           transactionDate: transactionDate,
           recentTransactions: recentTransactions,
         );
-        
+
         final newTotal = currentSpending + amount;
         final limitAmount = limit.amount;
         final usagePercentage = (newTotal / limitAmount) * 100;
-        
+
         // Kiểm tra các ngưỡng cảnh báo
         if (newTotal > limitAmount) {
           warnings.add(LimitWarning(
@@ -102,7 +180,8 @@ class SpendingLimitService {
             newTotal: newTotal,
             usagePercentage: usagePercentage,
             severity: WarningSeverity.critical,
-            message: 'Vượt quá giới hạn ${_getLimitTypeDisplayName(limit.type)}',
+            message:
+                'Vượt quá giới hạn ${_getLimitTypeDisplayName(limit.type)}',
           ));
         } else if (usagePercentage >= 90) {
           warnings.add(LimitWarning(
@@ -111,7 +190,8 @@ class SpendingLimitService {
             newTotal: newTotal,
             usagePercentage: usagePercentage,
             severity: WarningSeverity.high,
-            message: 'Sắp đạt giới hạn ${_getLimitTypeDisplayName(limit.type)} (${usagePercentage.toInt()}%)',
+            message:
+                'Sắp đạt giới hạn ${_getLimitTypeDisplayName(limit.type)} (${usagePercentage.toInt()}%)',
           ));
         } else if (usagePercentage >= 75) {
           warnings.add(LimitWarning(
@@ -120,20 +200,23 @@ class SpendingLimitService {
             newTotal: newTotal,
             usagePercentage: usagePercentage,
             severity: WarningSeverity.medium,
-            message: 'Đã sử dụng ${usagePercentage.toInt()}% giới hạn ${_getLimitTypeDisplayName(limit.type)}',
+            message:
+                'Đã sử dụng ${usagePercentage.toInt()}% giới hạn ${_getLimitTypeDisplayName(limit.type)}',
           ));
         }
       }
-      
+
       return LimitCheckResult(
         hasWarnings: warnings.isNotEmpty,
         warnings: warnings,
-        shouldBlock: warnings.any((w) => w.severity == WarningSeverity.critical && 
-                                       !_isLimitOverrideAllowed(w.limit)),
+        shouldBlock: warnings.any((w) =>
+            w.severity == WarningSeverity.critical &&
+            !_isLimitOverrideAllowed(w.limit)),
       );
     } catch (e) {
       _logger.e('Error checking spending limit: $e');
-      return LimitCheckResult(hasWarnings: false, warnings: [], shouldBlock: false);
+      return LimitCheckResult(
+          hasWarnings: false, warnings: [], shouldBlock: false);
     }
   }
 
@@ -149,7 +232,7 @@ class SpendingLimitService {
       limitType,
       transactionDate,
     );
-    
+
     double totalSpent;
     if (categoryId == 'all') {
       totalSpent = relevantTransactions
@@ -157,10 +240,11 @@ class SpendingLimitService {
           .fold(0.0, (sum, t) => sum + t.amount);
     } else {
       totalSpent = relevantTransactions
-          .where((t) => t.categoryId == categoryId && t.type == TransactionType.expense)
+          .where((t) =>
+              t.categoryId == categoryId && t.type == TransactionType.expense)
           .fold(0.0, (sum, t) => sum + t.amount);
     }
-    
+
     return totalSpent;
   }
 
@@ -172,7 +256,7 @@ class SpendingLimitService {
   ) {
     final now = referenceDate;
     DateTime startDate;
-    
+
     switch (limitType) {
       case LimitType.daily:
         startDate = DateTime(now.year, now.month, now.day);
@@ -186,11 +270,12 @@ class SpendingLimitService {
         startDate = DateTime(now.year, now.month, 1);
         break;
     }
-    
-    return transactions.where((t) => 
-      t.date.isAfter(startDate) && 
-      t.date.isBefore(now.add(const Duration(days: 1)))
-    ).toList();
+
+    return transactions
+        .where((t) =>
+            t.date.isAfter(startDate) &&
+            t.date.isBefore(now.add(const Duration(days: 1))))
+        .toList();
   }
 
   /// Kiểm tra có cho phép vượt giới hạn không
@@ -217,25 +302,51 @@ class SpendingLimitService {
     required DateTime date,
   }) async {
     try {
+      // Ghi tổng hợp usage sang Firestore
+      final user = _auth.currentUser;
+      if (user != null) {
+        final key = '${categoryId}_expense';
+        final docRef = _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('category_usage')
+            .doc(key);
+
+        await docRef.set({
+          'categoryId': categoryId,
+          'type': 'expense',
+          'count': FieldValue.increment(1),
+          'totalAmount': FieldValue.increment(amount),
+          'lastUsed': Timestamp.fromDate(date),
+        }, SetOptions(merge: true));
+
+        // Cập nhật hourly usage
+        final hour = date.hour.toString();
+        await docRef.set({
+          'hourlyUsage.$hour': FieldValue.increment(1),
+        }, SetOptions(merge: true));
+      }
+
       final prefs = await SharedPreferences.getInstance();
       final historyString = prefs.getString(_spendingHistoryKey);
-      
+
       List<SpendingRecord> history = [];
       if (historyString != null) {
         final historyJson = jsonDecode(historyString) as List;
-        history = historyJson.map((json) => SpendingRecord.fromJson(json)).toList();
+        history =
+            historyJson.map((json) => SpendingRecord.fromJson(json)).toList();
       }
-      
+
       history.add(SpendingRecord(
         categoryId: categoryId,
         amount: amount,
         date: date,
       ));
-      
+
       // Giữ lại 30 ngày gần nhất
       final cutoffDate = DateTime.now().subtract(const Duration(days: 30));
       history = history.where((r) => r.date.isAfter(cutoffDate)).toList();
-      
+
       final historyJson = history.map((r) => r.toJson()).toList();
       await prefs.setString(_spendingHistoryKey, jsonEncode(historyJson));
     } catch (e) {
@@ -253,7 +364,7 @@ class SpendingLimitService {
       final date = referenceDate ?? DateTime.now();
       final prefs = await SharedPreferences.getInstance();
       final historyString = prefs.getString(_spendingHistoryKey);
-      
+
       if (historyString == null) {
         return SpendingStats(
           totalSpent: 0,
@@ -262,19 +373,22 @@ class SpendingLimitService {
           period: limitType,
         );
       }
-      
+
       final historyJson = jsonDecode(historyString) as List;
-      final history = historyJson.map((json) => SpendingRecord.fromJson(json)).toList();
-      
+      final history =
+          historyJson.map((json) => SpendingRecord.fromJson(json)).toList();
+
       final relevantRecords = _filterRecordsByPeriod(history, limitType, date);
-      final categoryRecords = categoryId == 'all' 
-          ? relevantRecords 
+      final categoryRecords = categoryId == 'all'
+          ? relevantRecords
           : relevantRecords.where((r) => r.categoryId == categoryId).toList();
-      
+
       final totalSpent = categoryRecords.fold(0.0, (sum, r) => sum + r.amount);
       final transactionCount = categoryRecords.length;
-      final averageAmount = transactionCount > 0 ? (totalSpent / transactionCount).toDouble() : 0.0;
-      
+      final averageAmount = transactionCount > 0
+          ? (totalSpent / transactionCount).toDouble()
+          : 0.0;
+
       return SpendingStats(
         totalSpent: totalSpent,
         transactionCount: transactionCount,
@@ -292,6 +406,21 @@ class SpendingLimitService {
     }
   }
 
+  LimitType _parseLimitType(String? raw) {
+    switch (raw) {
+      case 'LimitType.daily':
+      case 'daily':
+        return LimitType.daily;
+      case 'LimitType.weekly':
+      case 'weekly':
+        return LimitType.weekly;
+      case 'LimitType.monthly':
+      case 'monthly':
+      default:
+        return LimitType.monthly;
+    }
+  }
+
   /// Lọc records theo khoảng thời gian
   List<SpendingRecord> _filterRecordsByPeriod(
     List<SpendingRecord> records,
@@ -300,7 +429,7 @@ class SpendingLimitService {
   ) {
     final now = referenceDate;
     DateTime startDate;
-    
+
     switch (limitType) {
       case LimitType.daily:
         startDate = DateTime(now.year, now.month, now.day);
@@ -314,18 +443,21 @@ class SpendingLimitService {
         startDate = DateTime(now.year, now.month, 1);
         break;
     }
-    
-    return records.where((r) => 
-      r.date.isAfter(startDate) && 
-      r.date.isBefore(now.add(const Duration(days: 1)))
-    ).toList();
+
+    return records
+        .where((r) =>
+            r.date.isAfter(startDate) &&
+            r.date.isBefore(now.add(const Duration(days: 1))))
+        .toList();
   }
 
   /// Cài đặt thông báo giới hạn
-  Future<void> setNotificationSettings(LimitNotificationSettings settings) async {
+  Future<void> setNotificationSettings(
+      LimitNotificationSettings settings) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_notificationSettingsKey, jsonEncode(settings.toJson()));
+      await prefs.setString(
+          _notificationSettingsKey, jsonEncode(settings.toJson()));
     } catch (e) {
       _logger.e('Error setting notification settings: $e');
     }
@@ -336,11 +468,11 @@ class SpendingLimitService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final settingsString = prefs.getString(_notificationSettingsKey);
-      
+
       if (settingsString == null) {
         return LimitNotificationSettings.defaultSettings();
       }
-      
+
       final settingsJson = jsonDecode(settingsString);
       return LimitNotificationSettings.fromJson(settingsJson);
     } catch (e) {

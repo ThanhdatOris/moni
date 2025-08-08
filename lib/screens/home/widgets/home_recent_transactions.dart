@@ -90,22 +90,14 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
           )
           .first;
 
-      // Lấy danh sách tất cả danh mục
-      final expenseCategories = await _categoryService
-          .getCategories(
-            type: TransactionType.expense,
-          )
-          .first;
-
-      final incomeCategories = await _categoryService
-          .getCategories(
-            type: TransactionType.income,
-          )
+      // Lấy danh sách tất cả danh mục (tối ưu: 1 call thay vì 2)
+      final allCategories = await _categoryService
+          .getCategories() // Không filter type, lấy tất cả
           .first;
 
       // Tạo map category ID -> category
       final categoryMap = <String, CategoryModel>{};
-      for (final category in [...expenseCategories, ...incomeCategories]) {
+      for (final category in allCategories) {
         categoryMap[category.categoryId] = category;
       }
 
@@ -502,12 +494,12 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
   Widget _buildTransactionItem(TransactionModel transaction) {
     final category = _categoryMap[transaction.categoryId];
     final isExpense = transaction.type == TransactionType.expense;
-    
+
     // Sử dụng màu từ category nếu có, fallback về màu mặc định
-    final categoryColor = category != null 
+    final categoryColor = category != null
         ? Color(category.color)
         : (isExpense ? Colors.red[600]! : Colors.green[600]!);
-    
+
     final backgroundColorLight = category != null
         ? Color(category.color).withValues(alpha: 0.1)
         : (isExpense ? Colors.red[50]! : Colors.green[50]!);

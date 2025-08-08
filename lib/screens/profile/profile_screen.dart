@@ -1,14 +1,19 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../constants/app_colors.dart';
 import '../../core/di/injection_container.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/custom_page_header.dart';
-import 'change_password_screen.dart';
-import 'edit_profile_screen.dart';
+import 'widgets/about_section.dart';
+import 'widgets/appearance_section.dart';
+import 'widgets/backup_section.dart';
+import 'widgets/help_section.dart';
+import 'widgets/logout_section.dart';
+import 'widgets/notification_section.dart';
+import 'widgets/personal_info_section.dart';
+import 'widgets/security_section.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -75,7 +80,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           _buildHeader(),
                           _buildSettingsMenu(context, FirebaseAuth.instance.currentUser),
-                          _buildLogoutSection(),
+                          const LogoutSection(),
                           const SizedBox(height: 80),
                         ],
                       ),
@@ -203,41 +208,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            // Edit profile button
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: SizedBox(
-                width: 32,
-                height: 32,
-                child: IconButton(
-                  icon: Icon(
-                    Icons.edit,
-                    color: AppColors.primary,
-                    size: 16,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  tooltip: 'Chỉnh sửa hồ sơ',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const EditProfileScreen(),
-                    ),
-                  ),
-                ),
-              ),
-            ),
           ],
         ),
       ),
@@ -245,75 +215,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildAvatar() {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    final photoURL = _userModel?.photoUrl ?? currentUser?.photoURL;
-    final displayName = _userModel?.name ?? currentUser?.displayName ?? 'User';
-
-    return CircleAvatar(
-      radius: 36,
-      backgroundColor: Colors.white,
-      child: CircleAvatar(
+    final user = FirebaseAuth.instance.currentUser;
+    final userName = _userModel?.name ?? user?.displayName ?? 'Người dùng';
+    
+    if (user?.photoURL != null && user!.photoURL!.isNotEmpty) {
+      return CircleAvatar(
         radius: 32,
-        backgroundColor: Colors.grey.shade200,
-        backgroundImage: photoURL != null && photoURL.isNotEmpty
-            ? NetworkImage(photoURL)
-            : null,
-        child: photoURL == null || photoURL.isEmpty
-            ? _buildDefaultAvatar(displayName)
-            : null,
-      ),
-    );
+        backgroundImage: NetworkImage(user.photoURL!),
+        onBackgroundImageError: (_, __) {
+          // Fallback to default avatar if image fails to load
+        },
+        child: user.photoURL!.isEmpty ? null : null,
+      );
+    } else {
+      return _buildDefaultAvatar(userName);
+    }
   }
 
-  // Data structure cho settings sections
   List<Map<String, dynamic>> get _settingSections => [
     {
       'icon': Icons.person_outline,
       'title': 'Thông tin cá nhân',
       'subtitle': 'Chỉnh sửa hồ sơ và thông tin',
-      'widget': _buildPersonalInfoSection(),
+      'widget': const PersonalInfoSection(),
     },
     {
       'icon': Icons.security_outlined,
       'title': 'Bảo mật',
       'subtitle': 'Mật khẩu, sinh trắc học',
-      'widget': _buildSecuritySection(),
+      'widget': const SecuritySection(),
     },
     {
       'icon': Icons.notifications_outlined,
       'title': 'Thông báo',
       'subtitle': 'Cài đặt nhắc nhở và thông báo',
-      'widget': _buildNotificationSection(),
+      'widget': const NotificationSection(),
     },
     {
       'icon': Icons.backup_outlined,
       'title': 'Sao lưu & Đồng bộ',
       'subtitle': 'Đồng bộ dữ liệu trên các thiết bị',
-      'widget': _buildBackupSection(),
+      'widget': const BackupSection(),
     },
     {
       'icon': Icons.palette_outlined,
       'title': 'Giao diện',
       'subtitle': 'Chủ đề, màu sắc, ngôn ngữ',
-      'widget': _buildAppearanceSection(),
-    },
-    {
-      'icon': Icons.analytics_outlined,
-      'title': 'Dữ liệu',
-      'subtitle': 'PDF, Excel, CSV',
-      'widget': _buildDataSection(),
+      'widget': const AppearanceSection(),
     },
     {
       'icon': Icons.help_outline,
       'title': 'Trợ giúp & Hỗ trợ',
       'subtitle': 'FAQ, liên hệ hỗ trợ',
-      'widget': _buildHelpSection(),
+      'widget': const HelpSection(),
     },
     {
       'icon': Icons.info_outline,
       'title': 'Về ứng dụng',
       'subtitle': 'Phiên bản 1.0.0',
-      'widget': _buildAboutSection(),
+      'widget': const AboutSection(),
     },
   ];
 
@@ -331,11 +291,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      clipBehavior: Clip.antiAlias, // Đảm bảo nội dung không tràn ra ngoài bo góc
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Generate setting sections
           ..._settingSections.asMap().entries.map((entry) {
             final index = entry.key;
             final section = entry.value;
@@ -427,490 +386,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               width: double.infinity,
               color: Colors.grey.shade50,
-              padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               child: child,
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // Helper methods để tạo các tile
-  Widget _buildTile({
-    required String title,
-    String? subtitle,
-    Widget? trailing,
-    VoidCallback? onTap,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: InkWell(
-        onTap: onTap,
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15)),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-                  ],
-                ],
-              ),
-            ),
-            if (trailing != null) trailing,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildButton(String text, VoidCallback onPressed) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFFFF9800),
-            Color(0xFFFF6F00),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFFF9800).withValues(alpha: 0.3),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        ),
-        child: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSwitchTile(String title, String subtitle, bool value, Function(bool) onChanged) {
-    return _buildTile(
-      title: title,
-      subtitle: subtitle,
-      trailing: Transform.scale(
-        scale: 0.9,
-        child: Switch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: Colors.white,
-          activeTrackColor: const Color(0xFFFF9800),
-          inactiveThumbColor: Colors.grey.shade400,
-          inactiveTrackColor: Colors.grey.shade200,
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionTile(String title, String? subtitle, String buttonText, VoidCallback onPressed) {
-    return _buildTile(
-      title: title,
-      subtitle: subtitle,
-      trailing: _buildButton(buttonText, onPressed),
-    );
-  }
-
-  Widget _buildDropdownTile(String title, String currentValue, List<String> options, Function(String?) onChanged) {
-    return _buildTile(
-      title: title,
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: DropdownButton<String>(
-          value: currentValue,
-          underline: Container(),
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.black87,
-          ),
-          items: options.map((value) => DropdownMenuItem(
-            value: value,
-            child: Text(value),
-          )).toList(),
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoTile(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 80, child: Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14))),
-          const SizedBox(width: 16),
-          Expanded(child: Text(value, style: TextStyle(color: Colors.grey.shade600, fontSize: 14))),
-        ],
-      ),
-    );
-  }
-
-  // Implementation của các section
-  Widget _buildPersonalInfoSection() {
-    return Column(
-      children: [
-        _buildActionTile(
-          'Chỉnh sửa hồ sơ',
-          'Cập nhật thông tin cá nhân',
-          'Chỉnh sửa',
-          () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const EditProfileScreen(),
-            ),
-          ),
-        ),
-        _buildInfoTile('Ngày tạo', DateFormat('dd/MM/yyyy').format(DateTime.now())),
-        _buildInfoTile('Loại tài khoản', 'Miễn phí'),
-      ],
-    );
-  }
-
-  Widget _buildSecuritySection() {
-    return Column(
-      children: [
-        _buildActionTile(
-          'Đổi mật khẩu',
-          'Cập nhật mật khẩu bảo mật',
-          'Đổi',
-          () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const ChangePasswordScreen(),
-            ),
-          ),
-        ),
-        _buildSwitchTile(
-          'Sinh trắc học',
-          'Sử dụng vân tay/Face ID',
-          true,
-          (value) {
-            // Handle biometric toggle
-          },
-        ),
-        _buildSwitchTile(
-          'Xác thực 2 bước',
-          'Tăng cường bảo mật',
-          false,
-          (value) {
-            // Handle 2FA toggle
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNotificationSection() {
-    return Column(
-      children: [
-        _buildSwitchTile(
-          'Thông báo đẩy',
-          'Nhận thông báo từ ứng dụng',
-          true,
-          (value) {
-            // Handle push notification toggle
-          },
-        ),
-        _buildSwitchTile(
-          'Nhắc nhở ngân sách',
-          'Thông báo khi vượt ngân sách',
-          true,
-          (value) {
-            // Handle budget reminder toggle
-          },
-        ),
-        _buildSwitchTile(
-          'Báo cáo hàng tháng',
-          'Tóm tắt chi tiêu hàng tháng',
-          false,
-          (value) {
-            // Handle monthly report toggle
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBackupSection() {
-    return Column(
-      children: [
-        _buildActionTile(
-          'Sao lưu ngay',
-          'Sao lưu dữ liệu lên cloud',
-          'Sao lưu',
-          () {
-            // Handle backup
-          },
-        ),
-        _buildActionTile(
-          'Khôi phục dữ liệu',
-          'Khôi phục từ bản sao lưu',
-          'Khôi phục',
-          () {
-            // Handle restore
-          },
-        ),
-        _buildSwitchTile(
-          'Tự động sao lưu',
-          'Sao lưu định kỳ mỗi ngày',
-          true,
-          (value) {
-            // Handle auto backup toggle
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAppearanceSection() {
-    return Column(
-      children: [
-        _buildDropdownTile(
-          'Chủ đề',
-          'Sáng',
-          ['Sáng', 'Tối', 'Tự động'],
-          (value) {
-            // Handle theme change
-          },
-        ),
-        _buildDropdownTile(
-          'Ngôn ngữ',
-          'Tiếng Việt',
-          ['Tiếng Việt', 'English'],
-          (value) {
-            // Handle language change
-          },
-        ),
-        _buildDropdownTile(
-          'Tiền tệ',
-          'VND',
-          ['VND', 'USD', 'EUR'],
-          (value) {
-            // Handle currency change
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDataSection() {
-    return Column(
-      children: [
-        _buildActionTile(
-          'Xuất PDF',
-          'Xuất báo cáo dạng PDF',
-          'Xuất',
-          () {
-            // Handle PDF export
-          },
-        ),
-        _buildActionTile(
-          'Xuất Excel',
-          'Xuất dữ liệu Excel',
-          'Xuất',
-          () {
-            // Handle Excel export
-          },
-        ),
-        _buildActionTile(
-          'Xuất CSV',
-          'Xuất dữ liệu CSV',
-          'Xuất',
-          () {
-            // Handle CSV export
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHelpSection() {
-    return Column(
-      children: [
-        _buildActionTile(
-          'Câu hỏi thường gặp',
-          'Tìm câu trả lời nhanh',
-          'Xem',
-          () {
-            // Navigate to FAQ
-          },
-        ),
-        _buildActionTile(
-          'Liên hệ hỗ trợ',
-          'Gửi phản hồi hoặc báo lỗi',
-          'Liên hệ',
-          () {
-            // Navigate to contact support
-          },
-        ),
-        _buildActionTile(
-          'Đánh giá ứng dụng',
-          'Đánh giá trên cửa hàng',
-          'Đánh giá',
-          () {
-            // Open app store rating
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAboutSection() {
-    return Column(
-      children: [
-        _buildInfoTile('Phiên bản', '1.0.0'),
-        _buildInfoTile('Ngày phát hành', '01/01/2024'),
-        _buildInfoTile('Nhà phát triển', 'Moni Team'),
-        _buildActionTile(
-          'Điều khoản sử dụng',
-          'Xem điều khoản và chính sách',
-          'Xem',
-          () {
-            // Navigate to terms
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLogoutSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          // Logout button with gradient
-          Container(
-            width: double.infinity,
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFFF5252), // Red
-                  Color(0xFFD32F2F), // Deep Red
-                ],
-              ),
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF5252).withValues(alpha: 0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: ElevatedButton(
-              onPressed: () => _showLogoutDialog(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(28),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.logout,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Đăng xuất',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
-
-  void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text(
-          'Đăng xuất',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        content: const Text(
-          'Bạn có chắc chắn muốn đăng xuất không?',
-          style: TextStyle(color: Colors.grey),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Hủy',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await getIt<AuthService>().logout();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, '/login');
-              }
-            },
-            child: const Text(
-              'Đăng xuất',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

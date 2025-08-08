@@ -195,7 +195,7 @@ class DuplicateDetectionService {
     // Kiểm tra thời gian
     final timeDiff = transaction1.createdAt.difference(transaction2.createdAt).abs();
     if (timeDiff.inMinutes <= _timeWindowMinutes) {
-      reasons.add('Cùng thời gian (trong vòng ${_timeWindowMinutes} phút)');
+      reasons.add('Cùng thời gian (trong vòng $_timeWindowMinutes phút)');
     }
     
     // Kiểm tra số tiền

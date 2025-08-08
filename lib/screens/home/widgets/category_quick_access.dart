@@ -8,9 +8,12 @@ import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
 import '../../../services/category_service.dart';
+import '../../../services/environment_service.dart';
+import '../../../services/transaction_service.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 import '../../../utils/logging/logging_utils.dart';
 import '../../category/category_management_screen.dart';
+import '../../transaction/add_transaction_screen.dart';
 
 class CategoryQuickAccess extends StatefulWidget {
   const CategoryQuickAccess({super.key});
@@ -27,9 +30,15 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
   List<CategoryModel> _incomeCategories = [];
   bool _isLoading = false;
 
-  StreamSubscription<List<CategoryModel>>? _expenseSubscription;
-  StreamSubscription<List<CategoryModel>>? _incomeSubscription;
+  // Usage ranking maps
+  Map<String, int> _expenseUsageCount = {};
+  Map<String, DateTime> _expenseLastUsed = {};
+  Map<String, int> _incomeUsageCount = {};
+  Map<String, DateTime> _incomeLastUsed = {};
+
+  StreamSubscription<List<CategoryModel>>? _categoriesSubscription;
   StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<List<TransactionModel>>? _recentTxSub;
 
   @override
   void initState() {
@@ -41,23 +50,29 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
       if (mounted) {
         if (user != null) {
           _loadCategories();
+          _listenRecentTransactions();
         } else {
           setState(() {
             _expenseCategories = [];
             _incomeCategories = [];
+            _expenseUsageCount = {};
+            _expenseLastUsed = {};
+            _incomeUsageCount = {};
+            _incomeLastUsed = {};
           });
         }
       }
     });
 
     _loadCategories();
+    _listenRecentTransactions();
   }
 
   @override
   void dispose() {
-    _expenseSubscription?.cancel();
-    _incomeSubscription?.cancel();
+    _categoriesSubscription?.cancel();
     _authSubscription?.cancel();
+    _recentTxSub?.cancel();
     super.dispose();
   }
 
@@ -69,55 +84,34 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     });
 
     try {
-      await _expenseSubscription?.cancel();
-      await _incomeSubscription?.cancel();
+      await _categoriesSubscription?.cancel();
 
-      // Load expense categories
-      _expenseSubscription =
-          _categoryService.getCategories(type: TransactionType.expense).listen(
-        (categories) {
+      // Load all categories with single subscription (tối ưu: 1 call thay vì 2)
+      _categoriesSubscription = _categoryService.getCategories().listen(
+        (allCategories) {
           if (mounted) {
-            setState(() {
-              _expenseCategories =
-                  categories.take(6).toList(); // Tối đa 6 items
-            });
-            // Debug: Log category colors
-            for (var category in categories.take(3)) {
-              logDebug(
-                'Expense category color',
-                className: 'CategoryQuickAccess',
-                methodName: '_loadCategories',
-                data: {
-                  'name': category.name,
-                  'color': category.color,
-                  'hex': '0x${category.color.toRadixString(16).toUpperCase()}',
-                },
-              );
-            }
-          }
-        },
-      );
+            // Filter categories by type
+            final expenseCategories = allCategories
+                .where((cat) => cat.type == TransactionType.expense)
+                .toList();
+            final incomeCategories = allCategories
+                .where((cat) => cat.type == TransactionType.income)
+                .toList();
 
-      // Load income categories
-      _incomeSubscription =
-          _categoryService.getCategories(type: TransactionType.income).listen(
-        (categories) {
-          if (mounted) {
             setState(() {
-              _incomeCategories = categories.take(6).toList(); // Tối đa 6 items
+              _expenseCategories = _sortByUsage(expenseCategories, true);
+              _incomeCategories = _sortByUsage(incomeCategories, false);
               _isLoading = false;
             });
-            // Debug: Log income category colors
-            for (var category in categories.take(3)) {
+
+            // Debug: Log category summary (reduced spam)
+            if (EnvironmentService.debugMode &&
+                expenseCategories.isNotEmpty &&
+                incomeCategories.isNotEmpty) {
               logDebug(
-                'Income category color',
+                'CategoryQuickAccess loaded: ${expenseCategories.length} expense + ${incomeCategories.length} income categories',
                 className: 'CategoryQuickAccess',
                 methodName: '_loadCategories',
-                data: {
-                  'name': category.name,
-                  'color': category.color,
-                  'hex': '0x${category.color.toRadixString(16).toUpperCase()}',
-                },
               );
             }
           }
@@ -130,6 +124,69 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         });
       }
     }
+  }
+
+  // Listen recent transactions to compute usage frequency per category
+  void _listenRecentTransactions() {
+    final transactionService = _getIt<TransactionService>();
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day)
+        .subtract(const Duration(days: 60));
+    _recentTxSub = transactionService
+        .getTransactions(startDate: start, endDate: now)
+        .listen((txs) {
+      final expCount = <String, int>{};
+      final expLast = <String, DateTime>{};
+      final incCount = <String, int>{};
+      final incLast = <String, DateTime>{};
+
+      for (final t in txs) {
+        if (t.categoryId.isEmpty) continue;
+        if (t.type == TransactionType.expense) {
+          expCount[t.categoryId] = (expCount[t.categoryId] ?? 0) + 1;
+          final prev = expLast[t.categoryId];
+          if (prev == null || t.date.isAfter(prev)) {
+            expLast[t.categoryId] = t.date;
+          }
+        } else if (t.type == TransactionType.income) {
+          incCount[t.categoryId] = (incCount[t.categoryId] ?? 0) + 1;
+          final prev = incLast[t.categoryId];
+          if (prev == null || t.date.isAfter(prev)) {
+            incLast[t.categoryId] = t.date;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _expenseUsageCount = expCount;
+        _expenseLastUsed = expLast;
+        _incomeUsageCount = incCount;
+        _incomeLastUsed = incLast;
+        // Re-sort lists when usage stats updated
+        _expenseCategories = _sortByUsage(_expenseCategories, true);
+        _incomeCategories = _sortByUsage(_incomeCategories, false);
+      });
+    });
+  }
+
+  List<CategoryModel> _sortByUsage(
+      List<CategoryModel> categories, bool isExpense) {
+    final usageCount = isExpense ? _expenseUsageCount : _incomeUsageCount;
+    final lastUsed = isExpense ? _expenseLastUsed : _incomeLastUsed;
+    final sorted = [...categories];
+    sorted.sort((a, b) {
+      final ca = usageCount[a.categoryId] ?? 0;
+      final cb = usageCount[b.categoryId] ?? 0;
+      if (cb != ca) return cb.compareTo(ca); // higher count first
+      final la = lastUsed[a.categoryId];
+      final lb = lastUsed[b.categoryId];
+      if (la == null && lb == null) return 0;
+      if (la == null) return 1;
+      if (lb == null) return -1;
+      return lb.compareTo(la); // latest first
+    });
+    return sorted.take(6).toList();
   }
 
   /// Helper method để xử lý màu category một cách an toàn
@@ -457,7 +514,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () {
-            // Handle category tap
+            _navigateToAddTransaction(category);
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -568,6 +625,18 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
       context,
       MaterialPageRoute(
         builder: (context) => const CategoryManagementScreen(),
+      ),
+    );
+  }
+
+  void _navigateToAddTransaction(CategoryModel category) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddTransactionScreen(
+          initialType: category.type,
+          initialCategoryId: category.categoryId,
+        ),
       ),
     );
   }

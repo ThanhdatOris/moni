@@ -105,7 +105,7 @@ class ConversationService {
           .map((snapshot) {
         return snapshot.docs.map((doc) {
           return ConversationModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+              doc.data(), doc.id);
         }).toList();
       });
     } catch (e) {

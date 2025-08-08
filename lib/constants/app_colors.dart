@@ -5,18 +5,18 @@ class AppColors {
   static const Color primary = Color(0xFFFFA726);
   static const Color primaryDark = Color(0xFFFF7043);
   static const Color primaryLight = Color(0xFFFFCC80);
-  
+
   // Background colors
   static const Color background = Color(0xFFF2F2F7);
   static const Color backgroundLight = Color(0xFFFFFFFF);
   static const Color backgroundDark = Color(0xFF1A1A1A);
-  
+
   // Text colors
   static const Color textPrimary = Color(0xFF000000);
   static const Color textSecondary = Color(0xFF666666);
   static const Color textLight = Color(0xFF999999);
   static const Color textWhite = Color(0xFFFFFFFF);
-  
+
   // Category colors
   static const Color income = Color(0xFF4CAF50);
   static const Color expense = Color(0xFFF44336);
@@ -26,13 +26,13 @@ class AppColors {
   static const Color entertainment = Color(0xFFE91E63);
   static const Color bills = Color(0xFF607D8B);
   static const Color health = Color(0xFF8BC34A);
-  
+
   // Status colors
   static const Color success = Color(0xFF4CAF50);
   static const Color warning = Color(0xFFFF9800);
   static const Color error = Color(0xFFF44336);
   static const Color info = Color(0xFF2196F3);
-  
+
   // Neutral colors
   static const Color grey100 = Color(0xFFF5F5F5);
   static const Color grey200 = Color(0xFFE0E0E0);
@@ -42,17 +42,28 @@ class AppColors {
   static const Color grey600 = Color(0xFF616161);
   static const Color grey700 = Color(0xFF424242);
   static const Color grey800 = Color(0xFF212121);
-  
+
   // Gradient colors
   static const LinearGradient primaryGradient = LinearGradient(
     colors: [primary, primaryDark],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
-  
+
   static const LinearGradient cardGradient = LinearGradient(
     colors: [backgroundLight, grey100],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
-} 
+
+  // Purple theme (for report/export accents)
+  static const Color purple = Color(0xFF8E24AA); // Purple 600
+  static const Color purpleDark = Color(0xFF6A1B9A); // Purple 800
+  static const Color purpleLight = Color(0xFFCE93D8); // Purple 200
+
+  static const LinearGradient purpleGradient = LinearGradient(
+    colors: [purple, purpleDark],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+}
