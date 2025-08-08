@@ -245,28 +245,52 @@ class RealDataService {
       List<TransactionModel> transactions) async {
     try {
       final trendData = <ChartDataModel>[];
-      final dailyData = <String, double>{};
+      final dailyIncome = <String, double>{};
+      final dailyExpense = <String, double>{};
 
-      // Group by date
-      for (final transaction
-          in transactions.where((t) => t.type == TransactionType.expense)) {
+      // Group by date for income and expense separately
+      for (final transaction in transactions) {
         final dateKey = _formatDate(transaction.date);
-        dailyData[dateKey] = (dailyData[dateKey] ?? 0) + transaction.amount;
+        if (transaction.type == TransactionType.income) {
+          dailyIncome[dateKey] =
+              (dailyIncome[dateKey] ?? 0) + transaction.amount;
+        } else {
+          dailyExpense[dateKey] =
+              (dailyExpense[dateKey] ?? 0) + transaction.amount;
+        }
       }
 
-      // Convert to chart data
-      final sortedEntries = dailyData.entries.toList()
-        ..sort((a, b) => a.key.compareTo(b.key));
+      // Merge dates from both maps and sort
+      final allDates = <String>{}
+        ..addAll(dailyIncome.keys)
+        ..addAll(dailyExpense.keys);
+      final sortedDates = allDates.toList()..sort((a, b) => a.compareTo(b));
 
-      for (final entry in sortedEntries.take(30)) {
-        // Last 30 days
+      // Take last 30 days entries and build data points for both types
+      final lastDates = sortedDates.length > 30
+          ? sortedDates.sublist(sortedDates.length - 30)
+          : sortedDates;
+
+      for (final date in lastDates) {
+        final incomeAmount = dailyIncome[date] ?? 0;
+        final expenseAmount = dailyExpense[date] ?? 0;
+
         trendData.add(ChartDataModel(
-          category: entry.key,
-          amount: entry.value,
-          percentage: 0, // Will be calculated if needed
+          category: date,
+          amount: incomeAmount,
+          percentage: 0,
           icon: '📅',
-          color: '#2196F3',
-          type: 'trend',
+          color: '#4CAF50', // green for income
+          type: 'income',
+        ));
+
+        trendData.add(ChartDataModel(
+          category: date,
+          amount: expenseAmount,
+          percentage: 0,
+          icon: '📅',
+          color: '#F44336', // red for expense
+          type: 'expense',
         ));
       }
 
@@ -378,7 +402,8 @@ class RealDataService {
 
     // Diversification impact
     if (data.categoryData.length > 5) score += 10;
-    if (data.categoryData.isNotEmpty && data.categoryData.first.percentage < 40) {
+    if (data.categoryData.isNotEmpty &&
+        data.categoryData.first.percentage < 40) {
       score += 15;
     }
 

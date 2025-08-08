@@ -40,17 +40,19 @@ class AssistantBaseCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: hasError 
+            color: hasError
                 ? AppColors.error.withValues(alpha: 0.2)
                 : AppColors.primary.withValues(alpha: 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
-        border: hasError ? Border.all(
-          color: AppColors.error.withValues(alpha: 0.3),
-          width: 1,
-        ) : null,
+        border: hasError
+            ? Border.all(
+                color: AppColors.error.withValues(alpha: 0.3),
+                width: 1,
+              )
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
@@ -62,14 +64,13 @@ class AssistantBaseCard extends StatelessWidget {
             padding: padding ?? const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 if (title != null) ...[
                   _buildHeader(),
                   const SizedBox(height: 16),
                 ],
-                Expanded(
-                  child: _buildContent(),
-                ),
+                _buildContent(),
               ],
             ),
           ),

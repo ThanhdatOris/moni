@@ -3,22 +3,23 @@ import 'dart:async';
 import 'package:logger/logger.dart';
 
 import '../models/agent_request_model.dart';
-import '../modules/analytics/services/analytics_module_coordinator.dart';
 
 /// Enhanced Cross-module context manager for seamless data sharing
 class AssistantContextManager {
-  static final AssistantContextManager _instance = AssistantContextManager._internal();
+  static final AssistantContextManager _instance =
+      AssistantContextManager._internal();
   factory AssistantContextManager() => _instance;
   AssistantContextManager._internal();
 
   final Logger _logger = Logger();
-  
+
   // Enhanced context storage
   final Map<String, dynamic> _globalContext = {};
   final Map<String, Map<String, dynamic>> _moduleContexts = {};
-  final Map<String, List<StreamController<Map<String, dynamic>>>> _contextStreams = {};
+  final Map<String, List<StreamController<Map<String, dynamic>>>>
+      _contextStreams = {};
   final List<ContextChangeListener> _changeListeners = [];
-  
+
   // Legacy cached data - keeping for compatibility
   Map<String, dynamic>? _cachedAnalytics;
   Map<String, dynamic>? _cachedBudgetData;
@@ -83,11 +84,11 @@ class AssistantContextManager {
 
     // Store in target module
     setModuleContext(toModule, 'shared_from_$fromModule', sharedData.toMap());
-    
+
     // Also store in global shared context
     final sharedKey = 'shared_${fromModule}_to_${toModule}_$key';
     setGlobalContext(sharedKey, sharedData.toMap());
-    
+
     _logger.i('Shared context: $fromModule → $toModule ($key)');
   }
 
@@ -96,10 +97,10 @@ class AssistantContextManager {
     _contextStreams.putIfAbsent(moduleId, () => []);
     final controller = StreamController<Map<String, dynamic>>.broadcast();
     _contextStreams[moduleId]!.add(controller);
-    
+
     // Send initial data
     controller.add(getAllModuleContext(moduleId));
-    
+
     return controller.stream;
   }
 
@@ -117,12 +118,12 @@ class AssistantContextManager {
     }
 
     _logger.i('Refreshing context cache');
-    
+
     final analytics = await _fetchAnalyticsContext();
-    
+
     _cachedAnalytics = analytics;
     _lastCacheUpdate = DateTime.now();
-    
+
     return {
       'analytics': analytics,
       'last_updated': _lastCacheUpdate?.toIso8601String(),
@@ -134,19 +135,21 @@ class AssistantContextManager {
   void _notifyContextChange(String moduleId, String key, dynamic value) {
     // Notify stream subscribers
     if (_contextStreams.containsKey(moduleId)) {
-      final context = moduleId == 'global' ? _globalContext : getAllModuleContext(moduleId);
+      final context =
+          moduleId == 'global' ? _globalContext : getAllModuleContext(moduleId);
       for (final controller in _contextStreams[moduleId]!) {
         if (!controller.isClosed) {
           controller.add(Map.from(context));
         }
       }
     }
-    
+
     // Notify change listeners
     for (final listener in _changeListeners) {
       listener.onContextChanged(moduleId, key, value);
     }
   }
+
   void clearCache() {
     _cachedAnalytics = null;
     _cachedBudgetData = null;
@@ -155,9 +158,10 @@ class AssistantContextManager {
   }
 
   /// Get context for specific request type
-  Future<Map<String, dynamic>> getContextForRequest(AgentRequestType type) async {
+  Future<Map<String, dynamic>> getContextForRequest(
+      AgentRequestType type) async {
     final fullContext = await getFullContext();
-    
+
     switch (type) {
       case AgentRequestType.analytics:
         return {'analytics': fullContext['analytics']};
@@ -175,30 +179,9 @@ class AssistantContextManager {
 
   /// Fetch analytics context (simplified version)
   Future<Map<String, dynamic>> _fetchAnalyticsContext() async {
-    try {
-      final coordinator = AnalyticsModuleCoordinator();
-      final analysis = await coordinator.performComprehensiveAnalysis();
-      
-      return {
-        'confidence_score': analysis.spendingPatterns.confidenceScore,
-        'anomalies_count': analysis.anomalies.length,
-        'budget_recommendations_count': analysis.budgetRecommendations.length,
-        'financial_health_score': analysis.financialHealth.overallScore,
-        'overall_score': analysis.overallScore,
-        'categories_analyzed': analysis.spendingPatterns.categoryDistribution.length,
-        'analysis_date': analysis.analysisDate.toIso8601String(),
-        'has_predictions': analysis.spendingPatterns.predictions.isNotEmpty,
-        'anomalies_summary': analysis.anomalies.take(3).map((a) => {
-          'description': a.description,
-          'severity': a.severity,
-          'amount': a.transaction.amount,
-          'type': a.type,
-        }).toList(),
-      };
-    } catch (e) {
-      _logger.w('Error fetching analytics context: $e');
-      return {'error': e.toString(), 'available': false};
-    }
+    // Module Analytics đã bị gỡ; trả về rỗng để tương thích
+    _logger.w('Analytics module removed; returning empty analytics context');
+    return {'available': false};
   }
 
   /// Enhanced context sharing between modules for legacy support
@@ -207,11 +190,11 @@ class AssistantContextManager {
     AgentRequestType targetModule,
   ) async {
     final fullContext = await getFullContext();
-    
+
     // Cross-module insights
     final insights = <String, dynamic>{};
-    
-    if (sourceModule == AgentRequestType.analytics && 
+
+    if (sourceModule == AgentRequestType.analytics &&
         targetModule == AgentRequestType.budget) {
       insights['analytics_for_budget'] = {
         'spending_patterns': fullContext['analytics']['categories_analyzed'],
@@ -219,8 +202,8 @@ class AssistantContextManager {
         'financial_health': fullContext['analytics']['financial_health_score'],
       };
     }
-    
-    if (sourceModule == AgentRequestType.budget && 
+
+    if (sourceModule == AgentRequestType.budget &&
         targetModule == AgentRequestType.report) {
       insights['budget_for_reports'] = {
         'recommendations': fullContext['budget']['recommendations_count'],
@@ -228,7 +211,7 @@ class AssistantContextManager {
         'categories': fullContext['budget']['categories_covered'],
       };
     }
-    
+
     return {
       'source_context': await getContextForRequest(sourceModule),
       'target_context': await getContextForRequest(targetModule),
@@ -237,7 +220,8 @@ class AssistantContextManager {
   }
 
   /// Update context when new data is available
-  Future<void> updateContextFromSource(AgentRequestType source, Map<String, dynamic> newData) async {
+  Future<void> updateContextFromSource(
+      AgentRequestType source, Map<String, dynamic> newData) async {
     switch (source) {
       case AgentRequestType.analytics:
         _cachedAnalytics = {..._cachedAnalytics ?? {}, ...newData};
@@ -248,13 +232,19 @@ class AssistantContextManager {
       default:
         // For reports and chat, update both if relevant
         if (newData.containsKey('analytics')) {
-          _cachedAnalytics = {..._cachedAnalytics ?? {}, ...newData['analytics']};
+          _cachedAnalytics = {
+            ..._cachedAnalytics ?? {},
+            ...newData['analytics']
+          };
         }
         if (newData.containsKey('budget')) {
-          _cachedBudgetData = {..._cachedBudgetData ?? {}, ...newData['budget']};
+          _cachedBudgetData = {
+            ..._cachedBudgetData ?? {},
+            ...newData['budget']
+          };
         }
     }
-    
+
     _lastCacheUpdate = DateTime.now();
     _logger.i('Context updated from source: $source');
   }
@@ -264,8 +254,10 @@ class AssistantContextManager {
     return {
       'cache_valid': _isCacheValid(),
       'last_update': _lastCacheUpdate?.toIso8601String(),
-      'analytics_available': _cachedAnalytics != null && !_cachedAnalytics!.containsKey('error'),
-      'budget_available': _cachedBudgetData != null && !_cachedBudgetData!.containsKey('error'),
+      'analytics_available':
+          _cachedAnalytics != null && !_cachedAnalytics!.containsKey('error'),
+      'budget_available':
+          _cachedBudgetData != null && !_cachedBudgetData!.containsKey('error'),
       'analytics_score': _cachedAnalytics?['overall_score'],
       'budget_recommendations': _cachedBudgetData?['recommendations_count'],
       'global_keys': _globalContext.keys.toList(),
@@ -362,7 +354,8 @@ class ContextHelper {
 
   /// Get current period filter
   static String? getCurrentPeriod() {
-    return _manager.getGlobalContext<String>(AssistantContextManager.currentPeriod);
+    return _manager
+        .getGlobalContext<String>(AssistantContextManager.currentPeriod);
   }
 
   /// Share analytics insights with other modules

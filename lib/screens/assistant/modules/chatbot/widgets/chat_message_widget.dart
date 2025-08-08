@@ -10,17 +10,19 @@ import '../../../models/chat_message_model.dart';
 class ChatMessageWidget extends StatelessWidget {
   final ChatMessage message;
   final VoidCallback? onEditTransaction;
+  final bool isLast;
 
   const ChatMessageWidget({
     super.key,
     required this.message,
     this.onEditTransaction,
+    this.isLast = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment:
@@ -241,11 +243,10 @@ class ChatMessageWidget extends StatelessWidget {
   }
 
   void _editTransaction(BuildContext context, String transactionId) async {
-    
     try {
       // Lấy thông tin giao dịch từ service
       final transactionService = GetIt.instance<TransactionService>();
-      
+
       final transaction =
           await transactionService.getTransaction(transactionId);
       if (transaction == null) {
@@ -266,7 +267,8 @@ class ChatMessageWidget extends StatelessWidget {
               ),
               backgroundColor: AppColors.error,
               behavior: SnackBarBehavior.floating, // ← Floating behavior
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 100), // ← Margin to avoid input area
+              margin: const EdgeInsets.fromLTRB(
+                  16, 0, 16, 100), // ← Margin to avoid input area
               duration: const Duration(seconds: 2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -309,7 +311,8 @@ class ChatMessageWidget extends StatelessWidget {
               ),
               backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating, // ← Floating behavior
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 100), // ← Margin to avoid input area
+              margin: const EdgeInsets.fromLTRB(
+                  16, 0, 16, 100), // ← Margin to avoid input area
               duration: const Duration(seconds: 2), // ← Shorter duration
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -336,7 +339,8 @@ class ChatMessageWidget extends StatelessWidget {
             ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating, // ← Floating behavior
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 100), // ← Margin to avoid input area
+            margin: const EdgeInsets.fromLTRB(
+                16, 0, 16, 100), // ← Margin to avoid input area
             duration: const Duration(seconds: 3), // ← Slightly longer for error
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),

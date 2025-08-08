@@ -30,7 +30,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onInnerTabChanged);
     _initializeChatbot();
-    // Đồng bộ trạng thái menubar theo tab hiện tại sau khi build frame đầu tiên
+    // Đồng bộ trạng thái menubar theo tab hiện tại sau frame đầu tiên
     WidgetsBinding.instance.addPostFrameCallback((_) => _onInnerTabChanged());
   }
 

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../constants/app_colors.dart';
 import '../../widgets/custom_page_header.dart';
-import 'modules/analytics/analytics_screen.dart';
 import 'modules/budget/budget_screen.dart';
 import 'modules/chatbot/chatbot_screen.dart';
 import 'modules/reports/reports_screen.dart';
@@ -43,6 +42,21 @@ class _AssistantScreenState extends State<AssistantScreen>
 
     // Sync tab controller with navigation service
     _tabController.addListener(_onTabChanged);
+
+    // Đồng bộ trạng thái menubar theo tab hiện tại sau frame đầu tiên
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final chatbotIndex = AssistantNavigationService.modules
+          .indexWhere((m) => m.id == 'chatbot');
+      final isInChatbotModule = _tabController.index == chatbotIndex;
+      // Đồng bộ active module để các widget con biết trạng thái hiện tại
+      _uiOptimization.setActiveModule(
+          AssistantNavigationService.modules[_tabController.index].id);
+      if (isInChatbotModule) {
+        _uiOptimization.enterAssistantChatMode();
+      } else {
+        _uiOptimization.exitAssistantChatMode();
+      }
+    });
   }
 
   @override
@@ -50,6 +64,8 @@ class _AssistantScreenState extends State<AssistantScreen>
     _navigationService.removeNavigationListener(_onNavigationChanged);
     _tabController.dispose();
     _iconAnimationController.dispose();
+    // Đảm bảo hiện lại menubar khi rời AssistantScreen
+    _uiOptimization.exitAssistantChatMode();
     super.dispose();
   }
 
@@ -65,10 +81,13 @@ class _AssistantScreenState extends State<AssistantScreen>
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
     _navigationService.navigateToTab(_tabController.index);
-    // Chỉ đảm bảo hiện lại menubar khi rời khỏi module Chatbot.
-    // Việc ẩn/hiện trong module Chatbot sẽ do ChatbotScreen điều phối theo tab nội bộ.
-    final isInChatbotModule = _tabController.index == 3;
-    if (!isInChatbotModule) {
+    // Cập nhật active module và trạng thái menubar theo module hiện tại.
+    final chatbotIndex =
+        AssistantNavigationService.modules.indexWhere((m) => m.id == 'chatbot');
+    final currentModuleId =
+        AssistantNavigationService.modules[_tabController.index].id;
+    _uiOptimization.setActiveModule(currentModuleId);
+    if (_tabController.index != chatbotIndex) {
       _uiOptimization.exitAssistantChatMode();
     }
   }
@@ -251,7 +270,7 @@ class _AssistantScreenState extends State<AssistantScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  const AnalyticsScreen(),
+                  // Analytics module removed
                   const BudgetScreen(),
                   const ReportsScreen(),
                   const ChatbotScreen(), // New chatbot screen

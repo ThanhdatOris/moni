@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 
 /// Enhanced navigation service for seamless assistant module switching
 class AssistantNavigationService {
-  static final AssistantNavigationService _instance = AssistantNavigationService._internal();
+  static final AssistantNavigationService _instance =
+      AssistantNavigationService._internal();
   factory AssistantNavigationService() => _instance;
   AssistantNavigationService._internal();
 
   // Navigation state
   int _currentTabIndex = 0;
-  String _activeModule = 'analytics';
+  String _activeModule = 'budget';
   final Map<String, dynamic> _moduleContext = {};
   final List<VoidCallback> _navigationListeners = [];
 
@@ -19,13 +20,6 @@ class AssistantNavigationService {
 
   // Available modules
   static const List<AssistantModule> modules = [
-    AssistantModule(
-      id: 'analytics',
-      name: 'Phân tích',
-      icon: Icons.analytics_outlined,
-      route: '/assistant/analytics',
-      description: 'Phân tích chi tiêu và xu hướng tài chính',
-    ),
     AssistantModule(
       id: 'budget',
       name: 'Ngân sách',
@@ -55,12 +49,12 @@ class AssistantNavigationService {
     if (moduleIndex != -1) {
       _currentTabIndex = moduleIndex;
       _activeModule = moduleId;
-      
+
       // Update context
       if (context != null) {
         _moduleContext.addAll(context);
       }
-      
+
       // Notify listeners
       _notifyListeners();
     }
@@ -109,13 +103,14 @@ class AssistantNavigationService {
   }
 
   /// Share data between modules
-  void shareDataBetweenModules(String fromModule, String toModule, Map<String, dynamic> data) {
+  void shareDataBetweenModules(
+      String fromModule, String toModule, Map<String, dynamic> data) {
     final sharedData = {
       'source': fromModule,
       'timestamp': DateTime.now().toIso8601String(),
       'data': data,
     };
-    
+
     setModuleContext('shared_$toModule', sharedData);
   }
 
@@ -145,10 +140,8 @@ class AssistantNavigationService {
 
   /// Get current module
   AssistantModule get currentModule {
-    return modules.firstWhere(
-      (m) => m.id == _activeModule,
-      orElse: () => modules.first,
-    );
+    return modules.firstWhere((m) => m.id == _activeModule,
+        orElse: () => modules.first);
   }
 
   /// Check if module has context
@@ -165,7 +158,7 @@ class AssistantNavigationService {
   /// Reset navigation state
   void reset() {
     _currentTabIndex = 0;
-    _activeModule = 'analytics';
+    _activeModule = modules.first.id;
     _moduleContext.clear();
     _notifyListeners();
   }
@@ -231,7 +224,8 @@ class _AssistantNavigationBarState extends State<AssistantNavigationBar>
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
-    _selectedIndex = widget.currentIndex ?? AssistantNavigationService().currentTabIndex;
+    _selectedIndex =
+        widget.currentIndex ?? AssistantNavigationService().currentTabIndex;
   }
 
   @override
@@ -263,7 +257,8 @@ class _AssistantNavigationBarState extends State<AssistantNavigationBar>
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: AssistantNavigationService.modules.asMap().entries.map((entry) {
+            children:
+                AssistantNavigationService.modules.asMap().entries.map((entry) {
               final index = entry.key;
               final module = entry.value;
               final isSelected = index == _selectedIndex;
@@ -280,7 +275,8 @@ class _AssistantNavigationBarState extends State<AssistantNavigationBar>
                       return Transform.scale(
                         scale: isSelected ? _scaleAnimation.value : 1.0,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 12, horizontal: 8),
                           decoration: BoxDecoration(
                             gradient: isSelected
                                 ? LinearGradient(
@@ -318,7 +314,9 @@ class _AssistantNavigationBarState extends State<AssistantNavigationBar>
                                       ? Colors.orange
                                       : Colors.white.withValues(alpha: 0.7),
                                   fontSize: 11,
-                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
                                 ),
                                 textAlign: TextAlign.center,
                                 maxLines: 1,
@@ -347,7 +345,7 @@ class _AssistantNavigationBarState extends State<AssistantNavigationBar>
 
       // Update navigation service
       AssistantNavigationService().navigateToTab(index);
-      
+
       // Call callback
       widget.onTabChanged?.call(index);
     }

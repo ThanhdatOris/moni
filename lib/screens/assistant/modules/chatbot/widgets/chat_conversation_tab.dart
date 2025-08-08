@@ -180,13 +180,10 @@ class _ChatConversationTabState extends State<ChatConversationTab>
             child: AnimatedBuilder(
               animation: _uiOptimization,
               builder: (context, child) {
-                return Padding(
-                  padding: EdgeInsets.only(
-                      bottom: _uiOptimization.getBottomSpacing()),
-                  child: _messages.isEmpty
-                      ? _buildEmptyState()
-                      : _buildMessagesList(),
-                );
+                // Không thêm bottom spacing nhân tạo ở đây để tránh khoảng xám giữa danh sách và gợi ý/input
+                return _messages.isEmpty
+                    ? _buildEmptyState()
+                    : _buildMessagesList();
               },
             ),
           ),
@@ -243,7 +240,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
   Widget _buildMessagesList() {
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, _showQuickActions ? 0 : 16),
       itemCount: _messages.length + (_isTyping ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _messages.length && _isTyping) {
@@ -251,7 +248,8 @@ class _ChatConversationTabState extends State<ChatConversationTab>
         }
 
         final message = _messages[index];
-        return ChatMessageWidget(message: message);
+        final isLast = index == _messages.length - 1;
+        return ChatMessageWidget(message: message, isLast: isLast);
       },
     );
   }
@@ -328,7 +326,8 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     ];
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      // Dùng padding thay vì margin để khoảng cách 6px là nền trắng
+      padding: const EdgeInsets.fromLTRB(0, 6, 0, 8),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
@@ -336,20 +335,22 @@ class _ChatConversationTabState extends State<ChatConversationTab>
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             'Câu hỏi gợi ý:',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
               color: Colors.grey[600],
             ),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 6,
+            alignment: WrapAlignment.center,
             children: quickActions
                 .map(
                   (action) => GestureDetector(
@@ -383,16 +384,11 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
   Widget _buildInputArea() {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
+        // Giảm/loại bỏ hiệu ứng đổ bóng hướng lên gây cảm giác "vệt xám" che nội dung phía trên
+        boxShadow: const [],
       ),
       child: Row(
         children: [

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/menubar.dart';
 import '../assistant/assistant_screen.dart';
 import '../assistant/services/ui_optimization_service.dart';
+import '../assistant/widgets/global_insight_panel.dart';
 import '../history/transaction_history_screen.dart';
 import '../profile/profile_screen.dart';
 import '../transaction/add_transaction_screen.dart';
@@ -157,6 +158,12 @@ class _HomeTabContentState extends State<HomeTabContent> {
           ),
 
           const SizedBox(height: 20),
+
+          // Global AI Insight cho trang chủ (phục vụ phân tích tổng quan)
+          const GlobalInsightPanel(
+            moduleId: 'home',
+            title: 'AI Insights tổng quan',
+          ),
 
           // Category Quick Access
           const CategoryQuickAccess(),
