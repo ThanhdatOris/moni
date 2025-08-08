@@ -28,7 +28,8 @@ class CategoryList extends StatefulWidget {
   State<CategoryList> createState() => _CategoryListState();
 }
 
-class _CategoryListState extends State<CategoryList> with TickerProviderStateMixin {
+class _CategoryListState extends State<CategoryList>
+    with TickerProviderStateMixin {
   bool _showAllCategories = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -55,10 +56,11 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     if (widget.data.isEmpty) {
-      return const SizedBox.shrink();
+      return _buildEmptyState();
     }
 
-    final displayData = _showAllCategories ? widget.data : widget.data.take(6).toList();
+    final displayData =
+        _showAllCategories ? widget.data : widget.data.take(6).toList();
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -101,9 +103,86 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
     );
   }
 
+  /// Empty state khi không có dữ liệu danh mục
+  Widget _buildEmptyState() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white,
+              AppColors.grey100,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildModernHeader(),
+            const SizedBox(height: 12),
+            _buildTabSelector(),
+            const SizedBox(height: 24),
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.grey200,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.pie_chart_outline,
+                      color: AppColors.grey600,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Không có dữ liệu danh mục',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.isAllFilter
+                        ? 'Không có dữ liệu trong khoảng thời gian đã chọn'
+                        : 'Thêm giao dịch để xem phân tích theo danh mục',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.grey600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Build modern header với statistics
   Widget _buildModernHeader() {
-    final totalAmount = widget.data.fold<double>(0, (sum, item) => sum + item.amount);
+    final totalAmount =
+        widget.data.fold<double>(0, (sum, item) => sum + item.amount);
     final topCategory = widget.data.isNotEmpty ? widget.data.first : null;
 
     return Row(
@@ -118,7 +197,10 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.7)],
+                        colors: [
+                          AppColors.primary,
+                          AppColors.primary.withValues(alpha: 0.7)
+                        ],
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -288,7 +370,8 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
     return LayoutBuilder(
       builder: (context, constraints) {
         // Responsive columns: 2 for compact, 3 for normal, 4 for tablet
-        final crossAxisCount = widget.isCompact ? 2 : (constraints.maxWidth > 600 ? 3 : 2);
+        final crossAxisCount =
+            widget.isCompact ? 2 : (constraints.maxWidth > 600 ? 3 : 2);
         final childAspectRatio = widget.isCompact ? 1.2 : 1.3;
 
         return GridView.builder(
@@ -312,7 +395,7 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
   /// Build modern category card
   Widget _buildModernCategoryCard(ChartDataModel item, int index) {
     final color = _parseColor(item.color);
-    
+
     return GestureDetector(
       onTap: () => _onCategoryItemTap(item),
       child: AnimatedContainer(
@@ -389,7 +472,8 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
                         // Percentage badge (chỉ hiển thị khi không phải filter "all")
                         if (!widget.isAllFilter)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: color,
                               borderRadius: BorderRadius.circular(8),
@@ -456,12 +540,15 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
                   gradient: LinearGradient(
                     colors: _showAllCategories
                         ? [AppColors.grey200, AppColors.grey100]
-                        : [AppColors.primary.withValues(alpha: 0.1), AppColors.primary.withValues(alpha: 0.05)],
+                        : [
+                            AppColors.primary.withValues(alpha: 0.1),
+                            AppColors.primary.withValues(alpha: 0.05)
+                          ],
                   ),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _showAllCategories 
-                        ? AppColors.grey300 
+                    color: _showAllCategories
+                        ? AppColors.grey300
                         : AppColors.primary.withValues(alpha: 0.3),
                   ),
                 ),
@@ -469,19 +556,25 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      _showAllCategories ? Icons.expand_less : Icons.expand_more,
-                      color: _showAllCategories ? AppColors.grey600 : AppColors.primary,
+                      _showAllCategories
+                          ? Icons.expand_less
+                          : Icons.expand_more,
+                      color: _showAllCategories
+                          ? AppColors.grey600
+                          : AppColors.primary,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _showAllCategories 
-                          ? 'Thu gọn' 
+                      _showAllCategories
+                          ? 'Thu gọn'
                           : 'Xem thêm ${widget.data.length - 6} danh mục',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: _showAllCategories ? AppColors.grey600 : AppColors.primary,
+                        color: _showAllCategories
+                            ? AppColors.grey600
+                            : AppColors.primary,
                       ),
                     ),
                   ],
@@ -496,7 +589,10 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.8)],
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primary.withValues(alpha: 0.8)
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [
@@ -518,8 +614,6 @@ class _CategoryListState extends State<CategoryList> with TickerProviderStateMix
       ),
     );
   }
-
-
 
   // Helper methods
   Color _parseColor(String colorString) {

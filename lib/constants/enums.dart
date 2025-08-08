@@ -1,6 +1,4 @@
 /// Chart system enumerations
-/// This file contains all the enums used by the chart system
-
 /// Chart time period enumeration
 enum ChartTimePeriod {
   daily,

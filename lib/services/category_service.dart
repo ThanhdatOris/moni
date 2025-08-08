@@ -12,6 +12,9 @@ class CategoryService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _logger = Logger();
+
+  // ✅ Cache để tránh log spam
+  final Map<String, DateTime> _lastLogTimes = {};
   final CategoryCacheService _cacheService = CategoryCacheService();
 
   /// Tạo danh mục mới
@@ -36,7 +39,7 @@ class CategoryService {
           .add(categoryData.toMap());
 
       // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode) {
+      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
         _logger.d('📁 Category created: ${category.name} (${docRef.id})');
       }
       return docRef.id;
@@ -66,8 +69,9 @@ class CategoryService {
           .update(updatedCategory.toMap());
 
       // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode) {
-        _logger.d('📝 Category updated: ${category.name} (${category.categoryId})');
+      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
+        _logger.d(
+            '📝 Category updated: ${category.name} (${category.categoryId})');
       }
     } catch (e) {
       _logger.e('❌ Lỗi cập nhật danh mục: $e');
@@ -101,7 +105,7 @@ class CategoryService {
           .delete();
 
       // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode) {
+      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
         _logger.d('🗑️ Category deleted: $categoryId');
       }
     } catch (e) {
@@ -129,7 +133,7 @@ class CategoryService {
       });
 
       // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode) {
+      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
         _logger.d('🔗 Category parent set: $categoryId → $parentId');
       }
     } catch (e) {
@@ -213,31 +217,39 @@ class CategoryService {
       // Áp dụng filter type nếu có
       if (type != null) {
         // ✅ IMPROVED: Only log filtering in debug mode
-        if (EnvironmentService.debugMode) {
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
           _logger.d('🔍 Filtering categories by type: ${type.value}');
         }
         query = query.where('type', isEqualTo: type.value);
         // Không thêm orderBy khi có where clause để tránh cần composite index
       } else {
-        // Chỉ orderBy khi không có where clause phức tạp
-        query = query.orderBy('name');
+        // ✅ FIXED: Không orderBy để tránh composite index requirements
+        // Sẽ sort ở client side thay thế
       }
 
       return query.snapshots().map((snapshot) {
-        // ✅ IMPROVED: Only log query results in debug mode with consolidated info
-        if (EnvironmentService.debugMode) {
-          _logger.d('📦 Categories query returned ${snapshot.docs.length} documents${type != null ? " (filtered by ${type.value})" : ""}');
+        // ✅ IMPROVED: Reduce log spam với throttling
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
+          final now = DateTime.now();
+          final cacheKey = 'categories_log_${type?.value ?? 'all'}';
+          final lastLogTime = _lastLogTimes[cacheKey];
+
+          // Chỉ log mỗi 5 giây để tránh spam
+          if (lastLogTime == null ||
+              now.difference(lastLogTime).inSeconds > 5) {
+            _logger.d(
+                '📦 Categories query returned ${snapshot.docs.length} documents${type != null ? " (filtered by ${type.value})" : ""}');
+            _lastLogTimes[cacheKey] = now;
+          }
         }
-        
+
         var categories = snapshot.docs.map((doc) {
           final data = doc.data() as Map<String, dynamic>;
           return CategoryModel.fromMap(data, doc.id);
         }).toList();
 
-        // Sắp xếp trong client nếu cần
-        if (type != null) {
-          categories.sort((a, b) => a.name.compareTo(b.name));
-        }
+        // ✅ FIXED: Always sort on client side để tránh index requirements
+        categories.sort((a, b) => a.name.compareTo(b.name));
 
         return categories;
       });
@@ -295,8 +307,7 @@ class CategoryService {
           .snapshots()
           .map((snapshot) {
         return snapshot.docs.map((doc) {
-          return CategoryModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+          return CategoryModel.fromMap(doc.data(), doc.id);
         }).toList();
       });
     } catch (e) {
@@ -379,8 +390,8 @@ class CategoryService {
           .get();
 
       if (existingCategories.docs.isNotEmpty) {
-        // ✅ IMPROVED: Only log in debug mode 
-        if (EnvironmentService.debugMode) {
+        // ✅ IMPROVED: Only log in debug mode
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
           _logger.d('📁 Default categories already exist, skipping creation');
         }
         return;
@@ -513,7 +524,8 @@ class CategoryService {
 
       await batch.commit();
       // ✅ IMPROVED: Single comprehensive success message
-      _logger.i('📁 Default categories created successfully (${expenseCategories.length + incomeCategories.length} categories)');
+      _logger.i(
+          '📁 Default categories created successfully (${expenseCategories.length + incomeCategories.length} categories)');
     } catch (e) {
       _logger.e('❌ Error creating default categories: $e');
       throw Exception('Không thể tạo danh mục mặc định: $e');
@@ -532,8 +544,7 @@ class CategoryService {
           .get();
 
       return snapshot.docs.map((doc) {
-        return CategoryModel.fromMap(
-            doc.data() as Map<String, dynamic>, doc.id);
+        return CategoryModel.fromMap(doc.data(), doc.id);
       }).toList();
     } catch (e) {
       _logger.e('❌ Error getting user categories: $e');

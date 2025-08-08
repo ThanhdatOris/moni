@@ -167,7 +167,7 @@ class ChatLogService {
 
       if (snapshot.docs.isNotEmpty) {
         final doc = snapshot.docs.first;
-        return ChatLogModel.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+        return ChatLogModel.fromMap(doc.data(), doc.id);
       }
 
       return null;

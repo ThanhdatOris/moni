@@ -39,6 +39,7 @@ class _DonutChartState extends State<DonutChart> {
 
     return SizedBox(
       height: widget.size,
+      width: widget.size,
       child: Stack(
         alignment: Alignment.center,
         children: [
@@ -46,7 +47,8 @@ class _DonutChartState extends State<DonutChart> {
           PieChart(
             PieChartData(
               sections: _buildPieChartSections(),
-              centerSpaceRadius: widget.size * 0.3, // 30% of size for center space
+              centerSpaceRadius:
+                  widget.size * 0.3, // 30% of size for center space
               sectionsSpace: 2, // Gap between sections
               startDegreeOffset: -90, // Start from top
               pieTouchData: PieTouchData(
@@ -72,12 +74,14 @@ class _DonutChartState extends State<DonutChart> {
       final index = entry.key;
       final item = entry.value;
       final isSelected = _selectedIndex == index;
-      
+
       return PieChartSectionData(
         value: item.percentage,
         title: isSelected ? '${item.percentage.toStringAsFixed(1)}%' : '',
         color: _parseColor(item.color),
-        radius: isSelected ? widget.size * 0.2 + 10 : widget.size * 0.2, // 20% of size + selection effect
+        radius: isSelected
+            ? widget.size * 0.2 + 10
+            : widget.size * 0.2, // 20% of size + selection effect
         titleStyle: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
@@ -93,9 +97,10 @@ class _DonutChartState extends State<DonutChart> {
   }
 
   Widget _buildCenterContent() {
-    final selectedItem = _selectedIndex >= 0 && _selectedIndex < widget.data.length
-        ? widget.data[_selectedIndex]
-        : null;
+    final selectedItem =
+        _selectedIndex >= 0 && _selectedIndex < widget.data.length
+            ? widget.data[_selectedIndex]
+            : null;
 
     if (selectedItem != null) {
       return Container(
@@ -197,8 +202,9 @@ class _DonutChartState extends State<DonutChart> {
 
   void _handleTouch(FlTouchEvent event, PieTouchResponse? pieTouchResponse) {
     if (event is FlTapUpEvent && pieTouchResponse?.touchedSection != null) {
-      final touchedIndex = pieTouchResponse!.touchedSection!.touchedSectionIndex;
-      
+      final touchedIndex =
+          pieTouchResponse!.touchedSection!.touchedSectionIndex;
+
       setState(() {
         if (_selectedIndex == touchedIndex) {
           _selectedIndex = -1; // Deselect if already selected
@@ -218,9 +224,9 @@ class _DonutChartState extends State<DonutChart> {
 
   String _formatCurrency(double amount) {
     return amount.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (Match m) => '${m[1]}.',
-    );
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (Match m) => '${m[1]}.',
+        );
   }
 
   Color _parseColor(String colorString) {

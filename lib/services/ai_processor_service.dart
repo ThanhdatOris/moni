@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:get_it/get_it.dart';
@@ -103,7 +104,8 @@ class AIProcessorService {
       File imageFile) async {
     try {
       // ✅ IMPROVED: Single consolidated OCR processing log
-      _logger.i('📷 Starting OCR + AI processing for transaction extraction...');
+      _logger
+          .i('📷 Starting OCR + AI processing for transaction extraction...');
 
       // Bước 1: Sử dụng OCR để trích xuất text
       final ocrService = _getIt<OCRService>();
@@ -230,34 +232,58 @@ Lưu ý:
     }
   }
 
-  /// Parse AI analysis response
+  /// Parse AI analysis response (JSON)
   Map<String, dynamic> _parseAIAnalysisResponse(String response) {
     try {
-      // Tìm JSON trong response
+      // Tìm JSON trong response (tránh prefix/suffix văn bản tự do)
       final jsonStart = response.indexOf('{');
       final jsonEnd = response.lastIndexOf('}');
 
-      if (jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart) {
-        final jsonString = response.substring(jsonStart, jsonEnd + 1);
-        
-        // ✅ IMPROVED: Only log JSON analysis in debug mode with length info
-        if (EnvironmentService.debugMode) {
-          _logger.d('🔍 AI Analysis JSON: ${jsonString.length} chars');
-        }
-
-        // Tạm thời return structured data vì cần JSON parser
-        // Trong thực tế sẽ parse JSON thật
-        return {
-          'verified_amount': 125000.0,
-          'description': 'Cơm tấm Sài Gòn',
-          'category_suggestion': 'Ăn uống',
-          'transaction_type': 'expense',
-          'confidence_score': 85,
-          'notes': 'Phân tích từ AI',
-        };
+      if (jsonStart == -1 || jsonEnd == -1 || jsonEnd <= jsonStart) {
+        return {};
       }
 
-      return {};
+      final jsonString = response.substring(jsonStart, jsonEnd + 1);
+
+      if (EnvironmentService.debugMode) {
+        _logger.d('🔍 AI Analysis JSON: ${jsonString.length} chars');
+      }
+
+      // Parse JSON thật
+      final dynamic decoded = jsonDecode(jsonString);
+      if (decoded is! Map<String, dynamic>) {
+        return {};
+      }
+
+      final Map<String, dynamic> data = Map<String, dynamic>.from(decoded);
+
+      // Chuẩn hoá key và kiểu dữ liệu theo spec
+      final double verifiedAmount =
+          _parseAmount(data['verified_amount']).toDouble();
+      final String description = (data['description'] ?? '').toString();
+      final String categorySuggestion =
+          (data['category_suggestion'] ?? data['category'] ?? '').toString();
+      final String transactionType =
+          (data['transaction_type'] ?? data['type'] ?? 'expense')
+              .toString()
+              .toLowerCase();
+      final int confidenceScore = (() {
+        final raw = data['confidence_score'] ?? data['confidence'];
+        if (raw is int) return raw;
+        if (raw is double) return raw.round();
+        if (raw is String) return int.tryParse(raw) ?? 0;
+        return 0;
+      })();
+      final String notes = (data['notes'] ?? data['note'] ?? '').toString();
+
+      return {
+        'verified_amount': verifiedAmount,
+        'description': description,
+        'category_suggestion': categorySuggestion,
+        'transaction_type': transactionType == 'income' ? 'income' : 'expense',
+        'confidence_score': confidenceScore.clamp(0, 100),
+        'notes': notes,
+      };
     } catch (e) {
       _logger.e('❌ Error parsing AI analysis response: $e');
       return {};
@@ -354,7 +380,8 @@ Lưu ý:
 
       // ✅ IMPROVED: Simplified debug log for chat processing
       if (EnvironmentService.debugMode) {
-        _logger.d('💬 Processing chat input (${input.length} chars, ~$estimatedTokens tokens)');
+        _logger.d(
+            '💬 Processing chat input (${input.length} chars, ~$estimatedTokens tokens)');
       }
 
       final prompt = '''
@@ -447,7 +474,8 @@ User input: "$input"
 
       // ✅ IMPROVED: Consolidated token usage log (only when significant usage)
       if (_dailyTokenCount > _dailyTokenLimit * 0.8) {
-        _logger.w('⚠️ High token usage: $_dailyTokenCount / $_dailyTokenLimit (${(_dailyTokenCount/_dailyTokenLimit*100).toStringAsFixed(1)}%)');
+        _logger.w(
+            '⚠️ High token usage: $_dailyTokenCount / $_dailyTokenLimit (${(_dailyTokenCount / _dailyTokenLimit * 100).toStringAsFixed(1)}%)');
       }
 
       // Check if AI wants to call functions
@@ -465,7 +493,8 @@ User input: "$input"
 
       // ✅ IMPROVED: Only log successful processing in debug mode
       if (EnvironmentService.debugMode) {
-        _logger.d('✅ Chat processed successfully (${result.length} chars response)');
+        _logger.d(
+            '✅ Chat processed successfully (${result.length} chars response)');
       }
       return result;
     } catch (e) {
@@ -479,58 +508,67 @@ User input: "$input"
   /// Get user-friendly error message based on exception type
   String _getErrorMessageForUser(dynamic error) {
     final errorString = error.toString().toLowerCase();
-    
+
     // Server overload errors (503)
     if (errorString.contains('503') || errorString.contains('overloaded')) {
       return "🤖 AI đang quá tải hiện tại. Vui lòng thử lại sau ít phút.\n\nMôi trường AI hiện đang có nhiều người dùng, hãy kiên nhẫn một chút nhé! 😊";
     }
-    
+
     // Rate limit errors (429)
     if (errorString.contains('429') || errorString.contains('rate limit')) {
       return "⏰ Bạn đã gửi quá nhiều tin nhắn trong thời gian ngắn. Vui lòng chờ một chút trước khi tiếp tục.\n\nHãy thư giãn và thử lại sau vài giây! ☕";
     }
-    
+
     // Authentication errors (401, 403)
-    if (errorString.contains('401') || errorString.contains('403') || 
-        errorString.contains('api key') || errorString.contains('unauthorized')) {
+    if (errorString.contains('401') ||
+        errorString.contains('403') ||
+        errorString.contains('api key') ||
+        errorString.contains('unauthorized')) {
       return "🔐 Có vấn đề với xác thực AI. Vui lòng khởi động lại ứng dụng.\n\nNếu vấn đề vẫn tiếp tục, hãy liên hệ hỗ trợ! 📞";
     }
-    
+
     // Network connectivity errors
-    if (errorString.contains('network') || errorString.contains('connection') ||
-        errorString.contains('timeout') || errorString.contains('socket')) {
+    if (errorString.contains('network') ||
+        errorString.contains('connection') ||
+        errorString.contains('timeout') ||
+        errorString.contains('socket')) {
       return "📶 Kết nối mạng không ổn định. Vui lòng kiểm tra internet và thử lại.\n\nHãy đảm bảo bạn có kết nối mạng tốt! 🌐";
     }
-    
-    // Quota/limit exceeded errors  
-    if (errorString.contains('quota') || errorString.contains('limit') ||
+
+    // Quota/limit exceeded errors
+    if (errorString.contains('quota') ||
+        errorString.contains('limit') ||
         errorString.contains('usage')) {
       return "💳 Đã vượt quá giới hạn sử dụng AI hôm nay. Vui lòng thử lại vào ngày mai.\n\nChúng tôi sẽ reset quota vào 0h mỗi ngày! 🕛";
     }
-    
+
     // Model/AI specific errors
-    if (errorString.contains('model') || errorString.contains('unavailable') ||
+    if (errorString.contains('model') ||
+        errorString.contains('unavailable') ||
         errorString.contains('service')) {
       return "🤖 Mô hình AI tạm thời không khả dụng. Vui lòng thử lại sau ít phút.\n\nChúng tôi đang khắc phục sự cố! 🔧";
     }
-    
+
     // Bad request errors (400)
     if (errorString.contains('400') || errorString.contains('bad request')) {
       return "📝 Yêu cầu không hợp lệ. Vui lòng thử nhập lại tin nhắn.\n\nHãy kiểm tra định dạng tin nhắn của bạn! ✏️";
     }
-    
+
     // Server errors (500, 502, 504)
-    if (errorString.contains('500') || errorString.contains('502') || 
-        errorString.contains('504') || errorString.contains('server error')) {
+    if (errorString.contains('500') ||
+        errorString.contains('502') ||
+        errorString.contains('504') ||
+        errorString.contains('server error')) {
       return "🔧 Máy chủ AI đang gặp sự cố. Vui lòng thử lại sau ít phút.\n\nĐội ngũ kỹ thuật đang xử lý! 👨‍💻";
     }
-    
+
     // Content policy violations
-    if (errorString.contains('policy') || errorString.contains('content') ||
+    if (errorString.contains('policy') ||
+        errorString.contains('content') ||
         errorString.contains('violation')) {
       return "⚠️ Nội dung tin nhắn không phù hợp với chính sách AI. Vui lòng thử tin nhắn khác.\n\nHãy sử dụng ngôn từ lịch sự và phù hợp! 🤝";
     }
-    
+
     // Generic fallback error
     return "😅 Đã có lỗi không mong muốn xảy ra. Vui lòng thử lại sau ít phút.\n\nNếu vấn đề tiếp tục, hãy khởi động lại ứng dụng! 🔄\n\n(Mã lỗi: ${_getErrorCode(error)})";
   }
@@ -538,13 +576,13 @@ User input: "$input"
   /// Extract error code from exception for debugging
   String _getErrorCode(dynamic error) {
     final errorString = error.toString();
-    
+
     // Extract HTTP status code
     final statusMatch = RegExp(r'\b[45]\d{2}\b').firstMatch(errorString);
     if (statusMatch != null) {
       return statusMatch.group(0) ?? 'UNKNOWN';
     }
-    
+
     // Extract error type
     if (errorString.contains('GenerativeAIException')) {
       return 'AI_ERROR';
@@ -553,7 +591,7 @@ User input: "$input"
     } else if (errorString.contains('TimeoutException')) {
       return 'TIMEOUT_ERROR';
     }
-    
+
     return 'GENERIC_ERROR';
   }
 
@@ -563,16 +601,31 @@ User input: "$input"
       final transactionService = _getIt<TransactionService>();
       final categoryService = _getIt<CategoryService>();
 
-      // Extract parameters
+      // Extract parameters with robust null-safety and VN-friendly defaults
       final rawAmount = args['amount'];
-      final amount = _parseAmount(rawAmount);
-      final description = args['description'] as String;
-      final categoryName = args['category'] as String? ?? 'Ăn uống';
-      final typeStr = args['type'] as String? ?? 'expense';
-      final dateStr = args['date'] as String?;
+      final double amount = _parseAmount(rawAmount);
+
+      // Some model calls may omit description; fallback to a sensible default
+      final String description =
+          (args['description'] ?? 'Giao dịch').toString();
+
+      // Infer type if missing (e.g., input: "lương 1tr" → income)
+      final String typeStr = (args['type'] ??
+              (description.toLowerCase().contains('lương')
+                  ? 'income'
+                  : 'expense'))
+          .toString();
+
+      // Provide category fallback based on type
+      final String categoryName = (args['category'] ??
+              (typeStr.toLowerCase() == 'income' ? 'Lương' : 'Khác'))
+          .toString();
+
+      final String? dateStr = args['date']?.toString();
 
       // ✅ IMPROVED: Single comprehensive log for transaction processing
-      _logger.i('💰 Adding transaction: $typeStr ${CurrencyFormatter.formatAmountWithCurrency(amount)} - $categoryName');
+      _logger.i(
+          '💰 Adding transaction: $typeStr ${CurrencyFormatter.formatAmountWithCurrency(amount)} - $categoryName');
 
       // Parse transaction type
       final transactionType = typeStr.toLowerCase() == 'income'
@@ -624,9 +677,8 @@ User input: "$input"
       }
 
       // Create transaction with correct amount handling
-      final finalAmount = transactionType == TransactionType.expense
-          ? amount.abs() // Ensure negative for expenses
-          : amount.abs(); // Ensure positive for income
+      // Keep amount positive; type determines semantics elsewhere in app
+      final double finalAmount = amount.abs();
 
       final transaction = TransactionModel(
         transactionId: '',
@@ -751,12 +803,34 @@ Question: "$question"
     }
   }
 
+  /// Sinh văn bản thuần từ prompt đã chuẩn hoá (bỏ mọi heuristic/chat routing)
+  Future<String> generateText(String prompt) async {
+    try {
+      await _checkRateLimit();
+      final estimatedTokens = _estimateTokens(prompt);
+      if (_dailyTokenCount + estimatedTokens > _dailyTokenLimit) {
+        return 'Quota AI đã vượt giới hạn ngày hôm nay.';
+      }
+
+      final response = await _model.generateContent([Content.text(prompt)]);
+      final result = response.text ?? '';
+
+      // cập nhật ước lượng token tiêu thụ
+      _dailyTokenCount += estimatedTokens + _estimateTokens(result);
+      return result;
+    } catch (e) {
+      _logger.e('Error generateText: $e');
+      return '';
+    }
+  }
+
   /// Phân tích thói quen chi tiêu và đưa ra lời khuyên
   Future<String> analyzeSpendingHabits(
       Map<String, dynamic> transactionData) async {
     try {
       // ✅ IMPROVED: Consolidated logging for spending analysis
-      _logger.i('📊 Analyzing spending habits (${transactionData.keys.length} data points)');
+      _logger.i(
+          '📊 Analyzing spending habits (${transactionData.keys.length} data points)');
 
       final prompt = '''
 Analyze spending habits and give specific advice to improve personal finance. Answer in Vietnamese with clear structure.
@@ -768,7 +842,7 @@ Data: ${transactionData.toString()}
       final result = response.text ??
           'Xin lỗi, không thể phân tích thói quen chi tiêu lúc này.';
 
-      // ✅ IMPROVED: Only log successful analysis in debug mode  
+      // ✅ IMPROVED: Only log successful analysis in debug mode
       if (EnvironmentService.debugMode) {
         _logger.d('✅ Spending analysis completed (${result.length} chars)');
       }
@@ -855,33 +929,51 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
 
   /// Parse amount from various formats (18k, 1tr, 18000, etc.)
   double _parseAmount(dynamic rawAmount) {
+    // Null-safe fallback
+    if (rawAmount == null) return 0;
+
     if (rawAmount is num) {
       return rawAmount.toDouble();
     }
 
     if (rawAmount is String) {
-      // Remove spaces and convert to lowercase
+      // Normalize common Vietnamese money formats
       String cleanAmount = rawAmount.trim().toLowerCase();
 
-      // Remove currency symbols
-      cleanAmount = cleanAmount.replaceAll(RegExp(r'[đvndđồng,.]'), '');
+      // Map synonyms to standard suffixes
+      cleanAmount = cleanAmount
+          .replaceAll(' triệu', 'tr')
+          .replaceAll('trieu', 'tr')
+          .replaceAll(' ', '');
 
-      // Handle Vietnamese format: k = 1000, tr = 1000000
+      // Remove currency symbols (đ, vnd, đồng) and thousand separators
+      cleanAmount = cleanAmount.replaceAll(RegExp(r'[₫đvndđồng,\.]'), '');
+
+      // Handle Vietnamese shorthand: k = 1,000; tr = 1,000,000; tỷ = 1,000,000,000
       if (cleanAmount.endsWith('k')) {
-        final number = double.tryParse(cleanAmount.replaceAll('k', '')) ?? 0;
+        final number =
+            double.tryParse(cleanAmount.substring(0, cleanAmount.length - 1)) ??
+                0;
         return number * 1000;
-      } else if (cleanAmount.endsWith('tr') || cleanAmount.endsWith('triệu')) {
-        final number = double.tryParse(
-                cleanAmount.replaceAll(RegExp(r'(tr|triệu)'), '')) ??
-            0;
-        return number * 1000000;
-      } else if (cleanAmount.endsWith('tỷ')) {
-        final number = double.tryParse(cleanAmount.replaceAll('tỷ', '')) ?? 0;
-        return number * 1000000000;
-      } else {
-        // Try to parse as regular number
-        return double.tryParse(cleanAmount) ?? 0;
       }
+
+      if (cleanAmount.endsWith('tr')) {
+        final number =
+            double.tryParse(cleanAmount.substring(0, cleanAmount.length - 2)) ??
+                0;
+        return number * 1000000;
+      }
+
+      if (cleanAmount.endsWith('tỷ') || cleanAmount.endsWith('ty')) {
+        final base = cleanAmount.endsWith('tỷ')
+            ? cleanAmount.substring(0, cleanAmount.length - 2)
+            : cleanAmount.substring(0, cleanAmount.length - 2);
+        final number = double.tryParse(base) ?? 0;
+        return number * 1000000000;
+      }
+
+      // Try plain numeric
+      return double.tryParse(cleanAmount) ?? 0;
     }
 
     return 0;

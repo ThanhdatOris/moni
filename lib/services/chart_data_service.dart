@@ -29,7 +29,7 @@ class ChartDataService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        return _getMockDonutChartData();
+        return [];
       }
 
       // Lấy tất cả giao dịch trong khoảng thời gian
@@ -40,7 +40,7 @@ class ChartDataService {
       );
 
       if (transactions.isEmpty) {
-        return _getMockDonutChartData();
+        return [];
       }
 
       // Lấy danh sách danh mục
@@ -73,7 +73,7 @@ class ChartDataService {
       }
     } catch (e) {
       _logger.e('Lỗi lấy dữ liệu donut chart: $e');
-      return _getMockDonutChartData();
+      return [];
     }
   }
 
@@ -164,7 +164,7 @@ class ChartDataService {
     // Tạo map danh mục con -> danh mục cha
     final Map<String, dynamic> categoryParentMap = {};
     final Map<String, dynamic> parentCategoryMap = {};
-    
+
     for (final category in categories) {
       if (category.parentId != null && category.parentId!.isNotEmpty) {
         categoryParentMap[category.categoryId] = category.parentId;
@@ -175,20 +175,22 @@ class ChartDataService {
     // Nhóm giao dịch theo danh mục cha
     final parentTotals = <String, double>{};
     final parentCategoriesUsed = <String, dynamic>{};
-    
+
     for (final transaction in transactions) {
       final categoryId = transaction.categoryId;
       final parentId = categoryParentMap[categoryId];
-      
+
       if (parentId != null) {
         // Đây là danh mục con, gộp vào danh mục cha
-        parentTotals[parentId] = (parentTotals[parentId] ?? 0) + transaction.amount;
+        parentTotals[parentId] =
+            (parentTotals[parentId] ?? 0) + transaction.amount;
         if (parentCategoryMap[parentId] != null) {
           parentCategoriesUsed[parentId] = parentCategoryMap[parentId];
         }
       } else {
         // Đây là danh mục cha hoặc không có parent
-        parentTotals[categoryId] = (parentTotals[categoryId] ?? 0) + transaction.amount;
+        parentTotals[categoryId] =
+            (parentTotals[categoryId] ?? 0) + transaction.amount;
         if (parentCategoryMap[categoryId] != null) {
           parentCategoriesUsed[categoryId] = parentCategoryMap[categoryId];
         }
@@ -197,12 +199,12 @@ class ChartDataService {
 
     // Tạo dữ liệu chart
     final chartData = <ChartDataModel>[];
-    
+
     for (final entry in parentTotals.entries) {
       final categoryId = entry.key;
       final amount = entry.value;
       final category = parentCategoriesUsed[categoryId];
-      
+
       if (amount > 0 && category != null) {
         final percentage = (amount / totalAmount) * 100;
         chartData.add(ChartDataModel.fromCategoryModel(
@@ -227,7 +229,7 @@ class ChartDataService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        return _getMockTrendData();
+        return [];
       }
 
       final now = DateTime.now();
@@ -281,7 +283,7 @@ class ChartDataService {
       return trendData;
     } catch (e) {
       _logger.e('Lỗi lấy dữ liệu trend chart: $e');
-      return _getMockTrendData();
+      return [];
     }
   }
 
@@ -294,7 +296,13 @@ class ChartDataService {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        return _getMockFinancialOverviewData();
+        return FinancialOverviewData(
+          totalExpense: 0,
+          totalIncome: 0,
+          changeAmount: 0,
+          changePeriod: '',
+          isIncrease: false,
+        );
       }
 
       // Lấy giao dịch trong khoảng thời gian hiện tại
@@ -378,7 +386,13 @@ class ChartDataService {
       }
     } catch (e) {
       _logger.e('Lỗi lấy dữ liệu financial overview: $e');
-      return _getMockFinancialOverviewData();
+      return FinancialOverviewData(
+        totalExpense: 0,
+        totalIncome: 0,
+        changeAmount: 0,
+        changePeriod: '',
+        isIncrease: false,
+      );
     }
   }
 
@@ -456,82 +470,5 @@ class ChartDataService {
     return months[date.month - 1];
   }
 
-  // Mock data methods
-  List<ChartDataModel> _getMockDonutChartData() {
-    return [
-      ChartDataModel(
-        category: 'Hóa đơn',
-        amount: 1719500,
-        percentage: 44,
-        icon: 'bills',
-        color: '#4CAF50',
-        type: 'expense',
-      ),
-      ChartDataModel(
-        category: 'Ăn uống',
-        amount: 883000,
-        percentage: 23,
-        icon: 'food',
-        color: '#FF9800',
-        type: 'expense',
-      ),
-      ChartDataModel(
-        category: 'Mua sắm',
-        amount: 370827,
-        percentage: 9,
-        icon: 'shopping',
-        color: '#FFC107',
-        type: 'expense',
-      ),
-      ChartDataModel(
-        category: 'Tiệc tùng',
-        amount: 313317,
-        percentage: 8,
-        icon: 'party',
-        color: '#FF5722',
-        type: 'expense',
-      ),
-      ChartDataModel(
-        category: 'Còn lại',
-        amount: 626700,
-        percentage: 16,
-        icon: 'remaining',
-        color: '#9E9E9E',
-        type: 'expense',
-      ),
-    ];
-  }
-
-  List<TrendData> _getMockTrendData() {
-    return [
-      TrendData(
-        period: 'T5',
-        expense: 5700000,
-        income: 5500000,
-        label: 'T5',
-      ),
-      TrendData(
-        period: 'T6',
-        expense: 5700000,
-        income: 5500000,
-        label: 'T6',
-      ),
-      TrendData(
-        period: 'Tháng này',
-        expense: 3800000,
-        income: 3700000,
-        label: 'Tháng này',
-      ),
-    ];
-  }
-
-  FinancialOverviewData _getMockFinancialOverviewData() {
-    return FinancialOverviewData(
-      totalExpense: 3916644,
-      totalIncome: 3700100,
-      changeAmount: 1309565,
-      changePeriod: 'tháng trước',
-      isIncrease: true,
-    );
-  }
+  // Mock data methods removed to avoid misleading runtime fallbacks
 }
