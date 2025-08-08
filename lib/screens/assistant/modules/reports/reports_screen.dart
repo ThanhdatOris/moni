@@ -215,19 +215,28 @@ class _ReportsScreenState extends State<ReportsScreen>
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: ListView.builder(
-              itemCount: _availableTemplates.length,
-              itemBuilder: (context, index) {
-                final template = _availableTemplates[index];
-                return ReportTemplateCard(
-                  template: template,
-                  isSelected: _selectedTemplate?.id == template.id,
-                  isLoading: _isLoading,
-                  onSelect: () => setState(() => _selectedTemplate = template),
-                  onPreview: () => _showPreview(template),
-                  onGenerate: () => _generateReport(template),
-                );
-              },
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _availableTemplates.length,
+                    itemBuilder: (context, index) {
+                      final template = _availableTemplates[index];
+                      return ReportTemplateCard(
+                        template: template,
+                        isSelected: _selectedTemplate?.id == template.id,
+                        isLoading: _isLoading,
+                        onSelect: () =>
+                            setState(() => _selectedTemplate = template),
+                        onPreview: () => _showPreview(template),
+                        onGenerate: () => _generateReport(template),
+                      );
+                    },
+                  ),
+                ),
+                // Bottom spacing for menubar
+                const SizedBox(height: 120),
+              ],
             ),
           ),
         ],
@@ -311,6 +320,8 @@ class _ReportsScreenState extends State<ReportsScreen>
               ),
             ),
           ),
+          // Bottom spacing for menubar
+          const SizedBox(height: 120),
         ],
       ),
     );
@@ -319,10 +330,18 @@ class _ReportsScreenState extends State<ReportsScreen>
   Widget _buildExportTab() {
     return Padding(
       padding: const EdgeInsets.all(20),
-      child: ReportExportOptions(
-        availableFormats: ExportFormat.getDefaultFormats(),
-        onExport: _exportReport,
-        isLoading: _isLoading,
+      child: Column(
+        children: [
+          Expanded(
+            child: ReportExportOptions(
+              availableFormats: ExportFormat.getDefaultFormats(),
+              onExport: _exportReport,
+              isLoading: _isLoading,
+            ),
+          ),
+          // Bottom spacing for menubar
+          const SizedBox(height: 120),
+        ],
       ),
     );
   }

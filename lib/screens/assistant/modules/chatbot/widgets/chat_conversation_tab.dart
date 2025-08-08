@@ -4,8 +4,11 @@ import 'package:uuid/uuid.dart';
 
 import '../../../../../constants/app_colors.dart';
 import '../../../models/agent_request_model.dart';
+import '../../../models/chat_message_model.dart';
 import '../../../services/global_agent_service.dart';
+import '../../../services/ui_optimization_service.dart';
 import '../services/conversation_service.dart';
+import 'chat_message_widget.dart';
 
 /// Modern conversation tab with enhanced chat interface
 class ChatConversationTab extends StatefulWidget {
@@ -15,15 +18,17 @@ class ChatConversationTab extends StatefulWidget {
   State<ChatConversationTab> createState() => _ChatConversationTabState();
 }
 
-class _ChatConversationTabState extends State<ChatConversationTab> with AutomaticKeepAliveClientMixin {
+class _ChatConversationTabState extends State<ChatConversationTab>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-  
+
   final GlobalAgentService _agentService = GetIt.instance<GlobalAgentService>();
   final ConversationService _conversationService = ConversationService();
+  final UIOptimizationService _uiOptimization = UIOptimizationService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   List<ChatMessage> _messages = [];
   bool _isTyping = false;
   bool _showQuickActions = true;
@@ -32,22 +37,43 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
   void initState() {
     super.initState();
     _initializeConversation();
+
+    // Set active module cho UI optimization
+    _uiOptimization.setActiveModule('chatbot');
+
+    // Listen for text field focus
+    _messageController.addListener(() {
+      _uiOptimization.setTyping(_messageController.text.isNotEmpty);
+    });
+
+    // Listen for conversation changes
+    _conversationService.addListener(_onConversationChanged);
   }
 
   Future<void> _initializeConversation() async {
     await _conversationService.initialize();
-    
+
     if (_conversationService.currentConversationId == null) {
       await _conversationService.startNewConversation();
     }
-    
+
     setState(() {
       _messages = List.from(_conversationService.currentMessages);
     });
   }
 
+  void _onConversationChanged() {
+    if (mounted) {
+      setState(() {
+        _messages = List.from(_conversationService.currentMessages);
+      });
+      _scrollToBottom();
+    }
+  }
+
   @override
   void dispose() {
+    _conversationService.removeListener(_onConversationChanged);
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -57,11 +83,9 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
     if (text.trim().isEmpty) return;
 
     final userMessage = ChatMessage(
-      id: const Uuid().v4(),
-      content: text.trim(),
-      isFromUser: true,
+      text: text.trim(),
+      isUser: true,
       timestamp: DateTime.now(),
-      type: ChatMessageType.text,
     );
 
     setState(() {
@@ -82,17 +106,27 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
         conversationId: 'chatbot_conversation',
         parameters: {
           'timestamp': DateTime.now().toIso8601String(),
-          'messageId': userMessage.id,
+          'messageId': const Uuid().v4(),
         },
       ));
 
+      // Extract transactionId from EDIT_BUTTON marker in text
+      String? transactionId;
+      String messageText = response.message;
+
+      final editButtonRegex = RegExp(r'\[EDIT_BUTTON:([^\]]+)\]');
+      final match = editButtonRegex.firstMatch(messageText);
+      if (match != null) {
+        transactionId = match.group(1);
+        // Remove the marker from display text but keep [EDIT_BUTTON] for widget detection
+        messageText = messageText.replaceAll(editButtonRegex, '[EDIT_BUTTON]');
+      }
+
       final aiMessage = ChatMessage(
-        id: const Uuid().v4(),
-        content: response.message,
-        isFromUser: false,
+        text: messageText,
+        isUser: false,
         timestamp: DateTime.now(),
-        type: ChatMessageType.text,
-        metadata: response.data,
+        transactionId: transactionId,
       );
 
       setState(() {
@@ -104,11 +138,9 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
       await _conversationService.addMessage(aiMessage);
     } catch (e) {
       final errorMessage = ChatMessage(
-        id: const Uuid().v4(),
-        content: 'Xin lỗi, có lỗi xảy ra khi xử lý tin nhắn. Vui lòng thử lại.',
-        isFromUser: false,
+        text: 'Xin lỗi, có lỗi xảy ra khi xử lý tin nhắn. Vui lòng thử lại.',
+        isUser: false,
         timestamp: DateTime.now(),
-        type: ChatMessageType.error,
       );
 
       setState(() {
@@ -138,19 +170,30 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     return Container(
       color: AppColors.background,
       child: Column(
         children: [
-          // Messages list
+          // Messages list với dynamic padding cho menubar
           Expanded(
-            child: _messages.isEmpty ? _buildEmptyState() : _buildMessagesList(),
+            child: AnimatedBuilder(
+              animation: _uiOptimization,
+              builder: (context, child) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                      bottom: _uiOptimization.getBottomSpacing()),
+                  child: _messages.isEmpty
+                      ? _buildEmptyState()
+                      : _buildMessagesList(),
+                );
+              },
+            ),
           ),
-          
+
           // Quick actions (when visible)
           if (_showQuickActions) _buildQuickActions(),
-          
+
           // Input area
           _buildInputArea(),
         ],
@@ -206,81 +249,10 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
         if (index == _messages.length && _isTyping) {
           return _buildTypingIndicator();
         }
-        
-        final message = _messages[index];
-        return _buildMessageBubble(message);
-      },
-    );
-  }
 
-  Widget _buildMessageBubble(ChatMessage message) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: message.isFromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!message.isFromUser) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.smart_toy, color: Colors.white, size: 16),
-            ),
-            const SizedBox(width: 8),
-          ],
-          
-          Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
-                color: message.isFromUser 
-                  ? AppColors.primary.withValues(alpha: 0.9)
-                  : Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    message.content,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: message.isFromUser ? Colors.white : Colors.grey[800],
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatTime(message.timestamp),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: message.isFromUser 
-                        ? Colors.white.withValues(alpha: 0.7)
-                        : Colors.grey[500],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          if (message.isFromUser) ...[
-            const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.grey[300],
-              child: Icon(Icons.person, color: Colors.grey[600], size: 16),
-            ),
-          ],
-        ],
-      ),
+        final message = _messages[index];
+        return ChatMessageWidget(message: message);
+      },
     );
   }
 
@@ -316,8 +288,9 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
                   height: 20,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(3, (index) => 
-                      AnimatedContainer(
+                    children: List.generate(
+                      3,
+                      (index) => AnimatedContainer(
                         duration: Duration(milliseconds: 600 + (index * 200)),
                         width: 6,
                         height: 6,
@@ -377,27 +350,31 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
           Wrap(
             spacing: 8,
             runSpacing: 6,
-            children: quickActions.map((action) => 
-              GestureDetector(
-                onTap: () => _sendMessage(action),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                  ),
-                  child: Text(
-                    action,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w500,
+            children: quickActions
+                .map(
+                  (action) => GestureDetector(
+                    onTap: () => _sendMessage(action),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2)),
+                      ),
+                      child: Text(
+                        action,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            ).toList(),
+                )
+                .toList(),
           ),
         ],
       ),
@@ -432,7 +409,8 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
                   hintText: 'Nhập tin nhắn...',
                   hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
                   border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
                 maxLines: null,
                 textCapitalization: TextCapitalization.sentences,
@@ -448,7 +426,10 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
               height: 40,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.8)],
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primary.withValues(alpha: 0.8)
+                  ],
                 ),
                 shape: BoxShape.circle,
               ),
@@ -463,34 +444,4 @@ class _ChatConversationTabState extends State<ChatConversationTab> with Automati
       ),
     );
   }
-
-  String _formatTime(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
-  }
-}
-
-/// Chat message model
-class ChatMessage {
-  final String id;
-  final String content;
-  final bool isFromUser;
-  final DateTime timestamp;
-  final ChatMessageType type;
-  final Map<String, dynamic>? metadata;
-
-  ChatMessage({
-    required this.id,
-    required this.content,
-    required this.isFromUser,
-    required this.timestamp,
-    required this.type,
-    this.metadata,
-  });
-}
-
-enum ChatMessageType {
-  text,
-  welcome,
-  error,
-  system,
 }

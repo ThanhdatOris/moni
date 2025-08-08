@@ -5,13 +5,19 @@ import '../services/conversation_service.dart';
 
 /// Chat history tab showing conversation history
 class ChatHistoryTab extends StatefulWidget {
-  const ChatHistoryTab({super.key});
+  final TabController? tabController;
+
+  const ChatHistoryTab({
+    super.key,
+    this.tabController,
+  });
 
   @override
   State<ChatHistoryTab> createState() => _ChatHistoryTabState();
 }
 
-class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAliveClientMixin {
+class _ChatHistoryTabState extends State<ChatHistoryTab>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -27,7 +33,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAlive
 
   Future<void> _loadConversationHistory() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final conversations = await _conversationService.getConversationHistory();
       setState(() {
@@ -50,57 +56,177 @@ class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAlive
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     return Container(
       color: AppColors.background,
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Statistics only (no redundant header)
-          _buildStatistics(),
-          
+          // Statistics và New Conversation button
+          _buildHeader(),
+
           const SizedBox(height: 16),
-          
-          // Conversation list
+
+          // Conversation list với spacing cho menubar
           Expanded(
-            child: _isLoading ? _buildLoadingState() : _buildConversationList(),
+            child: Column(
+              children: [
+                Expanded(
+                  child: _isLoading
+                      ? _buildLoadingState()
+                      : _buildConversationList(),
+                ),
+                // Bottom spacing for menubar
+                const SizedBox(height: 120),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatistics() {
-    return Row(
+  Widget _buildHeader() {
+    const double h = 104;
+    return Column(
       children: [
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.chat_bubble_outline,
-            title: 'Cuộc trò chuyện',
-            value: '${_conversations.length}',
-            color: AppColors.primary,
+        SizedBox(
+          height: h,
+          child: Row(
+            children: [
+              Expanded(
+                child: _headerStat(
+                  icon: Icons.chat_bubble_outline,
+                  title: 'Cuộc trò chuyện',
+                  value: '${_conversations.length}',
+                  color: AppColors.primary,
+                  height: h,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _headerStat(
+                  icon: Icons.message,
+                  title: 'Tin nhắn',
+                  value:
+                      '${_conversations.fold(0, (sum, c) => sum + c.messageCount)}',
+                  color: AppColors.info,
+                  height: h,
+                ),
+              ),
+              const SizedBox(width: 12),
+              _headerActions(h),
+            ],
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            icon: Icons.message,
-            title: 'Tin nhắn',
-            value: '${_conversations.fold(0, (sum, conv) => sum + conv.messageCount)}',
-            color: Colors.blue,
-          ),
+        //const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _headerStat({
+    required IconData icon,
+    required String title,
+    required String value,
+    required Color color,
+    required double height,
+  }) =>
+      _buildStatCard(
+        icon: icon,
+        title: title,
+        value: value,
+        color: color,
+        height: height,
+      );
+
+  Widget _headerActions(double height) => SizedBox(
+        width: 56,
+        height: height,
+        child: Column(
+          children: [
+            Expanded(
+              child: _buildSquareIconButton(
+                icon: Icons.refresh,
+                color: AppColors.info,
+                onPressed: _loadConversationHistory,
+                tooltip: 'Làm mới',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _buildSquareIconButton(
+                icon: Icons.add,
+                color: AppColors.success,
+                onPressed: _createNewConversation,
+                tooltip: 'Tạo mới',
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 8),
-        IconButton(
-          onPressed: _loadConversationHistory,
-          icon: Icon(
-            Icons.refresh,
-            color: AppColors.primary,
-            size: 20,
+      );
+
+  Widget _buildSquareIconButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onPressed,
+    String? tooltip,
+  }) {
+    final button = Material(
+      color: color,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: const SizedBox.expand(),
+      ),
+    );
+
+    final stack = Stack(
+      children: [
+        Positioned.fill(child: button),
+        const Positioned.fill(
+          child: IgnorePointer(child: SizedBox()),
+        ),
+        Positioned.fill(
+          child: Center(
+            child: Icon(icon, color: AppColors.textWhite, size: 22),
           ),
         ),
       ],
     );
+
+    return tooltip == null ? stack : Tooltip(message: tooltip, child: stack);
+  }
+
+  Future<void> _createNewConversation() async {
+    try {
+      await _conversationService.startNewConversation();
+
+      // Switch to Chat tab (index 0) để người dùng có thể chat ngay
+      widget.tabController?.animateTo(0);
+
+      // Show success feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Đã tạo cuộc trò chuyện mới!'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      // Refresh conversation list
+      await _loadConversationHistory();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Lỗi tạo cuộc trò chuyện: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildStatCard({
@@ -108,8 +234,9 @@ class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAlive
     required String title,
     required String value,
     required Color color,
+    double? height,
   }) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -153,12 +280,14 @@ class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAlive
         ],
       ),
     );
+    return height != null ? SizedBox(height: height, child: card) : card;
   }
 
   Widget _buildLoadingState() {
     return Column(
-      children: List.generate(3, (index) => 
-        Padding(
+      children: List.generate(
+        3,
+        (index) => Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Container(
             padding: const EdgeInsets.all(16),
@@ -274,6 +403,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAlive
         ),
         child: InkWell(
           onTap: () => _openConversation(conversation),
+          onLongPress: () => _showConversationOptions(conversation),
           borderRadius: BorderRadius.circular(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,7 +423,8 @@ class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAlive
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -309,9 +440,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAlive
                   ),
                 ],
               ),
-              
               const SizedBox(height: 8),
-              
               Text(
                 conversation.lastMessage,
                 style: TextStyle(
@@ -322,9 +451,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAlive
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              
               const SizedBox(height: 12),
-              
               Row(
                 children: [
                   Icon(
@@ -355,13 +482,147 @@ class _ChatHistoryTabState extends State<ChatHistoryTab> with AutomaticKeepAlive
     );
   }
 
-  void _openConversation(ConversationSummary conversation) {
-    // Navigate to conversation details or load conversation
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Mở cuộc trò chuyện: ${conversation.title}'),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 2),
+  void _openConversation(ConversationSummary conversation) async {
+    try {
+      // Load conversation in service
+      await _conversationService.loadConversation(conversation.id);
+
+      // Switch to Chat tab (index 0)
+      widget.tabController?.animateTo(0);
+
+      // Show success feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Đã tải cuộc trò chuyện: ${conversation.title}'),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      // Show error feedback
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi tải cuộc trò chuyện: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showConversationOptions(
+      ConversationSummary conversation) async {
+    // Đảm bảo không có TextField nào đang focus trước khi mở sheet
+    FocusScope.of(context).unfocus();
+
+    await showModalBottomSheet(
+      context: context,
+      useSafeArea: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              conversation.title,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.blue),
+              title: const Text('Đổi tên cuộc trò chuyện'),
+              onTap: () {
+                Navigator.pop(context);
+                _showRenameDialog(conversation);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Xóa cuộc trò chuyện'),
+              onTap: () {
+                Navigator.pop(context);
+                _showDeleteDialog(conversation);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Khi sheet đóng, tiếp tục unfocus để tránh bàn phím tự bật lại
+    if (mounted) {
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  void _showRenameDialog(ConversationSummary conversation) {
+    final controller = TextEditingController(text: conversation.title);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Đổi tên cuộc trò chuyện'),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(
+            hintText: 'Nhập tên mới...',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 2,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newTitle = controller.text.trim();
+              if (newTitle.isNotEmpty) {
+                await _conversationService.renameConversation(
+                    conversation.id, newTitle);
+                await _loadConversationHistory();
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog(ConversationSummary conversation) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa cuộc trò chuyện'),
+        content: Text(
+            'Bạn có chắc muốn xóa cuộc trò chuyện "${conversation.title}"?\n\nHành động này không thể hoàn tác.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await _conversationService.deleteConversation(conversation.id);
+              await _loadConversationHistory();
+              if (mounted) Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Xóa', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

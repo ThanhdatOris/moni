@@ -11,46 +11,42 @@ class ChatSettingsTab extends StatefulWidget {
   State<ChatSettingsTab> createState() => _ChatSettingsTabState();
 }
 
-class _ChatSettingsTabState extends State<ChatSettingsTab> with AutomaticKeepAliveClientMixin {
+class _ChatSettingsTabState extends State<ChatSettingsTab>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
   final ConversationService _conversationService = ConversationService();
 
-  // Settings
+  // Essential settings only
   bool _autoSave = true;
-  bool _soundEffects = false;
   bool _notifications = true;
-  bool _smartSuggestions = true;
-  String _selectedLanguage = 'vi';
-  String _chatTheme = 'light';
-  double _fontSize = 16.0;
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     return Container(
       color: AppColors.background,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildGeneralSettings(),
-          const SizedBox(height: 16),
-          _buildChatExperience(),
+          _buildEssentialSettings(),
           const SizedBox(height: 16),
           _buildDataManagement(),
           const SizedBox(height: 16),
           _buildAboutSection(),
+          // Bottom spacing for menubar
+          const SizedBox(height: 120),
         ],
       ),
     );
   }
 
-  Widget _buildGeneralSettings() {
+  Widget _buildEssentialSettings() {
     return _buildSettingsSection(
-      title: 'Cài đặt chung',
-      icon: Icons.tune,
+      title: 'Cài đặt cơ bản',
+      icon: Icons.settings_outlined,
       children: [
         _buildSwitchTile(
           title: 'Tự động lưu cuộc trò chuyện',
@@ -58,67 +54,11 @@ class _ChatSettingsTabState extends State<ChatSettingsTab> with AutomaticKeepAli
           value: _autoSave,
           onChanged: (value) => setState(() => _autoSave = value),
         ),
-        
         _buildSwitchTile(
           title: 'Thông báo',
           subtitle: 'Nhận thông báo khi có phản hồi',
           value: _notifications,
           onChanged: (value) => setState(() => _notifications = value),
-        ),
-        
-        _buildSwitchTile(
-          title: 'Gợi ý thông minh',
-          subtitle: 'Hiển thị câu hỏi gợi ý',
-          value: _smartSuggestions,
-          onChanged: (value) => setState(() => _smartSuggestions = value),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChatExperience() {
-    return _buildSettingsSection(
-      title: 'Trải nghiệm chat',
-      icon: Icons.chat_bubble_outline,
-      children: [
-        _buildSwitchTile(
-          title: 'Âm thanh',
-          subtitle: 'Phát âm thanh khi gửi/nhận tin nhắn',
-          value: _soundEffects,
-          onChanged: (value) => setState(() => _soundEffects = value),
-        ),
-        
-        _buildSelectTile(
-          title: 'Ngôn ngữ',
-          subtitle: 'Chọn ngôn ngữ giao tiếp',
-          value: _selectedLanguage,
-          options: const {
-            'vi': 'Tiếng Việt',
-            'en': 'English',
-          },
-          onChanged: (value) => setState(() => _selectedLanguage = value),
-        ),
-        
-        _buildSelectTile(
-          title: 'Giao diện',
-          subtitle: 'Chọn theme cho chat',
-          value: _chatTheme,
-          options: const {
-            'light': 'Sáng',
-            'dark': 'Tối',
-            'auto': 'Tự động',
-          },
-          onChanged: (value) => setState(() => _chatTheme = value),
-        ),
-        
-        _buildSliderTile(
-          title: 'Kích thước chữ',
-          subtitle: 'Điều chỉnh kích thước text',
-          value: _fontSize,
-          min: 12.0,
-          max: 20.0,
-          divisions: 8,
-          onChanged: (value) => setState(() => _fontSize = value),
         ),
       ],
     );
@@ -136,7 +76,6 @@ class _ChatSettingsTabState extends State<ChatSettingsTab> with AutomaticKeepAli
           color: Colors.red,
           onTap: _showClearHistoryDialog,
         ),
-        
         _buildActionTile(
           title: 'Xuất dữ liệu',
           subtitle: 'Xuất lịch sử chat ra file',
@@ -144,7 +83,6 @@ class _ChatSettingsTabState extends State<ChatSettingsTab> with AutomaticKeepAli
           color: Colors.blue,
           onTap: _exportChatData,
         ),
-        
         _buildActionTile(
           title: 'Đặt lại cài đặt',
           subtitle: 'Khôi phục cài đặt về mặc định',
@@ -165,12 +103,10 @@ class _ChatSettingsTabState extends State<ChatSettingsTab> with AutomaticKeepAli
           title: 'Phiên bản AI',
           value: 'GPT-4 Enhanced',
         ),
-        
         _buildInfoTile(
           title: 'Cập nhật cuối',
           value: '02/08/2025',
         ),
-        
         _buildActionTile(
           title: 'Hỗ trợ',
           subtitle: 'Liên hệ đội ngũ hỗ trợ',
@@ -261,121 +197,6 @@ class _ChatSettingsTabState extends State<ChatSettingsTab> with AutomaticKeepAli
             value: value,
             onChanged: onChanged,
             activeColor: AppColors.primary,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSelectTile({
-    required String title,
-    required String subtitle,
-    required String value,
-    required Map<String, String> options,
-    required ValueChanged<String> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[600],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButton<String>(
-              value: value,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              items: options.entries.map((entry) => 
-                DropdownMenuItem(
-                  value: entry.key,
-                  child: Text(entry.value),
-                ),
-              ).toList(),
-              onChanged: (newValue) {
-                if (newValue != null) onChanged(newValue);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSliderTile({
-    required String title,
-    required String subtitle,
-    required double value,
-    required double min,
-    required double max,
-    required int divisions,
-    required ValueChanged<double> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.black87,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '${value.toInt()}px',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
-                ),
-              ),
-            ],
-          ),
-          Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: divisions,
-            activeColor: AppColors.primary,
-            onChanged: onChanged,
           ),
         ],
       ),
@@ -476,7 +297,8 @@ class _ChatSettingsTabState extends State<ChatSettingsTab> with AutomaticKeepAli
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Xóa lịch sử chat'),
-        content: const Text('Bạn có chắc chắn muốn xóa tất cả lịch sử trò chuyện? Hành động này không thể hoàn tác.'),
+        content: const Text(
+            'Bạn có chắc chắn muốn xóa tất cả lịch sử trò chuyện? Hành động này không thể hoàn tác.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -529,14 +351,9 @@ class _ChatSettingsTabState extends State<ChatSettingsTab> with AutomaticKeepAli
   void _resetSettings() {
     setState(() {
       _autoSave = true;
-      _soundEffects = false;
       _notifications = true;
-      _smartSuggestions = true;
-      _selectedLanguage = 'vi';
-      _chatTheme = 'light';
-      _fontSize = 16.0;
     });
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Đã đặt lại cài đặt về mặc định'),

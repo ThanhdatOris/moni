@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/menubar.dart';
 import '../assistant/assistant_screen.dart';
+import '../assistant/services/ui_optimization_service.dart';
 import '../history/transaction_history_screen.dart';
 import '../profile/profile_screen.dart';
 import '../transaction/add_transaction_screen.dart';
@@ -23,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   Key _homeTabKey = UniqueKey();
+  final UIOptimizationService _uiOptimization = UIOptimizationService();
 
   void _navigateToHistoryTab() {
     setState(() {
@@ -71,9 +73,25 @@ class _HomeScreenState extends State<HomeScreen> {
           _widgetOptions.elementAt(_selectedIndex),
           Align(
             alignment: Alignment.bottomCenter,
-            child: Menubar(
-              selectedIndex: _selectedIndex,
-              onItemTapped: _onItemTapped,
+            child: AnimatedBuilder(
+              animation: _uiOptimization,
+              builder: (context, child) {
+                return AnimatedSlide(
+                  offset: _uiOptimization.shouldHideMenubar
+                      ? const Offset(0, 1.2) // Slide down để ẩn
+                      : Offset.zero, // Vị trí bình thường
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: AnimatedOpacity(
+                    opacity: _uiOptimization.shouldHideMenubar ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Menubar(
+                      selectedIndex: _selectedIndex,
+                      onItemTapped: _onItemTapped,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],

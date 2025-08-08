@@ -5,9 +5,9 @@ import '../../../../constants/app_colors.dart';
 import '../../../../widgets/charts/models/chart_data_model.dart';
 import '../../../assistant/models/agent_request_model.dart';
 import '../../../assistant/services/global_agent_service.dart';
+import '../../../assistant/services/real_data_service.dart';
 import '../../widgets/assistant_error_card.dart';
 import '../../widgets/assistant_loading_card.dart';
-import 'services/analytics_module_coordinator.dart';
 import 'widgets/analytics_chart_section.dart';
 import 'widgets/analytics_insight_card.dart';
 import 'widgets/analytics_quick_actions.dart';
@@ -24,8 +24,7 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen>
     with TickerProviderStateMixin {
   final GlobalAgentService _agentService = GetIt.instance<GlobalAgentService>();
-  final AnalyticsModuleCoordinator _analyticsCoordinator =
-      AnalyticsModuleCoordinator();
+  final RealDataService _realDataService = GetIt.instance<RealDataService>();
   late TabController _tabController;
 
   bool _isLoading = false;
@@ -34,11 +33,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   String? _aiInsight;
   List<String> _recommendations = [];
 
-  // Financial data
-  double _totalIncome = 0;
-  double _totalExpense = 0;
-  double _balance = 0;
-  int _transactionCount = 0;
+  // Financial data từ real data service
+  AnalyticsData? _analyticsData;
 
   // Chart data
   List<ChartDataModel> _categoryData = [];
@@ -58,6 +54,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _hasError = false;
@@ -65,141 +62,111 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     });
 
     try {
-      // Load financial summary
-      await _loadFinancialSummary();
+      // Load real analytics data (service already initialized via DI)
+      _analyticsData = await _realDataService.getAnalyticsData();
 
-      // Load chart data
-      await _loadChartData();
+      // Update UI state with real data
+      if (!mounted) return;
+      setState(() {
+        _categoryData = _analyticsData?.categoryData ?? [];
+        _trendData = _analyticsData?.trendData ?? [];
+        _recommendations = _analyticsData?.insights ?? [];
+      });
 
-      // Generate AI insights
+      // Generate AI insights với real data context
       await _generateAIInsights();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _hasError = true;
         _errorMessage = 'Lỗi tải dữ liệu: $e';
       });
     } finally {
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _loadFinancialSummary() async {
-    // Use actual data from analytics coordinator
-    try {
-      final quickAnalysis = await _analyticsCoordinator.performQuickAnalysis();
-      final insights = quickAnalysis.spendingInsights;
-
-      setState(() {
-        _totalExpense = insights['totalSpending']?.toDouble() ?? 0.0;
-        _totalIncome =
-            _totalExpense * 1.2; // Estimate income as 120% of expense
-        _balance = _totalIncome - _totalExpense;
-        _transactionCount = insights['transactionCount']?.toInt() ?? 0;
-      });
-    } catch (e) {
-      // Keep empty state on failure
-      setState(() {
-        _totalIncome = 0;
-        _totalExpense = 0;
-        _balance = 0;
-        _transactionCount = 0;
-      });
-    }
+  Future<void> _refreshData() async {
+    await _loadData();
   }
-
-  Future<void> _loadChartData() async {
-    // Use actual data from analytics coordinator
-    try {
-      final analysis =
-          await _analyticsCoordinator.performComprehensiveAnalysis();
-      final categoryDistribution =
-          analysis.spendingPatterns.categoryDistribution;
-
-      setState(() {
-        _categoryData = categoryDistribution.entries.map((entry) {
-          final dist = entry.value;
-          return ChartDataModel(
-            category:
-                dist.categoryId.split('_').last, // Simplified category name
-            amount: dist.totalAmount,
-            percentage: dist.percentage,
-            icon: '📊', // Default icon
-            color:
-                '#${(dist.categoryId.hashCode & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
-            type: 'expense',
-          );
-        }).toList();
-        // Use analytics data only; if no trend series provided, leave empty
-        _trendData = [];
-      });
-    } catch (e) {
-      // Keep empty state on failure
-      setState(() {
-        _categoryData = [];
-        _trendData = [];
-      });
-    }
-  }
-
-  // Removed mock data loader to avoid misleading runtime data
 
   Future<void> _generateAIInsights() async {
-    try {
-      // Get analytics data to enhance AI insights
-      final priorityActions = await _analyticsCoordinator.getPriorityActions();
-      final healthScore =
-          (await _analyticsCoordinator.performQuickAnalysis()).healthScore;
+    if (_analyticsData == null) return;
 
+    try {
       final request = AgentRequest.analytics(
         message:
             'Phân tích chi tiêu tháng này và đưa ra những insight quan trọng',
         parameters: {
-          'period': 'month',
+          'period': _analyticsData!.period,
           'analysis_type': 'comprehensive',
-          'total_income': _totalIncome,
-          'total_expense': _totalExpense,
-          'health_score': healthScore,
-          'priority_actions': priorityActions.map((a) => a.title).toList(),
+          'total_income': _analyticsData!.totalIncome,
+          'total_expense': _analyticsData!.totalExpense,
+          'balance': _analyticsData!.balance,
+          'transaction_count': _analyticsData!.transactionCount,
+          'top_categories': _analyticsData!.categoryData
+              .take(3)
+              .map((c) => {
+                    'name': c.category,
+                    'amount': c.amount,
+                    'percentage': c.percentage,
+                  })
+              .toList(),
         },
       );
 
       final response = await _agentService.processRequest(request);
 
+      if (!mounted) return;
       if (response.isSuccess) {
         setState(() {
           _aiInsight = response.message;
-          _recommendations = priorityActions.isNotEmpty
-              ? priorityActions.take(3).map((a) => a.description).toList()
-              : [
-                  'Giảm chi tiêu ăn uống xuống 25% tổng thu nhập',
-                  'Tăng tiết kiệm lên 20% mỗi tháng',
-                  'Xem xét chuyển đổi phương tiện di chuyển tiết kiệm hơn',
-                ];
+        });
+      } else {
+        // Fallback to basic insights from real data
+        setState(() {
+          _aiInsight = _generateBasicInsight();
         });
       }
     } catch (e) {
-      // AI insight generation failed, use analytics coordinator for basic insights
-      try {
-        final analysis = await _analyticsCoordinator.performQuickAnalysis();
-        final insights = analysis.spendingInsights;
-
-        setState(() {
-          _aiInsight =
-              'Dựa trên dữ liệu phân tích: Chi tiêu tháng này là ${insights['totalSpending']?.toStringAsFixed(0) ?? "0"}đ. '
-              'Tình trạng chi tiêu đang ${analysis.healthScore > 70 ? "tốt" : "cần cải thiện"}.';
-          _recommendations = [
-            'Theo dõi chi tiêu hàng ngày để kiểm soát tốt hơn',
-            'Đặt mục tiêu tiết kiệm cụ thể cho tháng tới',
-            'Xem xét tối ưu hóa các khoản chi lớn nhất',
-          ];
-        });
-      } catch (e2) {
-        setState(() {
-          _aiInsight = 'Không thể tạo insight lúc này. Vui lòng thử lại sau.';
-          _recommendations = [];
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _aiInsight = _generateBasicInsight();
+      });
     }
+  }
+
+  String _generateBasicInsight() {
+    if (_analyticsData == null) return 'Chưa có dữ liệu để phân tích.';
+
+    final data = _analyticsData!;
+    final savingsRate = data.totalIncome > 0
+        ? ((data.totalIncome - data.totalExpense) / data.totalIncome) * 100
+        : 0;
+
+    String insight = 'Phân tích tài chính ${data.period}:\n\n';
+    insight += '💰 Thu nhập: ${_formatCurrency(data.totalIncome)}\n';
+    insight += '💸 Chi tiêu: ${_formatCurrency(data.totalExpense)}\n';
+    insight += '💵 Số dư: ${_formatCurrency(data.balance)}\n';
+    insight += '📊 Số giao dịch: ${data.transactionCount}\n\n';
+
+    if (savingsRate > 20) {
+      insight +=
+          '🎉 Tuyệt vời! Tỷ lệ tiết kiệm ${savingsRate.toStringAsFixed(1)}% rất tốt.';
+    } else if (savingsRate > 0) {
+      insight +=
+          '👍 Tỷ lệ tiết kiệm ${savingsRate.toStringAsFixed(1)}% - có thể cải thiện thêm.';
+    } else {
+      insight +=
+          '⚠️ Cảnh báo: Chi tiêu vượt thu nhập. Cần xem xét lại ngân sách.';
+    }
+
+    return insight;
+  }
+
+  String _formatCurrency(double amount) {
+    return '${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}đ';
   }
 
   @override
@@ -331,18 +298,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     return Container(
       color: AppColors.background,
       child: RefreshIndicator(
-        onRefresh: _loadData,
+        onRefresh: _refreshData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Financial Summary
+              // Financial Summary từ real data
               AnalyticsSummaryCard(
-                totalIncome: _totalIncome,
-                totalExpense: _totalExpense,
-                balance: _balance,
-                transactionCount: _transactionCount,
+                totalIncome: _analyticsData?.totalIncome ?? 0,
+                totalExpense: _analyticsData?.totalExpense ?? 0,
+                balance: _analyticsData?.balance ?? 0,
+                transactionCount: _analyticsData?.transactionCount ?? 0,
               ),
 
               const SizedBox(height: 16),
@@ -354,6 +321,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
                 onViewDetailedReport: _viewDetailedReport,
                 onShareInsights: _shareInsights,
               ),
+
+              // Bottom spacing for menubar
+              const SizedBox(height: 120),
             ],
           ),
         ),
@@ -365,14 +335,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
     return Container(
       color: AppColors.background,
       child: RefreshIndicator(
-        onRefresh: _loadChartData,
+        onRefresh: _refreshData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
-          child: AnalyticsChartSection(
-            categoryData: _categoryData,
-            trendData: _trendData,
-            onRefresh: _loadChartData,
+          child: Column(
+            children: [
+              AnalyticsChartSection(
+                categoryData: _categoryData,
+                trendData: _trendData,
+                onRefresh: _refreshData,
+              ),
+              // Bottom spacing for menubar
+              const SizedBox(height: 120),
+            ],
           ),
         ),
       ),
@@ -387,10 +363,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen>
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
-          child: AnalyticsInsightCard(
-            insight: _aiInsight,
-            recommendations: _recommendations,
-            onRegenerateInsight: _generateAIInsights,
+          child: Column(
+            children: [
+              AnalyticsInsightCard(
+                insight: _aiInsight,
+                recommendations: _recommendations,
+                onRegenerateInsight: _generateAIInsights,
+              ),
+              // Bottom spacing for menubar
+              const SizedBox(height: 120),
+            ],
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../screens/assistant/services/global_agent_service.dart';
+import '../../screens/assistant/services/real_data_service.dart';
 import '../../services/advanced_validation_service.dart';
 // Legacy Services - Simple architecture
 import '../../services/ai_processor_service.dart';
@@ -101,8 +102,12 @@ Future<void> init() async {
   // Global Agent Service (Assistant Module Coordinator)
   getIt.registerLazySingleton<GlobalAgentService>(() => GlobalAgentService());
 
-  // Initialize GlobalAgentService after registration
+  // Real Data Service for Assistant modules
+  getIt.registerLazySingleton<RealDataService>(() => RealDataService());
+
+  // Initialize AI services after registration
   await getIt<GlobalAgentService>().initialize();
+  await getIt<RealDataService>().initialize();
 
   // Validation Services
   getIt.registerLazySingleton<AdvancedValidationService>(

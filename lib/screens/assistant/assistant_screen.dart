@@ -7,6 +7,7 @@ import 'modules/budget/budget_screen.dart';
 import 'modules/chatbot/chatbot_screen.dart';
 import 'modules/reports/reports_screen.dart';
 import 'services/assistant_navigation_service.dart';
+import 'services/ui_optimization_service.dart';
 
 /// Enhanced Main Assistant Screen with Cross-Module Integration
 class AssistantScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _AssistantScreenState extends State<AssistantScreen>
   late AnimationController _iconAnimationController;
   final AssistantNavigationService _navigationService =
       AssistantNavigationService();
+  final UIOptimizationService _uiOptimization = UIOptimizationService();
 
   @override
   void initState() {
@@ -63,6 +65,12 @@ class _AssistantScreenState extends State<AssistantScreen>
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
     _navigationService.navigateToTab(_tabController.index);
+    // Chỉ đảm bảo hiện lại menubar khi rời khỏi module Chatbot.
+    // Việc ẩn/hiện trong module Chatbot sẽ do ChatbotScreen điều phối theo tab nội bộ.
+    final isInChatbotModule = _tabController.index == 3;
+    if (!isInChatbotModule) {
+      _uiOptimization.exitAssistantChatMode();
+    }
   }
 
   @override
@@ -105,20 +113,21 @@ class _AssistantScreenState extends State<AssistantScreen>
                       final index = entry.key;
                       final module = entry.value;
                       final animValue = _tabController.animation!.value;
-                      
+
                       // Tính toán flex weight dựa trên animation (3:1:1:1 ratio)
                       int flexWeight;
                       final distanceFromSelected = (animValue - index).abs();
-                      
+
                       if (distanceFromSelected < 0.5) {
                         // Tab đang được chọn hoặc đang animate tới: weight từ 1 → 3
-                        final progress = 1.0 - (distanceFromSelected * 2); // 0 to 1
+                        final progress =
+                            1.0 - (distanceFromSelected * 2); // 0 to 1
                         flexWeight = (1 + (2 * progress)).round(); // 1 to 3
                       } else {
                         // Tab không được chọn: weight = 1
                         flexWeight = 1;
                       }
-                      
+
                       final isSelected = _tabController.index == index;
                       final isAnimatingTo = distanceFromSelected < 0.5;
                       final shouldShowText = isSelected || isAnimatingTo;
@@ -149,7 +158,8 @@ class _AssistantScreenState extends State<AssistantScreen>
                                             begin: Alignment.topLeft,
                                             end: Alignment.bottomRight,
                                           ),
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                           boxShadow: [
                                             BoxShadow(
                                               color: AppColors.primary
@@ -162,7 +172,8 @@ class _AssistantScreenState extends State<AssistantScreen>
                                       : null,
                                   child: Center(
                                     child: AnimatedSwitcher(
-                                      duration: const Duration(milliseconds: 200),
+                                      duration:
+                                          const Duration(milliseconds: 200),
                                       transitionBuilder: (child, animation) {
                                         return SlideTransition(
                                           position: Tween<Offset>(
@@ -196,7 +207,8 @@ class _AssistantScreenState extends State<AssistantScreen>
                                                 Flexible(
                                                   child: Text(
                                                     module.name,
-                                                    key: ValueKey('name_$index'),
+                                                    key:
+                                                        ValueKey('name_$index'),
                                                     style: const TextStyle(
                                                       fontSize: 16,
                                                       fontWeight:

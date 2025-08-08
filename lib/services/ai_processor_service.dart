@@ -601,13 +601,27 @@ User input: "$input"
       final transactionService = _getIt<TransactionService>();
       final categoryService = _getIt<CategoryService>();
 
-      // Extract parameters
+      // Extract parameters with robust null-safety and VN-friendly defaults
       final rawAmount = args['amount'];
-      final amount = _parseAmount(rawAmount);
-      final description = args['description'] as String;
-      final categoryName = args['category'] as String? ?? 'Ăn uống';
-      final typeStr = args['type'] as String? ?? 'expense';
-      final dateStr = args['date'] as String?;
+      final double amount = _parseAmount(rawAmount);
+
+      // Some model calls may omit description; fallback to a sensible default
+      final String description =
+          (args['description'] ?? 'Giao dịch').toString();
+
+      // Infer type if missing (e.g., input: "lương 1tr" → income)
+      final String typeStr = (args['type'] ??
+              (description.toLowerCase().contains('lương')
+                  ? 'income'
+                  : 'expense'))
+          .toString();
+
+      // Provide category fallback based on type
+      final String categoryName = (args['category'] ??
+              (typeStr.toLowerCase() == 'income' ? 'Lương' : 'Khác'))
+          .toString();
+
+      final String? dateStr = args['date']?.toString();
 
       // ✅ IMPROVED: Single comprehensive log for transaction processing
       _logger.i(
@@ -663,9 +677,8 @@ User input: "$input"
       }
 
       // Create transaction with correct amount handling
-      final finalAmount = transactionType == TransactionType.expense
-          ? amount.abs() // Ensure negative for expenses
-          : amount.abs(); // Ensure positive for income
+      // Keep amount positive; type determines semantics elsewhere in app
+      final double finalAmount = amount.abs();
 
       final transaction = TransactionModel(
         transactionId: '',
@@ -895,33 +908,51 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
 
   /// Parse amount from various formats (18k, 1tr, 18000, etc.)
   double _parseAmount(dynamic rawAmount) {
+    // Null-safe fallback
+    if (rawAmount == null) return 0;
+
     if (rawAmount is num) {
       return rawAmount.toDouble();
     }
 
     if (rawAmount is String) {
-      // Remove spaces and convert to lowercase
+      // Normalize common Vietnamese money formats
       String cleanAmount = rawAmount.trim().toLowerCase();
 
-      // Remove currency symbols
-      cleanAmount = cleanAmount.replaceAll(RegExp(r'[đvndđồng,.]'), '');
+      // Map synonyms to standard suffixes
+      cleanAmount = cleanAmount
+          .replaceAll(' triệu', 'tr')
+          .replaceAll('trieu', 'tr')
+          .replaceAll(' ', '');
 
-      // Handle Vietnamese format: k = 1000, tr = 1000000
+      // Remove currency symbols (đ, vnd, đồng) and thousand separators
+      cleanAmount = cleanAmount.replaceAll(RegExp(r'[₫đvndđồng,\.]'), '');
+
+      // Handle Vietnamese shorthand: k = 1,000; tr = 1,000,000; tỷ = 1,000,000,000
       if (cleanAmount.endsWith('k')) {
-        final number = double.tryParse(cleanAmount.replaceAll('k', '')) ?? 0;
+        final number =
+            double.tryParse(cleanAmount.substring(0, cleanAmount.length - 1)) ??
+                0;
         return number * 1000;
-      } else if (cleanAmount.endsWith('tr') || cleanAmount.endsWith('triệu')) {
-        final number = double.tryParse(
-                cleanAmount.replaceAll(RegExp(r'(tr|triệu)'), '')) ??
-            0;
-        return number * 1000000;
-      } else if (cleanAmount.endsWith('tỷ')) {
-        final number = double.tryParse(cleanAmount.replaceAll('tỷ', '')) ?? 0;
-        return number * 1000000000;
-      } else {
-        // Try to parse as regular number
-        return double.tryParse(cleanAmount) ?? 0;
       }
+
+      if (cleanAmount.endsWith('tr')) {
+        final number =
+            double.tryParse(cleanAmount.substring(0, cleanAmount.length - 2)) ??
+                0;
+        return number * 1000000;
+      }
+
+      if (cleanAmount.endsWith('tỷ') || cleanAmount.endsWith('ty')) {
+        final base = cleanAmount.endsWith('tỷ')
+            ? cleanAmount.substring(0, cleanAmount.length - 2)
+            : cleanAmount.substring(0, cleanAmount.length - 2);
+        final number = double.tryParse(base) ?? 0;
+        return number * 1000000000;
+      }
+
+      // Try plain numeric
+      return double.tryParse(cleanAmount) ?? 0;
     }
 
     return 0;

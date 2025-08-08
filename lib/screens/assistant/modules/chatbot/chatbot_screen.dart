@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../constants/app_colors.dart';
+import '../../services/ui_optimization_service.dart';
 import '../../widgets/assistant_error_card.dart';
 import '../../widgets/assistant_loading_card.dart';
 import 'widgets/chat_conversation_tab.dart';
@@ -15,23 +16,39 @@ class ChatbotScreen extends StatefulWidget {
   State<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
-class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateMixin {
+class _ChatbotScreenState extends State<ChatbotScreen>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   bool _isLoading = false;
   bool _hasError = false;
   String? _errorMessage;
+  final UIOptimizationService _uiOptimization = UIOptimizationService();
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onInnerTabChanged);
     _initializeChatbot();
+    // Đồng bộ trạng thái menubar theo tab hiện tại sau khi build frame đầu tiên
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onInnerTabChanged());
   }
-  
+
   @override
   void dispose() {
+    _tabController.removeListener(_onInnerTabChanged);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _onInnerTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    // Chỉ ẩn menubar khi ở tab Chat (index 0)
+    if (_tabController.index == 0) {
+      _uiOptimization.enterAssistantChatMode();
+    } else {
+      _uiOptimization.exitAssistantChatMode();
+    }
   }
 
   Future<void> _initializeChatbot() async {
@@ -40,11 +57,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
       _hasError = false;
       _errorMessage = null;
     });
-    
+
     try {
       // Initialize chatbot services and load conversation history
-      await Future.delayed(const Duration(milliseconds: 500)); // Simulate initialization
-      
+      await Future.delayed(
+          const Duration(milliseconds: 500)); // Simulate initialization
+
       setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
@@ -82,10 +100,12 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
             indicatorSize: TabBarIndicatorSize.tab,
             indicator: BoxDecoration(
               borderRadius: BorderRadius.circular(11), // Giảm từ 12 xuống 11
-              color: Colors.teal.shade600, // Solid teal thay vì gradient primary
+              color:
+                  Colors.teal.shade600, // Solid teal thay vì gradient primary
               boxShadow: [
                 BoxShadow(
-                  color: Colors.teal.shade600.withValues(alpha: 0.3), // Đổi màu shadow
+                  color: Colors.teal.shade600
+                      .withValues(alpha: 0.3), // Đổi màu shadow
                   blurRadius: 4, // Giảm từ 6 xuống 4
                   offset: const Offset(0, 1), // Giảm từ 2 xuống 1
                 ),
@@ -93,8 +113,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
             ),
             labelColor: Colors.white,
             unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
-            unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
+            labelStyle: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
+            unselectedLabelStyle:
+                const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
             dividerColor: Colors.transparent,
             overlayColor: WidgetStateProperty.all(Colors.transparent),
             splashFactory: NoSplash.splashFactory,
@@ -104,7 +127,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.chat_bubble_outline, size: 14), // Giảm size từ 16 xuống 14
+                    Icon(Icons.chat_bubble_outline,
+                        size: 14), // Giảm size từ 16 xuống 14
                     SizedBox(width: 4), // Giảm từ 6 xuống 4
                     Text('Chat'),
                   ],
@@ -135,7 +159,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
             ],
           ),
         ),
-        
+
         // Content with loading/error handling
         Expanded(
           child: _buildContent(),
@@ -166,10 +190,10 @@ class _ChatbotScreenState extends State<ChatbotScreen> with TickerProviderStateM
 
     return TabBarView(
       controller: _tabController,
-      children: const [
-        ChatConversationTab(),
-        ChatHistoryTab(),
-        ChatSettingsTab(),
+      children: [
+        const ChatConversationTab(),
+        ChatHistoryTab(tabController: _tabController),
+        const ChatSettingsTab(),
       ],
     );
   }
