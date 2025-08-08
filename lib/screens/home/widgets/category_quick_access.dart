@@ -8,6 +8,7 @@ import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
 import '../../../services/category_service.dart';
+import '../../../services/environment_service.dart';
 import '../../../services/transaction_service.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 import '../../../utils/logging/logging_utils.dart';
@@ -35,8 +36,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
   Map<String, int> _incomeUsageCount = {};
   Map<String, DateTime> _incomeLastUsed = {};
 
-  StreamSubscription<List<CategoryModel>>? _expenseSubscription;
-  StreamSubscription<List<CategoryModel>>? _incomeSubscription;
+  StreamSubscription<List<CategoryModel>>? _categoriesSubscription;
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<List<TransactionModel>>? _recentTxSub;
 
@@ -70,8 +70,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
 
   @override
   void dispose() {
-    _expenseSubscription?.cancel();
-    _incomeSubscription?.cancel();
+    _categoriesSubscription?.cancel();
     _authSubscription?.cancel();
     _recentTxSub?.cancel();
     super.dispose();
@@ -85,54 +84,34 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     });
 
     try {
-      await _expenseSubscription?.cancel();
-      await _incomeSubscription?.cancel();
+      await _categoriesSubscription?.cancel();
 
-      // Load expense categories
-      _expenseSubscription =
-          _categoryService.getCategories(type: TransactionType.expense).listen(
-        (categories) {
+      // Load all categories with single subscription (tối ưu: 1 call thay vì 2)
+      _categoriesSubscription = _categoryService.getCategories().listen(
+        (allCategories) {
           if (mounted) {
-            setState(() {
-              _expenseCategories = _sortByUsage(categories, true);
-            });
-            // Debug: Log category colors
-            for (var category in categories.take(3)) {
-              logDebug(
-                'Expense category color',
-                className: 'CategoryQuickAccess',
-                methodName: '_loadCategories',
-                data: {
-                  'name': category.name,
-                  'color': category.color,
-                  'hex': '0x${category.color.toRadixString(16).toUpperCase()}',
-                },
-              );
-            }
-          }
-        },
-      );
+            // Filter categories by type
+            final expenseCategories = allCategories
+                .where((cat) => cat.type == TransactionType.expense)
+                .toList();
+            final incomeCategories = allCategories
+                .where((cat) => cat.type == TransactionType.income)
+                .toList();
 
-      // Load income categories
-      _incomeSubscription =
-          _categoryService.getCategories(type: TransactionType.income).listen(
-        (categories) {
-          if (mounted) {
             setState(() {
-              _incomeCategories = _sortByUsage(categories, false);
+              _expenseCategories = _sortByUsage(expenseCategories, true);
+              _incomeCategories = _sortByUsage(incomeCategories, false);
               _isLoading = false;
             });
-            // Debug: Log income category colors
-            for (var category in categories.take(3)) {
+
+            // Debug: Log category summary (reduced spam)
+            if (EnvironmentService.debugMode &&
+                expenseCategories.isNotEmpty &&
+                incomeCategories.isNotEmpty) {
               logDebug(
-                'Income category color',
+                'CategoryQuickAccess loaded: ${expenseCategories.length} expense + ${incomeCategories.length} income categories',
                 className: 'CategoryQuickAccess',
                 methodName: '_loadCategories',
-                data: {
-                  'name': category.name,
-                  'color': category.color,
-                  'hex': '0x${category.color.toRadixString(16).toUpperCase()}',
-                },
               );
             }
           }

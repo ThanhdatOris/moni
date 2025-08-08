@@ -135,13 +135,14 @@ class TransactionService {
     }
   }
 
-  /// Lấy danh sách giao dịch của người dùng
+  /// Lấy danh sách giao dịch của người dùng (hỗ trợ nhiều filter + orderBy + pagination)
   Stream<List<TransactionModel>> getTransactions({
     TransactionType? type,
     String? categoryId,
     DateTime? startDate,
     DateTime? endDate,
     int? limit,
+    DocumentSnapshot? startAfterDocument,
   }) {
     try {
       final user = _auth.currentUser;
@@ -149,48 +150,42 @@ class TransactionService {
         return Stream.value([]);
       }
 
-      // Đếm số lượng filter để quyết định strategy
-      int filterCount = 0;
-      if (type != null) filterCount++;
-      if (categoryId != null) filterCount++;
-      if (startDate != null) filterCount++;
-      if (endDate != null) filterCount++;
+      // Chiến lược tránh lỗi index:
+      // - Khi có lọc theo khoảng thời gian (date range), chỉ orderBy + where date,
+      //   các filter khác (is_deleted/type/category) sẽ lọc ở client để giảm yêu cầu composite index.
+      // - Khi không có date range, vẫn orderBy date và lọc client.
+      // - Giữ fallback khi vẫn gặp lỗi.
 
-      // Nếu có nhiều filter, sử dụng fallback để tránh composite index
-      if (filterCount > 1) {
-        _logger.i('Sử dụng fallback query do có nhiều filter: $filterCount');
-        return _getFallbackTransactions(
-            type, categoryId, startDate, endDate, limit);
-      }
+      // Sẽ lọc client cho các điều kiện dưới đây
+      final bool willFilterClientType = type != null;
+      final bool willFilterClientCategory = categoryId != null;
 
-      // Query đơn giản với ít filter
       Query query = _firestore
           .collection('users')
           .doc(user.uid)
           .collection('transactions')
-          .where('is_deleted', isEqualTo: false);
+          .orderBy('date', descending: true);
 
-      // Áp dụng filter đơn lẻ
-      if (type != null) {
-        query = query.where('type', isEqualTo: type.value);
-      } else if (categoryId != null) {
-        query = query.where('category_id', isEqualTo: categoryId);
-      } else if (startDate != null) {
+      if (startDate != null) {
         query = query.where('date',
             isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
-      } else if (endDate != null) {
+      }
+      if (endDate != null) {
         query = query.where('date',
             isLessThanOrEqualTo: Timestamp.fromDate(endDate));
       }
 
-      // Tạm thời bỏ orderBy để tránh composite index error
-      // Sẽ sort trong client thay vì server
-      // if (startDate == null && endDate == null) {
-      //   query = query.orderBy('date', descending: true);
-      // }
+      if (startAfterDocument != null) {
+        query = (query as Query<Map<String, dynamic>>)
+            .startAfterDocument(startAfterDocument);
+      }
 
       if (limit != null) {
-        query = query.limit(limit);
+        // Nếu phải lọc client (type/category), tăng limit để bù trừ phần bị loại bỏ
+        final bool hasClientFilters =
+            willFilterClientType || willFilterClientCategory;
+        final int effectiveLimit = hasClientFilters ? (limit * 2) : limit;
+        query = query.limit(effectiveLimit);
       }
 
       return query.snapshots().handleError((error) {
@@ -209,8 +204,18 @@ class TransactionService {
               doc.data() as Map<String, dynamic>, doc.id);
         }).toList();
 
-        // Luôn sắp xếp trong client vì không dùng orderBy server
-        transactions.sort((a, b) => b.date.compareTo(a.date));
+        // Lọc client để đảm bảo không cần composite index
+        transactions = transactions
+            .where((t) => !t.isDeleted)
+            .where((t) => type == null ? true : t.type == type)
+            .where(
+                (t) => categoryId == null ? true : t.categoryId == categoryId)
+            .toList();
+
+        // Thực thi limit sau khi lọc
+        if (limit != null && transactions.length > limit) {
+          transactions = transactions.take(limit).toList();
+        }
 
         return transactions;
       });
@@ -348,12 +353,12 @@ class TransactionService {
       final user = _auth.currentUser;
       if (user == null) return 0.0;
 
+      // Index-less strategy: chỉ where theo date + orderBy date, lọc client
       Query query = _firestore
           .collection('users')
           .doc(user.uid)
           .collection('transactions')
-          .where('is_deleted', isEqualTo: false)
-          .where('type', isEqualTo: TransactionType.income.value);
+          .orderBy('date', descending: true);
 
       if (startDate != null) {
         query = query.where('date',
@@ -365,27 +370,16 @@ class TransactionService {
             isLessThanOrEqualTo: Timestamp.fromDate(endDate));
       }
 
-      if (categoryId != null) {
-        query = query.where('category_id', isEqualTo: categoryId);
-      }
-
       final snapshot = await query.get();
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data();
-        if (data != null) {
-          final map = data as Map<String, dynamic>;
-          final amount = map['amount'] ?? 0;
-          // Handle both int and double from Firestore
-          if (amount is int) {
-            total += amount.toDouble();
-          } else if (amount is double) {
-            total += amount;
-          } else if (amount is num) {
-            total += amount.toDouble();
-          }
-        }
+        final map = doc.data() as Map<String, dynamic>;
+        final model = TransactionModel.fromMap(map, doc.id);
+        if (model.isDeleted) continue;
+        if (model.type != TransactionType.income) continue;
+        if (categoryId != null && model.categoryId != categoryId) continue;
+        total += model.amount;
       }
 
       return total;
@@ -465,12 +459,12 @@ class TransactionService {
       final user = _auth.currentUser;
       if (user == null) return 0.0;
 
+      // Index-less strategy: chỉ where theo date + orderBy date, lọc client
       Query query = _firestore
           .collection('users')
           .doc(user.uid)
           .collection('transactions')
-          .where('is_deleted', isEqualTo: false)
-          .where('type', isEqualTo: TransactionType.expense.value);
+          .orderBy('date', descending: true);
 
       if (startDate != null) {
         query = query.where('date',
@@ -482,27 +476,16 @@ class TransactionService {
             isLessThanOrEqualTo: Timestamp.fromDate(endDate));
       }
 
-      if (categoryId != null) {
-        query = query.where('category_id', isEqualTo: categoryId);
-      }
-
       final snapshot = await query.get();
       double total = 0.0;
 
       for (final doc in snapshot.docs) {
-        final data = doc.data();
-        if (data != null) {
-          final map = data as Map<String, dynamic>;
-          final amount = map['amount'] ?? 0;
-          // Handle both int and double from Firestore
-          if (amount is int) {
-            total += amount.toDouble();
-          } else if (amount is double) {
-            total += amount;
-          } else if (amount is num) {
-            total += amount.toDouble();
-          }
-        }
+        final map = doc.data() as Map<String, dynamic>;
+        final model = TransactionModel.fromMap(map, doc.id);
+        if (model.isDeleted) continue;
+        if (model.type != TransactionType.expense) continue;
+        if (categoryId != null && model.categoryId != categoryId) continue;
+        total += model.amount;
       }
 
       return total;
@@ -592,15 +575,13 @@ class TransactionService {
         return Stream.value([]);
       }
 
-      // Query đơn giản với orderBy để lấy giao dịch mới nhất
-      // Chỉ dùng is_deleted filter để tránh composite index
+      // Index-less friendly: chỉ orderBy date, lọc client
       Query query = _firestore
           .collection('users')
           .doc(user.uid)
           .collection('transactions')
-          .where('is_deleted', isEqualTo: false)
-          .orderBy('date', descending: true) // Sắp xếp trên server
-          .limit(limit);
+          .orderBy('date', descending: true)
+          .limit(limit * 2);
 
       return query.snapshots().handleError((error) {
         _logger.e('Lỗi stream giao dịch gần đây: $error');
@@ -612,10 +593,15 @@ class TransactionService {
         }
         return Stream.value(<TransactionModel>[]);
       }).map((snapshot) {
-        return snapshot.docs.map((doc) {
-          return TransactionModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
-        }).toList();
+        var list = snapshot.docs
+            .map((doc) {
+              return TransactionModel.fromMap(
+                  doc.data() as Map<String, dynamic>, doc.id);
+            })
+            .where((t) => !t.isDeleted)
+            .toList();
+        if (list.length > limit) list = list.take(limit).toList();
+        return list;
       });
     } catch (e) {
       _logger.e('Lỗi lấy giao dịch gần đây: $e');
@@ -668,18 +654,22 @@ class TransactionService {
       final user = _auth.currentUser;
       if (user == null) return [];
 
+      // Truy vấn thân thiện index: orderBy date + where theo date, lọc client is_deleted
       final snapshot = await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('transactions')
-          .where('is_deleted', isEqualTo: false)
+          .orderBy('date', descending: true)
           .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
           .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .get();
 
-      final transactions = snapshot.docs.map((doc) {
-        return TransactionModel.fromMap(doc.data(), doc.id);
-      }).toList();
+      final transactions = snapshot.docs
+          .map((doc) {
+            return TransactionModel.fromMap(doc.data(), doc.id);
+          })
+          .where((t) => !t.isDeleted)
+          .toList();
 
       // Sort by date descending
       transactions.sort((a, b) => b.date.compareTo(a.date));

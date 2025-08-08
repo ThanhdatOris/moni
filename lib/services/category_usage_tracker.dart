@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/category_model.dart';
@@ -11,11 +13,14 @@ class CategoryUsageTracker {
   static const String _keyRecentCategories = 'recent_categories';
   static const int _maxRecentCategories = 10;
 
-  static final CategoryUsageTracker _instance = CategoryUsageTracker._internal();
+  static final CategoryUsageTracker _instance =
+      CategoryUsageTracker._internal();
   factory CategoryUsageTracker() => _instance;
   CategoryUsageTracker._internal();
 
   SharedPreferences? _prefs;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Initialize tracker
   Future<void> initialize() async {
@@ -31,12 +36,39 @@ class CategoryUsageTracker {
     required DateTime timestamp,
   }) async {
     await initialize();
-    
+
     // Update usage statistics
-    await _updateUsageStatistics(categoryId, categoryName, transactionType, amount);
-    
+    await _updateUsageStatistics(
+        categoryId, categoryName, transactionType, amount);
+
     // Update recent categories
-    await _updateRecentCategories(categoryId, categoryName, transactionType, timestamp);
+    await _updateRecentCategories(
+        categoryId, categoryName, transactionType, timestamp);
+
+    // Đồng bộ Firestore tổng hợp usage
+    final user = _auth.currentUser;
+    if (user != null) {
+      final key = '${categoryId}_${transactionType.value}';
+      final docRef = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('category_usage')
+          .doc(key);
+
+      await docRef.set({
+        'categoryId': categoryId,
+        'categoryName': categoryName,
+        'type': transactionType.value,
+        'count': FieldValue.increment(1),
+        'totalAmount': FieldValue.increment(amount),
+        'lastUsed': Timestamp.fromDate(timestamp),
+      }, SetOptions(merge: true));
+
+      final hour = timestamp.hour.toString();
+      await docRef.set({
+        'hourlyUsage.$hour': FieldValue.increment(1),
+      }, SetOptions(merge: true));
+    }
   }
 
   /// Get suggested categories based on usage patterns
@@ -47,46 +79,46 @@ class CategoryUsageTracker {
     DateTime? transactionTime,
   }) async {
     await initialize();
-    
+
     final suggestions = <CategorySuggestion>[];
-    
+
     // 1. Recent categories (highest priority)
     final recentSuggestions = await _getRecentCategorySuggestions(
-      transactionType, 
+      transactionType,
       availableCategories,
     );
     suggestions.addAll(recentSuggestions);
-    
+
     // 2. Most used categories
     final usageSuggestions = await _getMostUsedCategorySuggestions(
-      transactionType, 
+      transactionType,
       availableCategories,
     );
     suggestions.addAll(usageSuggestions);
-    
+
     // 3. Time-based suggestions
     if (transactionTime != null) {
       final timeSuggestions = await _getTimeBasedSuggestions(
-        transactionType, 
-        availableCategories, 
+        transactionType,
+        availableCategories,
         transactionTime,
       );
       suggestions.addAll(timeSuggestions);
     }
-    
+
     // 4. Note-based suggestions
     if (transactionNote != null && transactionNote.isNotEmpty) {
       final noteSuggestions = await _getNoteBasedSuggestions(
-        transactionType, 
-        availableCategories, 
+        transactionType,
+        availableCategories,
         transactionNote,
       );
       suggestions.addAll(noteSuggestions);
     }
-    
+
     // Remove duplicates và sort by confidence
     final uniqueSuggestions = _removeDuplicatesAndSort(suggestions);
-    
+
     return uniqueSuggestions.take(5).toList();
   }
 
@@ -96,14 +128,14 @@ class CategoryUsageTracker {
     required List<CategoryModel> availableCategories,
   }) async {
     await initialize();
-    
+
     final recentData = _prefs?.getString(_keyRecentCategories);
     if (recentData == null) return [];
-    
+
     try {
       final List<dynamic> recentList = jsonDecode(recentData);
       final recentCategories = <CategoryModel>[];
-      
+
       for (final item in recentList) {
         final data = item as Map<String, dynamic>;
         if (data['type'] == transactionType.value) {
@@ -120,13 +152,13 @@ class CategoryUsageTracker {
               updatedAt: DateTime.now(),
             ),
           );
-          
+
           if (category.categoryId.isNotEmpty) {
             recentCategories.add(category);
           }
         }
       }
-      
+
       return recentCategories;
     } catch (e) {
       return [];
@@ -142,7 +174,7 @@ class CategoryUsageTracker {
   ) async {
     final usageData = _prefs?.getString(_keyUsageData);
     Map<String, dynamic> usage = {};
-    
+
     if (usageData != null) {
       try {
         usage = jsonDecode(usageData);
@@ -151,26 +183,29 @@ class CategoryUsageTracker {
         usage = {};
       }
     }
-    
+
     final key = '${categoryId}_${transactionType.value}';
     final currentUsage = usage[key] as Map<String, dynamic>? ?? {};
-    
+
     // Update statistics
     currentUsage['categoryId'] = categoryId;
     currentUsage['categoryName'] = categoryName;
     currentUsage['type'] = transactionType.value;
     currentUsage['count'] = (currentUsage['count'] as int? ?? 0) + 1;
-    currentUsage['totalAmount'] = (currentUsage['totalAmount'] as double? ?? 0.0) + amount;
+    currentUsage['totalAmount'] =
+        (currentUsage['totalAmount'] as double? ?? 0.0) + amount;
     currentUsage['lastUsed'] = DateTime.now().millisecondsSinceEpoch;
-    
+
     // Track hourly usage for time-based suggestions
     final hour = DateTime.now().hour;
-    final hourlyUsage = currentUsage['hourlyUsage'] as Map<String, dynamic>? ?? {};
-    hourlyUsage[hour.toString()] = (hourlyUsage[hour.toString()] as int? ?? 0) + 1;
+    final hourlyUsage =
+        currentUsage['hourlyUsage'] as Map<String, dynamic>? ?? {};
+    hourlyUsage[hour.toString()] =
+        (hourlyUsage[hour.toString()] as int? ?? 0) + 1;
     currentUsage['hourlyUsage'] = hourlyUsage;
-    
+
     usage[key] = currentUsage;
-    
+
     await _prefs?.setString(_keyUsageData, jsonEncode(usage));
   }
 
@@ -183,7 +218,7 @@ class CategoryUsageTracker {
   ) async {
     final recentData = _prefs?.getString(_keyRecentCategories);
     List<dynamic> recentList = [];
-    
+
     if (recentData != null) {
       try {
         recentList = jsonDecode(recentData);
@@ -191,13 +226,12 @@ class CategoryUsageTracker {
         recentList = [];
       }
     }
-    
+
     // Remove existing entry if exists
-    recentList.removeWhere((item) => 
-      item['categoryId'] == categoryId && 
-      item['type'] == transactionType.value
-    );
-    
+    recentList.removeWhere((item) =>
+        item['categoryId'] == categoryId &&
+        item['type'] == transactionType.value);
+
     // Add to front
     recentList.insert(0, {
       'categoryId': categoryId,
@@ -205,12 +239,12 @@ class CategoryUsageTracker {
       'type': transactionType.value,
       'timestamp': timestamp.millisecondsSinceEpoch,
     });
-    
+
     // Keep only max recent categories
     if (recentList.length > _maxRecentCategories) {
       recentList = recentList.take(_maxRecentCategories).toList();
     }
-    
+
     await _prefs?.setString(_keyRecentCategories, jsonEncode(recentList));
   }
 
@@ -223,12 +257,14 @@ class CategoryUsageTracker {
       transactionType: transactionType,
       availableCategories: availableCategories,
     );
-    
-    return recentCategories.map((category) => CategorySuggestion(
-      category: category,
-      confidence: 0.9, // High confidence for recent categories
-      reason: 'Gần đây đã sử dụng',
-    )).toList();
+
+    return recentCategories
+        .map((category) => CategorySuggestion(
+              category: category,
+              confidence: 0.9, // High confidence for recent categories
+              reason: 'Gần đây đã sử dụng',
+            ))
+        .toList();
   }
 
   /// Get most used category suggestions
@@ -238,11 +274,11 @@ class CategoryUsageTracker {
   ) async {
     final usageData = _prefs?.getString(_keyUsageData);
     if (usageData == null) return [];
-    
+
     try {
       final Map<String, dynamic> usage = jsonDecode(usageData);
       final suggestions = <CategorySuggestion>[];
-      
+
       for (final entry in usage.entries) {
         final data = entry.value as Map<String, dynamic>;
         if (data['type'] == transactionType.value) {
@@ -259,11 +295,12 @@ class CategoryUsageTracker {
               updatedAt: DateTime.now(),
             ),
           );
-          
+
           if (category.categoryId.isNotEmpty) {
             final count = data['count'] as int;
-            final confidence = (count / 50).clamp(0.1, 0.8); // Max 0.8 confidence
-            
+            final confidence =
+                (count / 50).clamp(0.1, 0.8); // Max 0.8 confidence
+
             suggestions.add(CategorySuggestion(
               category: category,
               confidence: confidence,
@@ -272,7 +309,7 @@ class CategoryUsageTracker {
           }
         }
       }
-      
+
       return suggestions;
     } catch (e) {
       return [];
@@ -287,12 +324,12 @@ class CategoryUsageTracker {
   ) async {
     final usageData = _prefs?.getString(_keyUsageData);
     if (usageData == null) return [];
-    
+
     try {
       final Map<String, dynamic> usage = jsonDecode(usageData);
       final suggestions = <CategorySuggestion>[];
       final currentHour = transactionTime.hour;
-      
+
       for (final entry in usage.entries) {
         final data = entry.value as Map<String, dynamic>;
         if (data['type'] == transactionType.value) {
@@ -313,7 +350,7 @@ class CategoryUsageTracker {
                   updatedAt: DateTime.now(),
                 ),
               );
-              
+
               if (category.categoryId.isNotEmpty) {
                 final confidence = (hourUsage / 10).clamp(0.1, 0.7);
                 suggestions.add(CategorySuggestion(
@@ -326,7 +363,7 @@ class CategoryUsageTracker {
           }
         }
       }
-      
+
       return suggestions;
     } catch (e) {
       return [];
@@ -341,28 +378,37 @@ class CategoryUsageTracker {
   ) async {
     final suggestions = <CategorySuggestion>[];
     final noteWords = transactionNote.toLowerCase().split(' ');
-    
+
     // Simple keyword matching
     final categoryKeywords = {
-      'restaurant': ['cơm', 'phở', 'bún', 'bánh', 'cafe', 'coffee', 'restaurant', 'ăn'],
+      'restaurant': [
+        'cơm',
+        'phở',
+        'bún',
+        'bánh',
+        'cafe',
+        'coffee',
+        'restaurant',
+        'ăn'
+      ],
       'shopping_cart': ['mua', 'shop', 'store', 'market', 'siêu thị'],
       'directions_car': ['xăng', 'gas', 'xe', 'taxi', 'grab', 'uber'],
       'movie': ['phim', 'cinema', 'movie', 'xem'],
       'receipt': ['hóa đơn', 'bill', 'payment', 'thanh toán'],
       'work': ['lương', 'salary', 'bonus', 'work', 'công việc'],
     };
-    
+
     for (final category in availableCategories) {
       if (category.type == transactionType) {
         final keywords = categoryKeywords[category.icon] ?? [];
         var matchCount = 0;
-        
+
         for (final keyword in keywords) {
           if (noteWords.any((word) => word.contains(keyword))) {
             matchCount++;
           }
         }
-        
+
         if (matchCount > 0) {
           final confidence = (matchCount / keywords.length).clamp(0.1, 0.8);
           suggestions.add(CategorySuggestion(
@@ -373,26 +419,27 @@ class CategoryUsageTracker {
         }
       }
     }
-    
+
     return suggestions;
   }
 
   /// Remove duplicates and sort by confidence
-  List<CategorySuggestion> _removeDuplicatesAndSort(List<CategorySuggestion> suggestions) {
+  List<CategorySuggestion> _removeDuplicatesAndSort(
+      List<CategorySuggestion> suggestions) {
     final Map<String, CategorySuggestion> uniqueSuggestions = {};
-    
+
     for (final suggestion in suggestions) {
       final key = suggestion.category.categoryId;
       final existing = uniqueSuggestions[key];
-      
+
       if (existing == null || suggestion.confidence > existing.confidence) {
         uniqueSuggestions[key] = suggestion;
       }
     }
-    
+
     final result = uniqueSuggestions.values.toList();
     result.sort((a, b) => b.confidence.compareTo(a.confidence));
-    
+
     return result;
   }
 

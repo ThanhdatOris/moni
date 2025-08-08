@@ -19,7 +19,7 @@ class TransactionHistoryScreen extends StatefulWidget {
   final String? categoryId;
   final TransactionType? filterType;
   final DateTime? filterDate;
-  
+
   const TransactionHistoryScreen({
     super.key,
     this.categoryId,
@@ -54,12 +54,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    
+
     // Initialize with filter data or defaults
     _selectedDay = widget.filterDate ?? DateTime.now();
     _focusedDay = widget.filterDate ?? DateTime.now();
     _filterType = widget.filterType;
-    
+
     _transactionService = _getIt<TransactionService>();
     _loadTransactions();
   }
@@ -113,10 +113,11 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
       );
 
       // Lấy tất cả giao dịch cho list view
-      _allTransactionsSubscription =
-          _transactionService.getTransactions(
-        categoryId: widget.categoryId, // Apply category filter if provided
-      ).listen(
+      _allTransactionsSubscription = _transactionService
+          .getTransactions(
+        categoryId: widget.categoryId,
+      )
+          .listen(
         (transactions) {
           if (mounted) {
             setState(() {

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../constants/app_colors.dart';
+import '../../../../../utils/formatting/currency_formatter.dart';
 import '../../../widgets/assistant_action_button.dart';
 import '../../../widgets/assistant_base_card.dart';
+import 'report_chart_preview.dart';
 
 /// Report preview container with sample data visualization
 class ReportPreviewContainer extends StatelessWidget {
@@ -11,6 +13,10 @@ class ReportPreviewContainer extends StatelessWidget {
   final VoidCallback? onClose;
   final VoidCallback? onGenerate;
   final VoidCallback? onCustomize;
+  final double? totalIncome;
+  final double? totalExpense;
+  final double? balance;
+  final List<ChartPreviewData>? charts;
 
   const ReportPreviewContainer({
     super.key,
@@ -19,6 +25,10 @@ class ReportPreviewContainer extends StatelessWidget {
     this.onClose,
     this.onGenerate,
     this.onCustomize,
+    this.totalIncome,
+    this.totalExpense,
+    this.balance,
+    this.charts,
   });
 
   @override
@@ -33,7 +43,7 @@ class ReportPreviewContainer extends StatelessWidget {
         children: [
           // Header
           _buildHeader(context),
-          
+
           // Preview content
           Expanded(
             child: SingleChildScrollView(
@@ -137,9 +147,9 @@ class ReportPreviewContainer extends StatelessWidget {
         children: [
           _buildOverviewItem('Thời gian tạo', preview.generatedDate),
           _buildOverviewItem('Kỳ báo cáo', preview.period),
-          _buildOverviewItem('Số lượng giao dịch', '${preview.transactionCount}'),
+          _buildOverviewItem(
+              'Số lượng giao dịch', '${preview.transactionCount}'),
           _buildOverviewItem('Tổng số trang', '${preview.estimatedPages}'),
-          
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -235,6 +245,24 @@ class ReportPreviewContainer extends StatelessWidget {
   }
 
   Widget _buildChartPreview() {
+    if (charts != null && charts!.isNotEmpty) {
+      return GridView.count(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        children: charts!
+            .take(2)
+            .map((c) => ReportChartPreview(
+                  chartData: c,
+                  chartType: ChartType.donut,
+                  height: 160,
+                ))
+            .toList(),
+      );
+    }
+
     return Container(
       height: 120,
       decoration: BoxDecoration(
@@ -322,29 +350,59 @@ class ReportPreviewContainer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '• Tổng thu nhập: 25,000,000đ',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 12,
+          if (totalIncome != null)
+            Text(
+              '• Tổng thu nhập: ${CurrencyFormatter.formatDisplay(totalIncome!.round())}đ',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
             ),
-          ),
           const SizedBox(height: 4),
-          Text(
-            '• Tổng chi tiêu: 18,500,000đ',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 12,
+          if (totalExpense != null)
+            Text(
+              '• Tổng chi tiêu: ${CurrencyFormatter.formatDisplay(totalExpense!.round())}đ',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
             ),
-          ),
           const SizedBox(height: 4),
-          Text(
-            '• Số dư còn lại: 6,500,000đ',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 12,
+          if (balance != null)
+            Text(
+              '• Số dư còn lại: ${CurrencyFormatter.formatDisplay(balance!.round())}đ',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
             ),
-          ),
+          if (totalIncome == null &&
+              totalExpense == null &&
+              balance == null) ...[
+            Text(
+              '• Tổng thu nhập: —',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '• Tổng chi tiêu: —',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '• Số dư còn lại: —',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 12,
+              ),
+            ),
+          ],
         ],
       ),
     );

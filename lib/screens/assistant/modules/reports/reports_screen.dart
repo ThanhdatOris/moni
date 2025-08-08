@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../constants/app_colors.dart';
+import '../../../../models/transaction_model.dart';
+import '../../../../services/chart_data_service.dart';
+import '../../../../services/transaction_service.dart';
 import '../../../assistant/models/agent_request_model.dart';
 import '../../../assistant/services/global_agent_service.dart';
 import 'widgets/report_chart_preview.dart';
@@ -17,20 +20,34 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateMixin {
+class _ReportsScreenState extends State<ReportsScreen>
+    with TickerProviderStateMixin {
   final GlobalAgentService _agentService = GetIt.instance<GlobalAgentService>();
+  final TransactionService _transactionService =
+      GetIt.instance<TransactionService>();
+  final ChartDataService _chartDataService = GetIt.instance<ChartDataService>();
   late TabController _tabController;
   bool _isLoading = false;
   ReportTemplate? _selectedTemplate;
-  
+  double? _totalIncome;
+  double? _totalExpense;
+  double? _balance;
+  List<ChartPreviewData> _charts = [];
+
   // Sample data
   final List<ReportTemplate> _availableTemplates = [
     ReportTemplate(
       id: 'financial_summary',
       name: 'Báo cáo tài chính tổng hợp',
-      description: 'Tổng quan toàn diện về tình hình tài chính với phân tích chi tiết thu chi và xu hướng',
+      description:
+          'Tổng quan toàn diện về tình hình tài chính với phân tích chi tiết thu chi và xu hướng',
       category: ReportCategory.financial,
-      features: ['Thu chi tổng hợp', 'Phân tích xu hướng', 'Biểu đồ trực quan', 'Dự báo'],
+      features: [
+        'Thu chi tổng hợp',
+        'Phân tích xu hướng',
+        'Biểu đồ trực quan',
+        'Dự báo'
+      ],
       estimatedTime: const Duration(minutes: 5),
       previewImage: '',
       parameters: {},
@@ -38,9 +55,15 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     ReportTemplate(
       id: 'spending_analysis',
       name: 'Phân tích chi tiêu chi tiết',
-      description: 'Báo cáo chi tiết về các khoản chi tiêu theo danh mục với đề xuất tối ưu hóa',
+      description:
+          'Báo cáo chi tiết về các khoản chi tiêu theo danh mục với đề xuất tối ưu hóa',
       category: ReportCategory.spending,
-      features: ['Chi tiêu theo danh mục', 'So sánh thời gian', 'Gợi ý tiết kiệm', 'Cảnh báo'],
+      features: [
+        'Chi tiêu theo danh mục',
+        'So sánh thời gian',
+        'Gợi ý tiết kiệm',
+        'Cảnh báo'
+      ],
       estimatedTime: const Duration(minutes: 3),
       previewImage: '',
       parameters: {},
@@ -48,9 +71,15 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     ReportTemplate(
       id: 'budget_performance',
       name: 'Hiệu quả ngân sách',
-      description: 'Đánh giá hiệu quả thực hiện ngân sách với so sánh kế hoạch và thực tế',
+      description:
+          'Đánh giá hiệu quả thực hiện ngân sách với so sánh kế hoạch và thực tế',
       category: ReportCategory.budget,
-      features: ['So sánh ngân sách', 'Tỷ lệ thực hiện', 'Điều chỉnh đề xuất', 'Mục tiêu'],
+      features: [
+        'So sánh ngân sách',
+        'Tỷ lệ thực hiện',
+        'Điều chỉnh đề xuất',
+        'Mục tiêu'
+      ],
       estimatedTime: const Duration(minutes: 4),
       previewImage: '',
       parameters: {},
@@ -62,13 +91,13 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -96,10 +125,12 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             indicatorSize: TabBarIndicatorSize.tab,
             indicator: BoxDecoration(
               borderRadius: BorderRadius.circular(11), // Giảm từ 12 xuống 11
-              color: Colors.purple.shade600, // Solid tím thay vì gradient primary
+              color:
+                  Colors.purple.shade600, // Solid tím thay vì gradient primary
               boxShadow: [
                 BoxShadow(
-                  color: Colors.purple.shade600.withValues(alpha: 0.3), // Đổi màu shadow
+                  color: Colors.purple.shade600
+                      .withValues(alpha: 0.3), // Đổi màu shadow
                   blurRadius: 4, // Giảm từ 6 xuống 4
                   offset: const Offset(0, 1), // Giảm từ 2 xuống 1
                 ),
@@ -107,8 +138,11 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
             ),
             labelColor: Colors.white,
             unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
-            unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
+            labelStyle: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
+            unselectedLabelStyle:
+                const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
             dividerColor: Colors.transparent,
             overlayColor: WidgetStateProperty.all(Colors.transparent),
             splashFactory: NoSplash.splashFactory,
@@ -146,23 +180,23 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                   ],
                 ),
               ),
-                ],
-              ),
-            ),
-            
-            // Content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildTemplatesTab(),
-                  _buildPreviewTab(),
-                  _buildExportTab(),
-                ],
-              ),
-            ),
-          ],
-        );
+            ],
+          ),
+        ),
+
+        // Content
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildTemplatesTab(),
+              _buildPreviewTab(),
+              _buildExportTab(),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildTemplatesTab() {
@@ -253,7 +287,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
                   height: 180,
                 ),
                 ReportChartPreview(
-                  chartData: ChartPreviewData.createSampleData(ChartType.combined),
+                  chartData:
+                      ChartPreviewData.createSampleData(ChartType.combined),
                   chartType: ChartType.combined,
                   height: 180,
                 ),
@@ -293,37 +328,44 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   void _showPreview(ReportTemplate template) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ReportPreviewContainer(
-        preview: ReportPreview(
-          title: template.name,
-          generatedDate: 'Hôm nay',
-          period: 'Tháng 12/2024',
-          transactionCount: 245,
-          estimatedPages: 8,
-          sections: [
-            ReportSection(
-              title: 'Tổng quan tài chính',
-              description: 'Tổng hợp thu chi và số dư hiện tại',
-              type: ReportSectionType.summary,
-            ),
-            ReportSection(
-              title: 'Phân tích chi tiêu',
-              description: 'Biểu đồ chi tiêu theo danh mục',
-              type: ReportSectionType.chart,
-            ),
-          ],
+    _loadPreviewData(template).then((_) {
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => ReportPreviewContainer(
+          preview: ReportPreview(
+            title: template.name,
+            generatedDate: 'Hôm nay',
+            period: _currentMonthLabel(),
+            transactionCount: 0,
+            estimatedPages: 8,
+            sections: [
+              ReportSection(
+                title: 'Tổng quan tài chính',
+                description: 'Tổng hợp thu chi và số dư hiện tại',
+                type: ReportSectionType.summary,
+              ),
+              ReportSection(
+                title: 'Phân tích chi tiêu',
+                description: 'Biểu đồ chi tiêu theo danh mục',
+                type: ReportSectionType.chart,
+              ),
+            ],
+          ),
+          onClose: () => Navigator.pop(context),
+          onGenerate: () {
+            Navigator.pop(context);
+            _generateReport(template);
+          },
+          totalIncome: _totalIncome,
+          totalExpense: _totalExpense,
+          balance: _balance,
+          charts: _charts,
         ),
-        onClose: () => Navigator.pop(context),
-        onGenerate: () {
-          Navigator.pop(context);
-          _generateReport(template);
-        },
-      ),
-    );
+      );
+    });
   }
 
   void _showFullPreview(ReportTemplate template) {
@@ -332,20 +374,20 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
 
   Future<void> _generateReport(ReportTemplate template) async {
     setState(() => _isLoading = true);
-    
+
     try {
       final request = AgentRequest.budget(
         message: 'Tạo ${template.name} với dữ liệu thực tế của người dùng. '
-                'Bao gồm phân tích chi tiết, biểu đồ và gợi ý cải thiện.',
+            'Bao gồm phân tích chi tiết, biểu đồ và gợi ý cải thiện.',
         parameters: {
           'template_id': template.id,
           'category': template.category.name,
           'features': template.features,
         },
       );
-      
+
       final response = await _agentService.processRequest(request);
-      
+
       if (mounted) {
         if (response.isSuccess) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -354,7 +396,9 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           _tabController.animateTo(2); // Switch to export tab
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Lỗi: ${response.error ?? "Không thể tạo báo cáo"}')),
+            SnackBar(
+                content:
+                    Text('Lỗi: ${response.error ?? "Không thể tạo báo cáo"}')),
           );
         }
       }
@@ -371,6 +415,71 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     }
   }
 
+  // ===== Helpers for preview real data =====
+  String _currentMonthLabel() {
+    final now = DateTime.now();
+    return 'Tháng ${now.month}/${now.year}';
+  }
+
+  ({DateTime start, DateTime end}) _currentMonthRange() {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1);
+    final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+    return (start: start, end: end);
+  }
+
+  Future<void> _loadPreviewData(ReportTemplate template) async {
+    setState(() => _isLoading = true);
+    try {
+      final range = _currentMonthRange();
+      // Totals
+      final totalIncome = await _transactionService.getTotalIncome(
+        startDate: range.start,
+        endDate: range.end,
+      );
+      final totalExpense = await _transactionService.getTotalExpense(
+        startDate: range.start,
+        endDate: range.end,
+      );
+      final balance = totalIncome - totalExpense;
+
+      // Donut chart for expense distribution
+      final donutModels = await _chartDataService.getDonutChartData(
+        startDate: range.start,
+        endDate: range.end,
+        transactionType: TransactionType.expense,
+      );
+      final donutTotal =
+          donutModels.fold<double>(0, (sum, m) => sum + m.amount);
+      final donutData = donutModels
+          .map((m) => ChartDataPoint(
+                label: m.category,
+                value: m.amount,
+                color: m.color,
+                percentage: m.percentage,
+              ))
+          .toList();
+      final donutChart = ChartPreviewData(
+        title: 'Phân bổ chi tiêu',
+        subtitle: 'Theo danh mục (tháng này)',
+        data: donutData,
+        total: donutTotal,
+        centerText: '',
+      );
+
+      setState(() {
+        _totalIncome = totalIncome;
+        _totalExpense = totalExpense;
+        _balance = balance;
+        _charts = [donutChart];
+      });
+    } catch (_) {
+      // keep silent in UI, values remain null
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _exportReport(ExportSettings settings) async {
     if (_selectedTemplate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -380,15 +489,16 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     }
 
     setState(() => _isLoading = true);
-    
+
     try {
       // Simulate export process
       await Future.delayed(const Duration(seconds: 3));
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Đã xuất báo cáo ${settings.format?.name ?? "PDF"} thành công!'),
+            content: Text(
+                'Đã xuất báo cáo ${settings.format?.name ?? "PDF"} thành công!'),
           ),
         );
       }

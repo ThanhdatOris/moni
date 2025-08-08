@@ -849,9 +849,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return [];
 
-      // Lấy giao dịch gần đây (tạm thời trả về danh sách rỗng)
-      // TODO: Implement actual recent transactions retrieval
-      return [];
+      // Lấy 30 ngày gần nhất, limit 200 giao dịch để phục vụ validations
+      final now = DateTime.now();
+      final start = now.subtract(const Duration(days: 30));
+
+      final transactions = await _getIt<TransactionService>()
+          .getTransactions(startDate: start, endDate: now, limit: 200)
+          .first;
+
+      return transactions;
     } catch (e) {
       _logger.e('Error getting recent transactions: $e');
       return [];
