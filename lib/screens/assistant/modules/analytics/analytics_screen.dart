@@ -21,27 +21,29 @@ class AnalyticsScreen extends StatefulWidget {
   State<AnalyticsScreen> createState() => _AnalyticsScreenState();
 }
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderStateMixin {
+class _AnalyticsScreenState extends State<AnalyticsScreen>
+    with TickerProviderStateMixin {
   final GlobalAgentService _agentService = GetIt.instance<GlobalAgentService>();
-  final AnalyticsModuleCoordinator _analyticsCoordinator = AnalyticsModuleCoordinator();
+  final AnalyticsModuleCoordinator _analyticsCoordinator =
+      AnalyticsModuleCoordinator();
   late TabController _tabController;
-  
+
   bool _isLoading = false;
   bool _hasError = false;
   String? _errorMessage;
   String? _aiInsight;
   List<String> _recommendations = [];
-  
+
   // Financial data
   double _totalIncome = 0;
   double _totalExpense = 0;
   double _balance = 0;
   int _transactionCount = 0;
-  
+
   // Chart data
   List<ChartDataModel> _categoryData = [];
   List<ChartDataModel> _trendData = [];
-  
+
   @override
   void initState() {
     super.initState();
@@ -61,17 +63,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
       _hasError = false;
       _errorMessage = null;
     });
-    
+
     try {
       // Load financial summary
       await _loadFinancialSummary();
-      
+
       // Load chart data
       await _loadChartData();
-      
+
       // Generate AI insights
       await _generateAIInsights();
-      
     } catch (e) {
       setState(() {
         _hasError = true;
@@ -87,20 +88,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
     try {
       final quickAnalysis = await _analyticsCoordinator.performQuickAnalysis();
       final insights = quickAnalysis.spendingInsights;
-      
+
       setState(() {
         _totalExpense = insights['totalSpending']?.toDouble() ?? 0.0;
-        _totalIncome = _totalExpense * 1.2; // Estimate income as 120% of expense
+        _totalIncome =
+            _totalExpense * 1.2; // Estimate income as 120% of expense
         _balance = _totalIncome - _totalExpense;
         _transactionCount = insights['transactionCount']?.toInt() ?? 0;
       });
     } catch (e) {
-      // Fallback to mock data if analytics fails
+      // Keep empty state on failure
       setState(() {
-        _totalIncome = 15000000; // 15M VND
-        _totalExpense = 12000000; // 12M VND  
-        _balance = _totalIncome - _totalExpense;
-        _transactionCount = 45;
+        _totalIncome = 0;
+        _totalExpense = 0;
+        _balance = 0;
+        _transactionCount = 0;
       });
     }
   }
@@ -108,121 +110,49 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
   Future<void> _loadChartData() async {
     // Use actual data from analytics coordinator
     try {
-      final analysis = await _analyticsCoordinator.performComprehensiveAnalysis();
-      final categoryDistribution = analysis.spendingPatterns.categoryDistribution;
-      final trendingInsights = await _analyticsCoordinator.getTrendingInsights();
-      
+      final analysis =
+          await _analyticsCoordinator.performComprehensiveAnalysis();
+      final categoryDistribution =
+          analysis.spendingPatterns.categoryDistribution;
+
       setState(() {
         _categoryData = categoryDistribution.entries.map((entry) {
           final dist = entry.value;
           return ChartDataModel(
-            category: dist.categoryId.split('_').last, // Simplified category name
+            category:
+                dist.categoryId.split('_').last, // Simplified category name
             amount: dist.totalAmount,
             percentage: dist.percentage,
             icon: '📊', // Default icon
-            color: '#${(dist.categoryId.hashCode & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
+            color:
+                '#${(dist.categoryId.hashCode & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}',
             type: 'expense',
           );
         }).toList();
-        
-        // Mock trend data from insights
-        _trendData = trendingInsights.take(4).map((insight) => ChartDataModel(
-          category: insight.title,
-          amount: insight.impact * 1000000, // Convert impact to amount
-          percentage: insight.impact * 100,
-          icon: '',
-          color: '#FF9800',
-          type: 'expense',
-        )).toList();
+        // Use analytics data only; if no trend series provided, leave empty
+        _trendData = [];
       });
     } catch (e) {
-      // Fallback to mock data if analytics fails
-      _loadMockChartData();
+      // Keep empty state on failure
+      setState(() {
+        _categoryData = [];
+        _trendData = [];
+      });
     }
   }
 
-  void _loadMockChartData() {
-    setState(() {
-      _categoryData = [
-        ChartDataModel(
-          category: 'Ăn uống',
-          amount: 4000000,
-          percentage: 33.3,
-          icon: '🍽️',
-          color: '#FF9800',
-          type: 'expense',
-        ),
-        ChartDataModel(
-          category: 'Di chuyển',
-          amount: 2500000,
-          percentage: 20.8,
-          icon: '🚗',
-          color: '#2196F3',
-          type: 'expense',
-        ),
-        ChartDataModel(
-          category: 'Mua sắm',
-          amount: 3000000,
-          percentage: 25.0,
-          icon: '🛍️',
-          color: '#E91E63',
-          type: 'expense',
-        ),
-        ChartDataModel(
-          category: 'Lương',
-          amount: 15000000,
-          percentage: 100.0,
-          icon: '💰',
-          color: '#4CAF50',
-          type: 'income',
-        ),
-      ];
-      
-      _trendData = [
-        ChartDataModel(
-          category: 'Tuần 1',
-          amount: 3000000,
-          percentage: 25.0,
-          icon: '',
-          color: '#FF9800',
-          type: 'expense',
-        ),
-        ChartDataModel(
-          category: 'Tuần 2',
-          amount: 2800000,
-          percentage: 23.3,
-          icon: '',
-          color: '#FF9800',
-          type: 'expense',
-        ),
-        ChartDataModel(
-          category: 'Tuần 3',
-          amount: 3200000,
-          percentage: 26.7,
-          icon: '',
-          color: '#FF9800',
-          type: 'expense',
-        ),
-        ChartDataModel(
-          category: 'Tuần 4',
-          amount: 3000000,
-          percentage: 25.0,
-          icon: '',
-          color: '#FF9800',
-          type: 'expense',
-        ),
-      ];
-    });
-  }
+  // Removed mock data loader to avoid misleading runtime data
 
   Future<void> _generateAIInsights() async {
     try {
       // Get analytics data to enhance AI insights
       final priorityActions = await _analyticsCoordinator.getPriorityActions();
-      final healthScore = (await _analyticsCoordinator.performQuickAnalysis()).healthScore;
-      
+      final healthScore =
+          (await _analyticsCoordinator.performQuickAnalysis()).healthScore;
+
       final request = AgentRequest.analytics(
-        message: 'Phân tích chi tiêu tháng này và đưa ra những insight quan trọng',
+        message:
+            'Phân tích chi tiêu tháng này và đưa ra những insight quan trọng',
         parameters: {
           'period': 'month',
           'analysis_type': 'comprehensive',
@@ -232,9 +162,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
           'priority_actions': priorityActions.map((a) => a.title).toList(),
         },
       );
-      
+
       final response = await _agentService.processRequest(request);
-      
+
       if (response.isSuccess) {
         setState(() {
           _aiInsight = response.message;
@@ -252,10 +182,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
       try {
         final analysis = await _analyticsCoordinator.performQuickAnalysis();
         final insights = analysis.spendingInsights;
-        
+
         setState(() {
-          _aiInsight = 'Dựa trên dữ liệu phân tích: Chi tiêu tháng này là ${insights['totalSpending']?.toStringAsFixed(0) ?? "0"}đ. '
-                     'Tình trạng chi tiêu đang ${analysis.healthScore > 70 ? "tốt" : "cần cải thiện"}.';
+          _aiInsight =
+              'Dựa trên dữ liệu phân tích: Chi tiêu tháng này là ${insights['totalSpending']?.toStringAsFixed(0) ?? "0"}đ. '
+              'Tình trạng chi tiêu đang ${analysis.healthScore > 70 ? "tốt" : "cần cải thiện"}.';
           _recommendations = [
             'Theo dõi chi tiêu hàng ngày để kiểm soát tốt hơn',
             'Đặt mục tiêu tiết kiệm cụ thể cho tháng tới',
@@ -309,8 +240,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
             ),
             labelColor: Colors.white,
             unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
-            unselectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
+            labelStyle: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
+            unselectedLabelStyle:
+                const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
             dividerColor: Colors.transparent,
             overlayColor: WidgetStateProperty.all(Colors.transparent),
             splashFactory: NoSplash.splashFactory,
@@ -320,7 +254,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.dashboard_outlined, size: 14), // Giảm size từ 16 xuống 14
+                    Icon(Icons.dashboard_outlined,
+                        size: 14), // Giảm size từ 16 xuống 14
                     SizedBox(width: 4), // Giảm từ 6 xuống 4
                     Text('Tổng quan'),
                   ],
@@ -409,9 +344,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> with TickerProviderSt
                 balance: _balance,
                 transactionCount: _transactionCount,
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Quick Actions
               AnalyticsQuickActions(
                 onExportReport: _exportReport,

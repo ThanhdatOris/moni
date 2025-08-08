@@ -23,7 +23,14 @@ import 'widgets/transaction_app_bar.dart';
 import 'widgets/transaction_manual_form.dart';
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final TransactionType? initialType;
+  final String? initialCategoryId;
+
+  const AddTransactionScreen({
+    super.key,
+    this.initialType,
+    this.initialCategoryId,
+  });
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -41,7 +48,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
   // Transaction data
   TransactionType _selectedType = TransactionType.expense;
-  TransactionType _currentTransactionType = TransactionType.expense; // Track current type for AI workflow
+  TransactionType _currentTransactionType =
+      TransactionType.expense; // Track current type for AI workflow
   CategoryModel? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
   List<CategoryModel> _categories = [];
@@ -68,8 +76,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     _tabController = TabController(length: 2, vsync: this);
     _transactionService = _getIt<TransactionService>();
     _categoryService = _getIt<CategoryService>();
-    
-    // Initialize current type to match selected type
+
+    // Initialize from initial parameters if provided
+    _selectedType = widget.initialType ?? TransactionType.expense;
     _currentTransactionType = _selectedType;
 
     // Add controller listeners to track manual edits
@@ -136,11 +145,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         (categories) async {
           _timeoutTimer?.cancel();
           if (mounted && !hasTimedOut) {
-            _logger.d('📦 Received ${categories.length} categories for type: $_selectedType');
-            
+            _logger.d(
+                '📦 Received ${categories.length} categories for type: $_selectedType');
+
             // If no categories found, try to create default categories
             if (categories.isEmpty) {
-              _logger.d('🔧 No categories found, creating default categories...');
+              _logger
+                  .d('🔧 No categories found, creating default categories...');
               try {
                 await _categoryService.createDefaultCategories();
                 _logger.d('✅ Default categories created successfully');
@@ -154,11 +165,25 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                 _logger.d('   - ${cat.name} (${cat.type.value})');
               }
             }
-            
+
             setState(() {
               _categories = categories;
               _isCategoriesLoading = false;
               _categoriesError = null;
+              // Preselect category if provided
+              if (widget.initialCategoryId != null &&
+                  _selectedCategory == null) {
+                try {
+                  _selectedCategory = categories.firstWhere(
+                    (c) => c.categoryId == widget.initialCategoryId,
+                    orElse: () =>
+                        _selectedCategory ??
+                        (categories.isNotEmpty ? categories.first : null)!,
+                  );
+                } catch (_) {
+                  // ignore if not found
+                }
+              }
             });
           }
         },
@@ -210,11 +235,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       _logger.d('🔍 Debug: Checking all categories without type filter...');
       _categoryService.getCategories().listen((allCategories) {
         _logger.d('📊 Total categories in DB: ${allCategories.length}');
-        final expenseCount = allCategories.where((c) => c.type == TransactionType.expense).length;
-        final incomeCount = allCategories.where((c) => c.type == TransactionType.income).length;
+        final expenseCount = allCategories
+            .where((c) => c.type == TransactionType.expense)
+            .length;
+        final incomeCount =
+            allCategories.where((c) => c.type == TransactionType.income).length;
         _logger.d('   - Expense categories: $expenseCount');
         _logger.d('   - Income categories: $incomeCount');
-        
+
         for (var cat in allCategories) {
           _logger.d('   - ${cat.name} (${cat.type.value})');
         }
@@ -222,8 +250,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
       // Also test optimized version
       _logger.d('🔍 Debug: Testing getCategoriesOptimized for current type...');
-      _categoryService.getCategoriesOptimized(type: _selectedType).listen((categories) {
-        _logger.d('📦 Optimized method returned: ${categories.length} categories for type: $_selectedType');
+      _categoryService
+          .getCategoriesOptimized(type: _selectedType)
+          .listen((categories) {
+        _logger.d(
+            '📦 Optimized method returned: ${categories.length} categories for type: $_selectedType');
         for (var cat in categories) {
           _logger.d('   - ${cat.name} (${cat.type})');
         }
@@ -345,18 +376,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       onScanComplete: (results) async {
         // Tự động điền dữ liệu vào form thủ công
         await _applyScanResults(results);
-        
+
         // Chuyển sang tab thủ công để user có thể chỉnh sửa
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted && _tabController.index == 1) {
             _tabController.animateTo(0); // Chuyển về tab manual input
-            
+
             // Hiển thị thông báo
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Row(
                   children: [
-                    const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
+                    const Icon(Icons.auto_awesome,
+                        color: Colors.white, size: 20),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
@@ -383,109 +415,120 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   Future<void> _applyScanResults(Map<String, dynamic> scanResults) async {
     // Debug log để kiểm tra dữ liệu AI trả về
     _logger.d('📊 AI Scan Results: $scanResults');
-    
+
     _aiFilledFields.clear(); // Reset tracking
-    
+
     // Điền amount với xử lý nhiều format
     final amount = scanResults['amount'];
     if (amount != null) {
       if (amount is String) {
-        // Xử lý format như "125,000" hoặc "125k" 
+        // Xử lý format như "125,000" hoặc "125k"
         final cleanAmount = amount.replaceAll(',', '').replaceAll(' ', '');
         final parsedAmount = double.tryParse(cleanAmount) ?? 0;
-        _amountController.text = CurrencyFormatter.formatDisplay(parsedAmount.toInt());
+        _amountController.text =
+            CurrencyFormatter.formatDisplay(parsedAmount.toInt());
         _aiFilledFields.add('amount');
       } else if (amount is num) {
-        _amountController.text = CurrencyFormatter.formatDisplay(amount.toInt());
+        _amountController.text =
+            CurrencyFormatter.formatDisplay(amount.toInt());
         _aiFilledFields.add('amount');
       }
     }
 
-      // FIXED: Điền note/description một cách cẩn thận, tránh điền thời gian
-      String noteText = '';
-      
-      // Ưu tiên note từ AI
-      if (scanResults['note'] != null && scanResults['note'].toString().isNotEmpty) {
-        noteText = scanResults['note'].toString();
-      }
-      // Sau đó description
-      else if (scanResults['description'] != null && scanResults['description'].toString().isNotEmpty) {
-        noteText = scanResults['description'].toString();
-      }
-      // Cuối cùng merchant name
-      else if (scanResults['merchantName'] != null && scanResults['merchantName'].toString().isNotEmpty) {
-        noteText = scanResults['merchantName'].toString();
-      }
-      
-      // Kiểm tra xem có phải là thời gian không (tránh điền thời gian vào note)
-      if (noteText.isNotEmpty && !_isTimeString(noteText)) {
-        _noteController.text = noteText;
-        _aiFilledFields.add('note');
-      }
+    // FIXED: Điền note/description một cách cẩn thận, tránh điền thời gian
+    String noteText = '';
 
-      // FIXED: Điền type và đảm bảo reload categories đúng
-      final typeString = scanResults['type']?.toString().toLowerCase() ?? 'expense';
-      final newType = typeString == 'income' ? TransactionType.income : TransactionType.expense;
-      
-      _logger.d('🔄 AI detected type: $typeString -> $newType');
-      
-      if (newType != _selectedType) {
-        _logger.d('⚡ Switching transaction type from $_selectedType to $newType');
-        setState(() {
-          _selectedType = newType;
-          _currentTransactionType = newType; // Keep current type in sync for category selector
-          _selectedCategory = null; // Reset category khi đổi type
-        });
-        _aiFilledFields.add('type');
-        
-        // CRITICAL: Reload categories cho type mới và đợi hoàn thành
-        _logger.d('⏳ Loading categories for $newType...');
-        await _loadCategoriesForType(newType);
-        _logger.d('✅ Categories loaded for $newType');
-      }
+    // Ưu tiên note từ AI
+    if (scanResults['note'] != null &&
+        scanResults['note'].toString().isNotEmpty) {
+      noteText = scanResults['note'].toString();
+    }
+    // Sau đó description
+    else if (scanResults['description'] != null &&
+        scanResults['description'].toString().isNotEmpty) {
+      noteText = scanResults['description'].toString();
+    }
+    // Cuối cùng merchant name
+    else if (scanResults['merchantName'] != null &&
+        scanResults['merchantName'].toString().isNotEmpty) {
+      noteText = scanResults['merchantName'].toString();
+    }
 
-      // Điền date với fallback an toàn
-      final dateValue = scanResults['date'];
-      if (dateValue != null) {
-        try {
-          DateTime? parsedDate;
-          
-          if (dateValue is String) {
-            // Thử parse các format date khác nhau
-            parsedDate = _parseDate(dateValue);
-          } else if (dateValue is DateTime) {
-            parsedDate = dateValue;
-          }
-          
-          if (parsedDate != null) {
-            setState(() {
-              _selectedDate = parsedDate!; // Force unwrap vì đã check null
-            });
-            _aiFilledFields.add('date');
-          }
-        } catch (e) {
-          _logger.w('⚠️ Error parsing date: $e');
-          setState(() {
-            _selectedDate = DateTime.now();
-          });
-        }
-      }
+    // Kiểm tra xem có phải là thời gian không (tránh điền thời gian vào note)
+    if (noteText.isNotEmpty && !_isTimeString(noteText)) {
+      _noteController.text = noteText;
+      _aiFilledFields.add('note');
+    }
 
-      // Show hint if any fields were auto-filled
+    // FIXED: Điền type và đảm bảo reload categories đúng
+    final typeString =
+        scanResults['type']?.toString().toLowerCase() ?? 'expense';
+    final newType = typeString == 'income'
+        ? TransactionType.income
+        : TransactionType.expense;
+
+    _logger.d('🔄 AI detected type: $typeString -> $newType');
+
+    if (newType != _selectedType) {
+      _logger.d('⚡ Switching transaction type from $_selectedType to $newType');
       setState(() {
-        _showAiFilledHint = _aiFilledFields.isNotEmpty;
+        _selectedType = newType;
+        _currentTransactionType =
+            newType; // Keep current type in sync for category selector
+        _selectedCategory = null; // Reset category khi đổi type
       });
-    
+      _aiFilledFields.add('type');
+
+      // CRITICAL: Reload categories cho type mới và đợi hoàn thành
+      _logger.d('⏳ Loading categories for $newType...');
+      await _loadCategoriesForType(newType);
+      _logger.d('✅ Categories loaded for $newType');
+    }
+
+    // Điền date với fallback an toàn
+    final dateValue = scanResults['date'];
+    if (dateValue != null) {
+      try {
+        DateTime? parsedDate;
+
+        if (dateValue is String) {
+          // Thử parse các format date khác nhau
+          parsedDate = _parseDate(dateValue);
+        } else if (dateValue is DateTime) {
+          parsedDate = dateValue;
+        }
+
+        if (parsedDate != null) {
+          setState(() {
+            _selectedDate = parsedDate!; // Force unwrap vì đã check null
+          });
+          _aiFilledFields.add('date');
+        }
+      } catch (e) {
+        _logger.w('⚠️ Error parsing date: $e');
+        setState(() {
+          _selectedDate = DateTime.now();
+        });
+      }
+    }
+
+    // Show hint if any fields were auto-filled
+    setState(() {
+      _showAiFilledHint = _aiFilledFields.isNotEmpty;
+    });
+
     // FIXED: Điền category sau khi categories đã được load (với delay longer cho income)
     final isIncomeType = _selectedType == TransactionType.income;
-    final delayMs = isIncomeType ? 1200 : 800; // More time for income category loading
-    
+    final delayMs =
+        isIncomeType ? 1200 : 800; // More time for income category loading
+
     Future.delayed(Duration(milliseconds: delayMs), () {
       if (mounted) {
-        _logger.d('🔍 Attempting to auto-select category for $_selectedType...');
-        final categoryName = scanResults['category_name'] ?? 
-                            scanResults['category_suggestion'] ??
-                            scanResults['categoryHint'];
+        _logger
+            .d('🔍 Attempting to auto-select category for $_selectedType...');
+        final categoryName = scanResults['category_name'] ??
+            scanResults['category_suggestion'] ??
+            scanResults['categoryHint'];
         if (categoryName != null && categoryName.toString().isNotEmpty) {
           _logger.d('🎯 Looking for category: ${categoryName.toString()}');
           final foundCategory = _findCategoryByName(categoryName.toString());
@@ -498,7 +541,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
             });
           } else {
             _logger.w('❌ Category not found: ${categoryName.toString()}');
-            _logger.d('📋 Available categories: ${_categories.map((c) => c.name).join(', ')}');
+            _logger.d(
+                '📋 Available categories: ${_categories.map((c) => c.name).join(', ')}');
           }
         }
       }
@@ -507,33 +551,43 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
   CategoryModel? _findCategoryByName(String categoryName) {
     if (_categories.isEmpty) return null;
-    
+
     try {
       // Chỉ tìm trong categories của type hiện tại
-      final currentTypeCategories = _categories.where((cat) => cat.type == _currentTransactionType).toList();
-      _logger.d('🔍 Searching in ${currentTypeCategories.length} categories of type $_currentTransactionType');
-      
+      final currentTypeCategories = _categories
+          .where((cat) => cat.type == _currentTransactionType)
+          .toList();
+      _logger.d(
+          '🔍 Searching in ${currentTypeCategories.length} categories of type $_currentTransactionType');
+
       if (currentTypeCategories.isEmpty) return null;
-      
+
       // Tìm exact match trước
-      var exactMatch = currentTypeCategories.where((category) =>
-          category.name.toLowerCase() == categoryName.toLowerCase()).firstOrNull;
+      var exactMatch = currentTypeCategories
+          .where((category) =>
+              category.name.toLowerCase() == categoryName.toLowerCase())
+          .firstOrNull;
       if (exactMatch != null) {
         _logger.d('✅ Found exact match: ${exactMatch.name}');
         return exactMatch;
       }
 
       // Tìm partial match
-      var partialMatch = currentTypeCategories.where((category) =>
-          category.name.toLowerCase().contains(categoryName.toLowerCase()) ||
-          categoryName.toLowerCase().contains(category.name.toLowerCase())).firstOrNull;
+      var partialMatch = currentTypeCategories
+          .where((category) =>
+              category.name
+                  .toLowerCase()
+                  .contains(categoryName.toLowerCase()) ||
+              categoryName.toLowerCase().contains(category.name.toLowerCase()))
+          .firstOrNull;
       if (partialMatch != null) {
         _logger.d('✅ Found partial match: ${partialMatch.name}');
         return partialMatch;
       }
 
       // Fallback: return first category of current type
-      _logger.w('⚠️ No match found, returning first category of type $_currentTransactionType');
+      _logger.w(
+          '⚠️ No match found, returning first category of type $_currentTransactionType');
       return currentTypeCategories.firstOrNull;
     } catch (e) {
       _logger.e('❌ Error in _findCategoryByName: $e');
@@ -814,7 +868,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       RegExp(r'^\d{2}/\d{2}/\d{4}$'), // DD/MM/YYYY
       RegExp(r'^\d{1,2}h\d{2}$'), // 14h30
     ];
-    
+
     return timePatterns.any((pattern) => pattern.hasMatch(text.trim()));
   }
 
@@ -822,12 +876,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   DateTime? _parseDate(String dateString) {
     try {
       final cleanDate = dateString.trim();
-      
+
       // Try ISO format first
       if (RegExp(r'^\d{4}-\d{2}-\d{2}').hasMatch(cleanDate)) {
         return DateTime.parse(cleanDate);
       }
-      
+
       // Try DD/MM/YYYY format
       if (RegExp(r'^\d{1,2}/\d{1,2}/\d{4}$').hasMatch(cleanDate)) {
         final parts = cleanDate.split('/');
@@ -839,7 +893,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           );
         }
       }
-      
+
       // Try other common formats...
       return DateTime.tryParse(cleanDate);
     } catch (e) {

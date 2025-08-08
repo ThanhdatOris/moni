@@ -22,7 +22,7 @@ class InsightsDetailScreen extends StatefulWidget {
 
 class _InsightsDetailScreenState extends State<InsightsDetailScreen> {
   final AnalyticsModuleCoordinator _coordinator = AnalyticsModuleCoordinator();
-  
+
   bool _isLoading = false;
   Map<String, dynamic> _detailedInsights = {};
   List<String> _priorityActions = [];
@@ -35,16 +35,16 @@ class _InsightsDetailScreenState extends State<InsightsDetailScreen> {
 
   Future<void> _loadDetailedInsights() async {
     setState(() => _isLoading = true);
-    
+
     try {
       // Load trending insights
       final insights = await _coordinator.getTrendingInsights();
       final actions = await _coordinator.getPriorityActions();
-      
+
       setState(() {
         _detailedInsights = {
           'insights': insights,
-          'healthScore': 0.75, // Mock data for now
+          // Remove mocked healthScore; rely on coordinator when available
         };
         _priorityActions = actions.map((action) => action.title).toList();
         _isLoading = false;
@@ -88,17 +88,15 @@ class _InsightsDetailScreenState extends State<InsightsDetailScreen> {
       child: Column(
         children: [
           // Main insight summary
-          if (widget.initialInsight != null)
-            _buildMainInsightCard(),
-          
+          if (widget.initialInsight != null) _buildMainInsightCard(),
+
           const SizedBox(height: 16),
-          
+
           // Priority actions
-          if (_priorityActions.isNotEmpty)
-            _buildPriorityActionsCard(),
-          
+          if (_priorityActions.isNotEmpty) _buildPriorityActionsCard(),
+
           const SizedBox(height: 16),
-          
+
           // Detailed analysis sections
           ..._buildDetailedSections(),
         ],
@@ -135,7 +133,8 @@ class _InsightsDetailScreenState extends State<InsightsDetailScreen> {
         colors: [AppColors.warning, AppColors.warning.withValues(alpha: 0.8)],
       ),
       child: Column(
-        children: _priorityActions.map((action) => _buildActionItem(action)).toList(),
+        children:
+            _priorityActions.map((action) => _buildActionItem(action)).toList(),
       ),
     );
   }
@@ -173,31 +172,31 @@ class _InsightsDetailScreenState extends State<InsightsDetailScreen> {
 
   List<Widget> _buildDetailedSections() {
     final sections = <Widget>[];
-    
+
     // Financial Health
     if (_detailedInsights['healthScore'] != null) {
       sections.add(_buildHealthSection());
       sections.add(const SizedBox(height: 16));
     }
-    
+
     // Spending Patterns
     if (_detailedInsights['spendingPatterns'] != null) {
       sections.add(_buildSpendingPatternsSection());
       sections.add(const SizedBox(height: 16));
     }
-    
+
     // Recommendations
     if (widget.initialRecommendations.isNotEmpty) {
       sections.add(_buildRecommendationsSection());
     }
-    
+
     return sections;
   }
 
   Widget _buildHealthSection() {
     final healthScore = _detailedInsights['healthScore']?.toDouble() ?? 0.0;
     final healthColor = _getHealthColor(healthScore);
-    
+
     return AssistantBaseCard(
       title: 'Sức khỏe tài chính',
       titleIcon: Icons.favorite,
@@ -291,37 +290,37 @@ class _InsightsDetailScreenState extends State<InsightsDetailScreen> {
         colors: [AppColors.success, AppColors.success.withValues(alpha: 0.8)],
       ),
       child: Column(
-        children: widget.initialRecommendations.map((rec) => 
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  color: Colors.white.withValues(alpha: 0.8),
-                  size: 20,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    rec,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      height: 1.4,
-                    ),
+        children: widget.initialRecommendations
+            .map((rec) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-              ],
-            ),
-          )
-        ).toList(),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.lightbulb_outline,
+                        color: Colors.white.withValues(alpha: 0.8),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          rec,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ))
+            .toList(),
       ),
     );
   }
