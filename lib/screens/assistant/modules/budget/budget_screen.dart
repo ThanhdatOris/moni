@@ -328,8 +328,8 @@ class _BudgetScreenState extends State<BudgetScreen>
         child: Column(
           children: [
             BudgetRecommendationCard(
-              recommendation: _budgetData?.recommendations.join('\n• ') ??
-                  'Đang tải khuyến nghị...',
+              recommendation:
+                  (_budgetData?.recommendations ?? const []).join('\n• '),
               tips: _budgetTips,
               isLoading: _isLoading,
               onRegenerateRecommendation: _generateNewRecommendation,

@@ -120,7 +120,7 @@ class ConversationService extends ChangeNotifier {
       }
     } catch (e) {
       // Handle error loading conversation
-      print('Error loading conversation $conversationId: $e');
+      // print('Error loading conversation $conversationId: $e');
     }
   }
 
@@ -218,7 +218,7 @@ class ConversationService extends ChangeNotifier {
         await addWelcomeMessage();
       }
     } catch (e) {
-      print('Error loading current conversation: $e');
+      // print('Error loading current conversation: $e');
       _currentMessages.clear();
       await addWelcomeMessage();
     }
@@ -258,7 +258,7 @@ class ConversationService extends ChangeNotifier {
       await prefs.setStringList(_conversationsKey, conversations);
       notifyListeners();
     } catch (e) {
-      print('Error renaming conversation: $e');
+      // print('Error renaming conversation: $e');
     }
   }
 
@@ -287,7 +287,7 @@ class ConversationService extends ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
-      print('Error deleting conversation: $e');
+      // print('Error deleting conversation: $e');
     }
   }
 

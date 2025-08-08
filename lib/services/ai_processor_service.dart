@@ -803,6 +803,27 @@ Question: "$question"
     }
   }
 
+  /// Sinh văn bản thuần từ prompt đã chuẩn hoá (bỏ mọi heuristic/chat routing)
+  Future<String> generateText(String prompt) async {
+    try {
+      await _checkRateLimit();
+      final estimatedTokens = _estimateTokens(prompt);
+      if (_dailyTokenCount + estimatedTokens > _dailyTokenLimit) {
+        return 'Quota AI đã vượt giới hạn ngày hôm nay.';
+      }
+
+      final response = await _model.generateContent([Content.text(prompt)]);
+      final result = response.text ?? '';
+
+      // cập nhật ước lượng token tiêu thụ
+      _dailyTokenCount += estimatedTokens + _estimateTokens(result);
+      return result;
+    } catch (e) {
+      _logger.e('Error generateText: $e');
+      return '';
+    }
+  }
+
   /// Phân tích thói quen chi tiêu và đưa ra lời khuyên
   Future<String> analyzeSpendingHabits(
       Map<String, dynamic> transactionData) async {

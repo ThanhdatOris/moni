@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../assistant/models/agent_request_model.dart';
+import '../../assistant/services/real_data_service.dart';
 import '../../assistant/services/universal_ai_processor.dart';
 import 'assistant_action_button.dart';
 import 'assistant_base_card.dart';
@@ -32,11 +35,14 @@ class GlobalInsightPanel extends StatefulWidget {
 
 class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
   final UniversalAIProcessor _processor = UniversalAIProcessor();
+  final RealDataService _realDataService = RealDataService();
 
   bool _isLoading = false;
   String? _error;
   String? _insightText;
   Map<String, dynamic> _insightMeta = {};
+  Map<String, dynamic>? _structuredInsight;
+  List<String> _localTips = [];
 
   @override
   void initState() {
@@ -52,11 +58,68 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
     });
 
     try {
+      // Bổ sung ngữ cảnh thực tế từ dữ liệu transaction + analytics
+      final analytics = await _realDataService.getAnalyticsData();
+      final spendingSummary = await _realDataService.getSpendingSummary();
+
+      // Mẹo cục bộ dựa trên dữ liệu thực
+      _localTips = _computeLocalTips(analytics);
+
+      // Chuẩn hóa context và prompt để tạo nội dung súc tích, có số liệu
+      final contextPayload = {
+        'totals': {
+          'income': analytics.totalIncome,
+          'expense': analytics.totalExpense,
+          'balance': analytics.balance,
+          'transaction_count': analytics.transactionCount,
+        },
+        'period': analytics.period,
+        'top_categories': analytics.categoryData
+            .take(5)
+            .map((c) => {
+                  'name': c.category,
+                  'amount': c.amount,
+                  'percentage': c.percentage,
+                  'type': c.type,
+                })
+            .toList(),
+        'summary': spendingSummary,
+      };
+
+      final prompt = '''
+Bạn là trợ lý tài chính. Dựa trên JSON dưới đây, tạo nội dung Markdown NGẮN với đúng 3 phần:
+
+### Cảnh báo
+- 2-3 dòng cảnh báo cụ thể, có % hoặc số tiền
+
+### Đề xuất hành động
+- 2-3 hành động khả thi ngay, ưu tiên tác động lớn
+
+### Mẹo nhanh
+- 2-3 mẹo tiết kiệm/thói quen dễ áp dụng
+
+Yêu cầu:
+- Không viết phần giới thiệu chung
+- Mỗi dòng 8-20 từ, emoji ở đầu dòng
+- Dùng số liệu trong context
+- Trả lời tiếng Việt
+
+DỮ LIỆU:
+${jsonEncode(contextPayload)}
+''';
+
+      final enrichedContext = {
+        'source': 'global_insight_panel',
+        'spending_summary': spendingSummary,
+        'analytics_totals': contextPayload['totals'],
+        if (widget.additionalContext != null) ...widget.additionalContext!,
+      };
+
       final result = await _processor.processRequest(
         moduleId: widget.moduleId,
         requestType: AgentRequestType.analytics,
-        query: widget.defaultQuery,
-        additionalContext: widget.additionalContext,
+        query: prompt,
+        additionalContext: enrichedContext,
       );
 
       if (!mounted) return;
@@ -71,6 +134,13 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
       setState(() {
         _insightText = result.response;
         _insightMeta = result.insights;
+        // Nếu response có data.insight (được đi qua Universal → GlobalAgentService), lấy để render
+        // AgentResponse từ GlobalAgentService sẽ chứa data.insight.
+        final responseData = result.context['response_data'];
+        if (responseData is Map && responseData['insight'] != null) {
+          _structuredInsight =
+              Map<String, dynamic>.from(responseData['insight']);
+        }
         _isLoading = false;
       });
     } catch (e) {
@@ -137,23 +207,50 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_insightText != null) ...[
+        if (_structuredInsight != null) ...[
+          _buildStructuredInsight(_structuredInsight!),
+          const SizedBox(height: 12),
+        ] else if (_insightText != null) ...[
           Container(
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
             padding: const EdgeInsets.all(12),
-            child: Text(
-              _insightText!,
-              style: const TextStyle(color: Colors.white, height: 1.35),
-            ),
+            child: _buildMarkdownOrText(_insightText!),
           ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: _buildMetaChips(),
+          ),
+          const SizedBox(height: 12),
+        ],
+        const SizedBox.shrink(),
+        if (_localTips.isNotEmpty) ...[
+          Text(
+            'Gợi ý nhanh (từ dữ liệu hiện tại):',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.95),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ..._localTips.map(
+            (t) => Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('• ', style: TextStyle(color: Colors.white)),
+                Expanded(
+                  child: Text(
+                    t,
+                    style: const TextStyle(color: Colors.white, height: 1.35),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
         ],
@@ -217,5 +314,153 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
         ],
       ),
     );
+  }
+
+  /// Render markdown nếu có, fallback Text nếu không
+  Widget _buildMarkdownOrText(String content) {
+    // Hiện tại chưa có Markdown widget trong dự án, tạm thời xử lý đơn giản:
+    // - Thay các tiêu đề **bold** → TextStyle đậm
+    // - Giữ nguyên gạch đầu dòng '-'
+    // Có thể thay thế bằng markdown package sau nếu muốn render phong phú.
+    final lines = content.split('\n');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final line in lines)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: _buildMarkdownLine(line),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMarkdownLine(String line) {
+    // xử lý bold **text** đơn giản
+    final boldRegex = RegExp(r"\*\*(.*?)\*\*");
+    if (boldRegex.hasMatch(line)) {
+      final spans = <TextSpan>[];
+      int start = 0;
+      for (final match in boldRegex.allMatches(line)) {
+        if (match.start > start) {
+          spans.add(TextSpan(text: line.substring(start, match.start)));
+        }
+        spans.add(TextSpan(
+          text: match.group(1),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ));
+        start = match.end;
+      }
+      if (start < line.length) {
+        spans.add(TextSpan(text: line.substring(start)));
+      }
+      return RichText(
+        text: TextSpan(
+          style: const TextStyle(color: Colors.white, height: 1.35),
+          children: spans,
+        ),
+      );
+    }
+
+    // Bullet line
+    if (line.trimLeft().startsWith('- ')) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(color: Colors.white)),
+          Expanded(
+            child: Text(
+              line.trimLeft().substring(2),
+              style: const TextStyle(color: Colors.white, height: 1.35),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(line,
+        style: const TextStyle(color: Colors.white, height: 1.35));
+  }
+
+  Widget _buildStructuredInsight(Map<String, dynamic> data) {
+    final warnings =
+        (data['warnings'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final actions =
+        (data['actions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final tips = (data['tips'] as List?)?.cast<String>() ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (warnings.isNotEmpty) ...[
+          _sectionHeader('Cảnh báo'),
+          const SizedBox(height: 6),
+          ...warnings.map((w) => _bullet('${w['title']}: ${w['detail']}')),
+          const SizedBox(height: 12),
+        ],
+        if (actions.isNotEmpty) ...[
+          _sectionHeader('Đề xuất hành động'),
+          const SizedBox(height: 6),
+          ...actions.map((a) => _bullet('${a['title']} → ${a['nextStep']}')),
+          const SizedBox(height: 12),
+        ],
+        if (tips.isNotEmpty) ...[
+          _sectionHeader('Mẹo nhanh'),
+          const SizedBox(height: 6),
+          ...tips.map(_bullet),
+        ],
+      ],
+    );
+  }
+
+  Widget _sectionHeader(String text) => Text(
+        text,
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.95),
+          fontWeight: FontWeight.w700,
+        ),
+      );
+
+  Widget _bullet(String text) => Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(color: Colors.white)),
+          Expanded(
+            child: Text(text,
+                style: const TextStyle(color: Colors.white, height: 1.35)),
+          ),
+        ],
+      );
+
+  List<String> _computeLocalTips(AnalyticsData analytics) {
+    final tips = <String>[];
+    final income = analytics.totalIncome;
+    final expense = analytics.totalExpense;
+    final savingsRate = income > 0 ? ((income - expense) / income) * 100 : -100;
+
+    if (income <= 0 && expense <= 0) {
+      tips.add(
+          'Chưa có dữ liệu giao dịch. Hãy thêm vài giao dịch để AI phân tích.');
+      return tips;
+    }
+
+    if (expense > income) {
+      tips.add('Chi tiêu vượt thu nhập. Cắt 10-15% ở danh mục chi nhiều nhất.');
+    }
+
+    if (savingsRate < 10) {
+      tips.add(
+          'Tỷ lệ tiết kiệm thấp (${savingsRate.toStringAsFixed(1)}%). Đặt mục tiêu ≥ 15%.');
+    }
+
+    if (analytics.categoryData.isNotEmpty) {
+      final top = analytics.categoryData.first;
+      if (top.percentage > 30) {
+        tips.add(
+            'Danh mục cao nhất: ${top.category} ${top.percentage.toStringAsFixed(1)}%. Thiết lập hạn mức.');
+      }
+    }
+
+    return tips;
   }
 }

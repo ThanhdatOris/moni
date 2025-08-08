@@ -9,7 +9,6 @@ import '../../widgets/custom_page_header.dart';
 import 'widgets/about_section.dart';
 import 'widgets/appearance_section.dart';
 import 'widgets/backup_section.dart';
-import 'widgets/data_section.dart';
 import 'widgets/help_section.dart';
 import 'widgets/logout_section.dart';
 import 'widgets/notification_section.dart';
@@ -265,12 +264,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'widget': const AppearanceSection(),
     },
     {
-      'icon': Icons.analytics_outlined,
-      'title': 'Dữ liệu',
-      'subtitle': 'PDF, Excel, CSV',
-      'widget': const DataSection(),
-    },
-    {
       'icon': Icons.help_outline,
       'title': 'Trợ giúp & Hỗ trợ',
       'subtitle': 'FAQ, liên hệ hỗ trợ',
@@ -393,7 +386,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               width: double.infinity,
               color: Colors.grey.shade50,
-              padding: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               child: child,
             ),
           ],
