@@ -57,6 +57,7 @@ class LoggingService {
   LoggingService._() {
     _initializeLogger();
     _loadDeviceInfo();
+    _setLogLevelByEnvironment();
   }
 
   late Logger _logger;
@@ -67,23 +68,43 @@ class LoggingService {
   final List<String> _logBuffer = [];
   static const int _maxBufferSize = 1000;
 
+  /// Thiết lập log level dựa trên environment
+  void _setLogLevelByEnvironment() {
+    if (kDebugMode) {
+      _currentLogLevel = LogLevel.debug; // Debug: Show all logs
+    } else if (kProfileMode) {
+      _currentLogLevel = LogLevel.warning; // Profile: Only warnings and errors
+    } else {
+      _currentLogLevel = LogLevel.error; // Release: Only errors
+    }
+  }
+
   /// Khởi tạo logger với cấu hình tối ưu
   void _initializeLogger() {
+    // Chỉ enable console output trong debug mode
+    final outputs = <LogOutput>[];
+    
+    if (kDebugMode) {
+      outputs.add(ConsoleOutput());
+    }
+    
+    // File output chỉ cho production và chỉ log error/fatal
+    if (!kDebugMode) {
+      outputs.add(FileOutput());
+    }
+    
     _logger = Logger(
-      level: kDebugMode ? Level.debug : Level.info,
+      level: kDebugMode ? Level.debug : Level.error, // ✅ PRODUCTION: CHỈ LOG ERROR
       printer: PrettyPrinter(
-        methodCount: 1, // ✅ GIẢM: Từ 2 → 1 để giảm noise
-        errorMethodCount: 3, // ✅ GIẢM: Từ 5 → 3 để giảm noise
-        lineLength: 120, // ✅ TĂNG: Từ 80 → 120 để message không bị cắt
-        colors: true,
-        printEmojis: true,
-        dateTimeFormat: DateTimeFormat.onlyTime, // ✅ ĐƠN GIẢN HÓA: Chỉ hiện giờ
+        methodCount: 0, // ✅ TẮT HOÀN TOÀN: Không show method stack
+        errorMethodCount: 1, // ✅ GIẢM MẠNH: Chỉ 1 dòng cho error
+        lineLength: 80, // ✅ GIẢM: Ngắn gọn hơn
+        colors: kDebugMode, // ✅ CHỈ MÀU TRONG DEBUG
+        printEmojis: kDebugMode, // ✅ CHỈ EMOJI TRONG DEBUG  
+        dateTimeFormat: DateTimeFormat.none, // ✅ TẮT TIMESTAMP: Giảm noise
         noBoxingByDefault: true, // ✅ TẮT BOXING: Giảm visual noise
       ),
-      output: MultiOutput([
-        ConsoleOutput(),
-        if (!kDebugMode) FileOutput(),
-      ]),
+      output: MultiOutput(outputs),
     );
   }
 
@@ -116,9 +137,10 @@ class LoggingService {
       _platform = Platform.operatingSystem;
       _deviceId = 'unknown';
       _appVersion = 'unknown';
-      // ✅ CHỈ LOG LỖI THẬT SỰ CẦN THIẾT
+      
+      // ✅ CHỈ LOG ERROR THẬT SỰ QUAN TRỌNG
       if (kDebugMode) {
-        _logger.w('⚠️ Không thể tải thông tin thiết bị: $e');
+        _logger.e('Critical: Cannot load device info: $e');
       }
     }
   }
@@ -155,13 +177,17 @@ class LoggingService {
   }) {
     if (_currentLogLevel.index > LogLevel.debug.index) return;
     
-    // ✅ ĐƠN GIẢN HÓA: Chỉ log message gốc, tránh double formatting
-    _logger.d(message);
+    // ✅ CHỈ LOG TRONG DEBUG MODE
+    if (kDebugMode) {
+      _logger.d(message);
+    }
     
-    // Buffer cho export (format đầy đủ)
-    final context = _createContext(className, methodName);
-    final logEntry = _formatLogEntry(LogLevel.debug, message, context, data, error, stackTrace);
-    _addToBuffer(logEntry);
+    // Buffer cho export (format đầy đủ) - chỉ trong debug
+    if (kDebugMode) {
+      final context = _createContext(className, methodName);
+      final logEntry = _formatLogEntry(LogLevel.debug, message, context, data, error, stackTrace);
+      _addToBuffer(logEntry);
+    }
   }
 
   /// Log INFO
@@ -173,13 +199,17 @@ class LoggingService {
   }) {
     if (_currentLogLevel.index > LogLevel.info.index) return;
     
-    // ✅ ĐƠN GIẢN HÓA: Chỉ log message gốc
-    _logger.i(message);
+    // ✅ CHỈ LOG TRONG DEBUG MODE
+    if (kDebugMode) {
+      _logger.i(message);
+    }
     
-    // Buffer cho export (format đầy đủ)
-    final context = _createContext(className, methodName);
-    final logEntry = _formatLogEntry(LogLevel.info, message, context, data);
-    _addToBuffer(logEntry);
+    // Buffer cho export - chỉ trong debug
+    if (kDebugMode) {
+      final context = _createContext(className, methodName);
+      final logEntry = _formatLogEntry(LogLevel.info, message, context, data);
+      _addToBuffer(logEntry);
+    }
   }
 
   /// Log WARNING

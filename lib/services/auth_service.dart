@@ -60,12 +60,17 @@ class AuthService {
         // Tạo danh mục mặc định cho user mới
         await _createDefaultCategories(user.uid);
 
-        logInfo('Đăng ký thành công cho user: ${user.uid}');
+        // Sử dụng hệ thống log mới
+        logInfo('Đăng ký thành công cho user: ${user.uid}', data: {
+          'email': email,
+          'name': name,
+        });
         return userModel;
       }
       return null;
     } catch (e, stackTrace) {
-      logError('Lỗi đăng ký', error: e, stackTrace: stackTrace);
+      logError('Lỗi đăng ký',
+          data: {'email': email}, error: e, stackTrace: stackTrace);
       throw handleError(e, stackTrace: stackTrace);
     }
   }
@@ -89,13 +94,15 @@ class AuthService {
 
         if (userDoc.exists) {
           final userModel = UserModel.fromMap(userDoc.data()!, user.uid);
-          logInfo('Đăng nhập thành công cho user: ${user.uid}');
+          logInfo('Đăng nhập thành công cho user: ${user.uid}',
+              data: {'email': email});
           return userModel;
         }
       }
       return null;
     } catch (e, stackTrace) {
-      logError('Lỗi đăng nhập', error: e, stackTrace: stackTrace);
+      logError('Lỗi đăng nhập',
+          data: {'email': email}, error: e, stackTrace: stackTrace);
       throw handleError(e, stackTrace: stackTrace);
     }
   }
@@ -145,6 +152,8 @@ class AuthService {
       if (userDoc.exists) {
         // Anonymous user đã tồn tại - lấy thông tin từ Firestore
         userModel = UserModel.fromMap(userDoc.data()!, user.uid);
+        logInfo(
+            'Đăng nhập anonymous thành công cho user hiện tại: ${user.uid}');
       } else {
         // Anonymous user mới - tạo document mới
         final now = DateTime.now();

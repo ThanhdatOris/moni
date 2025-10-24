@@ -36,6 +36,8 @@ android {
             debuggable true
             minifyEnabled false
             shrinkResources false
+            // Giữ logs trong debug
+            buildConfigField "boolean", "ENABLE_LOGGING", "true"
         }
         
         release {
@@ -50,6 +52,12 @@ android {
             
             // Disable debugging in release
             debuggable false
+            
+            // Tắt logging trong release build
+            buildConfigField "boolean", "ENABLE_LOGGING", "false"
+            
+            // Tối ưu APK size
+            zipAlignEnabled true
         }
     }
 }

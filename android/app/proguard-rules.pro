@@ -48,6 +48,49 @@
 
 # FIX R8 ERRORS - gRPC
 -keep class io.grpc.** { *; }
+
+# ===========================================
+# GIẢM LOG GOOGLE PLAY SERVICES & GMS WARNINGS
+# ===========================================
+
+# Tắt warning logs từ Google Play Services
+-dontwarn com.google.android.gms.**
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.libraries.**
+
+# Giữ classes nhưng không log warning
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.libraries.** { *; }
+
+# Loại bỏ FlagRegistrar warnings
+-assumenosideeffects class com.google.android.gms.phenotype.** {
+    public static *** w(...);
+    public static *** d(...);
+    public static *** v(...);
+}
+
+# Loại bỏ các debug logs trong release build
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int i(...);
+    public static int w(...);
+    public static int d(...);
+    public static int e(...);
+}
+
+# Loại bỏ các System.out.println trong release build  
+-assumenosideeffects class java.io.PrintStream {
+    public void println(%);
+    public void print(%);
+}
+
+# Tối ưu hóa reflection calls
+-keepattributes *Annotation*
+-keepattributes Signature
+-keepattributes InnerClasses
+-keepattributes EnclosingMethod
 -dontwarn io.grpc.**
 
 # Firebase rules

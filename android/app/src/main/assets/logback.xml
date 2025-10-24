@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cấu hình log để giảm noise từ Google Play Services -->
+<configuration>
+    <!-- Tắt các log không cần thiết -->
+    <logger name="com.google.android.gms" level="ERROR" />
+    <logger name="com.google.firebase" level="ERROR" />
+    <logger name="com.google.android.libraries" level="ERROR" />
+    <logger name="FlagRegistrar" level="OFF" />
+    <logger name="ProviderInstaller" level="ERROR" />
+    <logger name="NativeCrypto" level="ERROR" />
+    <logger name="ProfileInstaller" level="ERROR" />
+    
+    <!-- Root logger chỉ show ERROR và FATAL -->
+    <root level="ERROR">
+        <appender-ref ref="STDOUT" />
+    </root>
+    
+    <!-- Console appender -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+</configuration>
