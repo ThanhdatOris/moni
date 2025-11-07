@@ -454,7 +454,7 @@ class _BudgetScreenState extends State<BudgetScreen>
       );
     }).toList();
 
-    final newTotal = updated.fold(0.0, (sum, c) => sum + c.budget);
+    final newTotal = updated.fold(0.0, (total, c) => total + c.budget);
 
     setState(() {
       _budgetData = real_data.BudgetData(

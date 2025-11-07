@@ -76,121 +76,121 @@ class AIHelpers {
       'ăn uống': {
         'icon': '🍽️',
         'iconType': 'emoji',
-        'color': Colors.orange.value
+        'color': Colors.orange.toARGB32()
       },
-      'cafe': {'icon': '☕', 'iconType': 'emoji', 'color': Colors.brown.value},
+      'cafe': {'icon': '☕', 'iconType': 'emoji', 'color': Colors.brown.toARGB32()},
       'nhà hàng': {
         'icon': '🍽️',
         'iconType': 'emoji',
-        'color': Colors.orange.value
+        'color': Colors.orange.toARGB32()
       },
 
       // Transportation
       'di chuyển': {
         'icon': '🚗',
         'iconType': 'emoji',
-        'color': Colors.blue.value
+        'color': Colors.blue.toARGB32()
       },
-      'xe': {'icon': '🚗', 'iconType': 'emoji', 'color': Colors.blue.value},
-      'grab': {'icon': '🚕', 'iconType': 'emoji', 'color': Colors.green.value},
-      'xăng': {'icon': '⛽', 'iconType': 'emoji', 'color': Colors.red.value},
+      'xe': {'icon': '🚗', 'iconType': 'emoji', 'color': Colors.blue.toARGB32()},
+      'grab': {'icon': '🚕', 'iconType': 'emoji', 'color': Colors.green.toARGB32()},
+      'xăng': {'icon': '⛽', 'iconType': 'emoji', 'color': Colors.red.toARGB32()},
 
       // Shopping
       'mua sắm': {
         'icon': '🛒',
         'iconType': 'emoji',
-        'color': Colors.purple.value
+        'color': Colors.purple.toARGB32()
       },
       'quần áo': {
         'icon': '👔',
         'iconType': 'emoji',
-        'color': Colors.pink.value
+        'color': Colors.pink.toARGB32()
       },
 
       // Entertainment
       'giải trí': {
         'icon': '🎬',
         'iconType': 'emoji',
-        'color': Colors.deepPurple.value
+        'color': Colors.deepPurple.toARGB32()
       },
       'phim': {
         'icon': '🎬',
         'iconType': 'emoji',
-        'color': Colors.deepPurple.value
+        'color': Colors.deepPurple.toARGB32()
       },
       'game': {
         'icon': '🎮',
         'iconType': 'emoji',
-        'color': Colors.indigo.value
+        'color': Colors.indigo.toARGB32()
       },
 
       // Health
-      'y tế': {'icon': '🏥', 'iconType': 'emoji', 'color': Colors.red.value},
+      'y tế': {'icon': '🏥', 'iconType': 'emoji', 'color': Colors.red.toARGB32()},
       'thuốc': {
         'icon': '💊',
         'iconType': 'emoji',
-        'color': Colors.redAccent.value
+        'color': Colors.redAccent.toARGB32()
       },
 
       // Education
       'học tập': {
         'icon': '🏫',
         'iconType': 'emoji',
-        'color': Colors.teal.value
+        'color': Colors.teal.toARGB32()
       },
       'sách': {
         'icon': '📚',
         'iconType': 'emoji',
-        'color': Colors.brown.value
+        'color': Colors.brown.toARGB32()
       },
 
       // Bills
       'hóa đơn': {
         'icon': '🧾',
         'iconType': 'emoji',
-        'color': Colors.grey.value
+        'color': Colors.grey.toARGB32()
       },
       'điện': {
         'icon': '💡',
         'iconType': 'emoji',
-        'color': Colors.yellow.value
+        'color': Colors.yellow.toARGB32()
       },
       'nước': {
         'icon': '💧',
         'iconType': 'emoji',
-        'color': Colors.blue.value
+        'color': Colors.blue.toARGB32()
       },
       'internet': {
         'icon': '📡',
         'iconType': 'emoji',
-        'color': Colors.cyan.value
+        'color': Colors.cyan.toARGB32()
       },
 
       // Income categories
       'lương': {
         'icon': '💼',
         'iconType': 'emoji',
-        'color': Colors.green.value
+        'color': Colors.green.toARGB32()
       },
       'thưởng': {
         'icon': '🎁',
         'iconType': 'emoji',
-        'color': Colors.amber.value
+        'color': Colors.amber.toARGB32()
       },
       'đầu tư': {
         'icon': '📈',
         'iconType': 'emoji',
-        'color': Colors.lightGreen.value
+        'color': Colors.lightGreen.toARGB32()
       },
       'freelance': {
         'icon': '💻',
         'iconType': 'emoji',
-        'color': Colors.blueGrey.value
+        'color': Colors.blueGrey.toARGB32()
       },
       'bán hàng': {
         'icon': '💸',
         'iconType': 'emoji',
-        'color': Colors.greenAccent.value
+        'color': Colors.greenAccent.toARGB32()
       },
     };
 
@@ -206,10 +206,10 @@ class AIHelpers {
       return {
         'icon': '💰',
         'iconType': 'emoji',
-        'color': Colors.green.value
+        'color': Colors.green.toARGB32()
       };
     } else {
-      return {'icon': '💳', 'iconType': 'emoji', 'color': Colors.blue.value};
+      return {'icon': '💳', 'iconType': 'emoji', 'color': Colors.blue.toARGB32()};
     }
   }
 

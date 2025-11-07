@@ -1,8 +1,3 @@
-/// AI Services Export
-/// 
-/// Exports all AI-powered services.
-library ai_services;
-
 export 'ai_category_service.dart';
 export 'ai_chat_handler.dart';
 export 'ai_helpers.dart';

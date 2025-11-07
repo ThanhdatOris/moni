@@ -79,7 +79,7 @@ class CashFlowPrediction {
   /// Get average monthly net flow
   double get averageMonthlyNetFlow {
     if (predictions.isEmpty) return 0.0;
-    return predictions.fold(0.0, (sum, p) => sum + p.netFlow) /
+    return predictions.fold(0.0, (total, p) => total + p.netFlow) /
         predictions.length;
   }
 }

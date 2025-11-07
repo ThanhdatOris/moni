@@ -78,7 +78,7 @@ Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "G
 
   /// Batch category suggestions to reduce API calls
   /// Use this when importing multiple transactions or batch processing
-  /// Returns Map<description, category>
+  /// Returns Map\<description, category>
   Future<Map<String, String>> suggestCategoriesBatch(
       List<String> descriptions) async {
     if (descriptions.isEmpty) return {};

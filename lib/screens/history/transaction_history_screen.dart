@@ -213,7 +213,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
     final transactions = _getTransactionsForDay(day);
     return transactions
         .where((t) => t.type == type)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (total, t) => total + t.amount);
   }
 
   String _formatCurrency(double amount) {
@@ -451,7 +451,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
         Padding(
           padding: const EdgeInsets.all(16.0),
           child: DropdownButtonFormField<TransactionType?>(
-            value: _filterType,
+            initialValue: _filterType,
             decoration: InputDecoration(
               labelText: 'Lọc theo loại giao dịch',
               prefixIcon: Icon(Icons.filter_list, color: AppColors.primary),

@@ -109,7 +109,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
                   icon: Icons.message,
                   title: 'Tin nhắn',
                   value:
-                      '${_conversations.fold(0, (sum, c) => sum + c.messageCount)}',
+                      '${_conversations.fold(0, (count, c) => count + c.messageCount)}',
                   color: AppColors.info,
                   height: h,
                 ),

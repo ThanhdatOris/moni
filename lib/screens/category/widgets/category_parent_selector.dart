@@ -94,7 +94,7 @@ class CategoryParentSelector extends StatelessWidget {
     }
 
     return DropdownButtonFormField<CategoryModel>(
-      value: selectedParent,
+      initialValue: selectedParent,
       decoration: InputDecoration(
         hintText: 'Chọn danh mục cha...',
         prefixIcon: Icon(Icons.folder_outlined, color: AppColors.grey600),

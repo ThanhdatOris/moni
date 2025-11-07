@@ -238,7 +238,7 @@ class TransactionCategorySelector extends StatelessWidget {
     return Column(
       children: [
         DropdownButtonFormField<CategoryModel>(
-          value: selectedCategory,
+          initialValue: selectedCategory,
           decoration: InputDecoration(
             hintText: 'Chọn danh mục',
             hintStyle: TextStyle(

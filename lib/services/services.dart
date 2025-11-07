@@ -4,6 +4,12 @@
 // This file exports all services through module-level barrel files.
 // Each module (core, auth, data, etc.) has its own export file for better organization.
 
+// =============================================================================
+// COMMON ERROR HANDLING HELPERS
+// =============================================================================
+
+import 'core/error_handler.dart';
+
 // AI-Powered Services
 export 'ai_services/ai_services.dart';
 // Analytics & Reporting Services
@@ -21,19 +27,8 @@ export 'offline/offline_services.dart';
 // Validation & Quality Services
 export 'validation/validation_services.dart';
 
-// =============================================================================
-// COMMON ERROR HANDLING HELPERS
-// =============================================================================
-
-import 'core/error_handler.dart';
-
 /// Shortcut để sử dụng ErrorHandler (không thể dùng const vì instance là runtime value)
 ErrorHandler get errorHandler => ErrorHandler.instance;
-
-/// Quick helper để debug errors
-void logError(dynamic error, [String? context]) {
-  debugError(error, context: context);
-}
 
 /// Quick helper để tạo authentication error
 AppError createAuthError(String message) {

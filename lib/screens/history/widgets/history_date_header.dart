@@ -20,10 +20,10 @@ class HistoryDateHeader extends StatelessWidget {
     final headerText = _getDateGroupHeader(dateKey);
     final totalIncome = transactions
         .where((t) => t.type == TransactionType.income)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (total, t) => total + t.amount);
     final totalExpense = transactions
         .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (total, t) => total + t.amount);
     final netAmount = totalIncome - totalExpense;
 
     return Container(

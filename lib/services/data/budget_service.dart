@@ -189,8 +189,8 @@ class BudgetService extends BaseService {
       }
 
       // Calculate summary
-      final totalBudget = budgets.fold(0.0, (sum, b) => sum + b.monthlyLimit);
-      final totalSpending = budgets.fold(0.0, (sum, b) => sum + b.currentSpending);
+      final totalBudget = budgets.fold(0.0, (total, b) => total + b.monthlyLimit);
+      final totalSpending = budgets.fold(0.0, (total, b) => total + b.currentSpending);
       final utilizationRate = totalBudget > 0 ? totalSpending / totalBudget : 0.0;
 
       // Count categories with/without budgets

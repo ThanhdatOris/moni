@@ -5,13 +5,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:logger/logger.dart';
 
 import '../core/environment_service.dart';
-import 'ocr_service.dart';
-import 'ai_category_service.dart';
-import 'ai_chat_handler.dart';
-import 'ai_response_cache.dart';
-import 'ai_text_generator.dart';
-import 'ai_token_manager.dart';
-import 'ai_transaction_processor.dart';
+import 'ai_services.dart';
 
 /// AI Processor Service - Facade Pattern
 /// 
@@ -145,7 +139,7 @@ class AIProcessorService {
   }
 
   /// Batch category suggestions for multiple transactions
-  /// Returns Map<description, category>
+  /// Returns Map\<description, category>
   Future<Map<String, String>> suggestCategoriesBatch(
       List<String> descriptions) async {
     return await _categoryService.suggestCategoriesBatch(descriptions);

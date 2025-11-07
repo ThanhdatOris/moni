@@ -237,12 +237,12 @@ class SpendingLimitService {
     if (categoryId == 'all') {
       totalSpent = relevantTransactions
           .where((t) => t.type == TransactionType.expense)
-          .fold(0.0, (sum, t) => sum + t.amount);
+          .fold(0.0, (total, t) => total + t.amount);
     } else {
       totalSpent = relevantTransactions
           .where((t) =>
               t.categoryId == categoryId && t.type == TransactionType.expense)
-          .fold(0.0, (sum, t) => sum + t.amount);
+          .fold(0.0, (total, t) => total + t.amount);
     }
 
     return totalSpent;
@@ -383,7 +383,7 @@ class SpendingLimitService {
           ? relevantRecords
           : relevantRecords.where((r) => r.categoryId == categoryId).toList();
 
-      final totalSpent = categoryRecords.fold(0.0, (sum, r) => sum + r.amount);
+      final totalSpent = categoryRecords.fold(0.0, (total, r) => total + r.amount);
       final transactionCount = categoryRecords.length;
       final averageAmount = transactionCount > 0
           ? (totalSpent / transactionCount).toDouble()
