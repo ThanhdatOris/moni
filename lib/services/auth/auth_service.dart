@@ -14,9 +14,6 @@ import '../offline/offline_service.dart';
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  // TODO: Fix GoogleSignIn constructor after v7+ upgrade
-  // Using late to defer initialization
-  late final GoogleSignIn _googleSignIn;
 
   /// Lấy người dùng hiện tại
   User? get currentUser => _auth.currentUser;
@@ -110,12 +107,95 @@ class AuthService {
   /// Đăng nhập bằng Google
   Future<UserModel?> signInWithGoogle() async {
     try {
-      // TODO: Fix Google Sign-In API after upgrade to v7+
-      // Current implementation needs migration due to breaking changes
-      throw UnimplementedError('Google Sign-In needs API migration after dependency upgrade');
-    } catch (e) {
-      logError('Lỗi khi đăng nhập Google', error: e);
+      // GoogleSignIn v7+ API - use singleton instance
+      final googleSignIn = GoogleSignIn.instance;
+      
+      // Initialize with clientId if needed (usually from config files)
+      await googleSignIn.initialize();
+      
+      // Authenticate user - this shows the Google Sign-In UI and returns the account
+      final GoogleSignInAccount googleUser;
+      if (googleSignIn.supportsAuthenticate()) {
+        googleUser = await googleSignIn.authenticate();
+      } else {
+        logError('Platform does not support authenticate()');
+        return null;
+      }
+
+      // Get authentication tokens (idToken for Firebase)
+      final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+      
+      if (googleAuth.idToken == null) {
+        logError('Failed to get ID token from Google authentication');
+        return null;
+      }
+
+      // Get authorization for accessing Google services (to get accessToken)
+      final scopes = ['email', 'profile'];
+      final auth = await googleUser.authorizationClient.authorizationForScopes(scopes);
+
+      // Create Firebase credential with ID token and optional access token
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken!,
+        accessToken: auth?.accessToken,
+      );
+
+      // Sign in to Firebase with the Google credential
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        // Check if user document exists in Firestore
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        
+        final now = DateTime.now();
+        UserModel userModel;
+
+        if (userDoc.exists) {
+          // Update existing user
+          userModel = UserModel.fromMap(userDoc.data()!, user.uid);
+          
+          // Update last login and photo URL if changed
+          await _firestore.collection('users').doc(user.uid).update({
+            'updated_at': Timestamp.fromDate(now),
+            'photo_url': user.photoURL,
+            'name': user.displayName ?? userModel.name,
+          });
+          
+          userModel = userModel.copyWith(
+            photoUrl: user.photoURL,
+            updatedAt: now,
+            name: user.displayName ?? userModel.name,
+          );
+        } else {
+          // Create new user document
+          userModel = UserModel(
+            userId: user.uid,
+            name: user.displayName ?? 'User',
+            email: user.email ?? '',
+            photoUrl: user.photoURL,
+            createdAt: now,
+            updatedAt: now,
+          );
+
+          await _firestore.collection('users').doc(user.uid).set(userModel.toMap());
+          
+          // Create default categories for new user
+          await _createDefaultCategories(user.uid);
+        }
+
+        logInfo('Đăng nhập Google thành công cho user: ${user.uid}', data: {
+          'email': user.email,
+          'name': user.displayName,
+        });
+        
+        return userModel;
+      }
+
       return null;
+    } catch (e, stackTrace) {
+      logError('Lỗi khi đăng nhập Google', error: e, stackTrace: stackTrace);
+      throw handleError(e, stackTrace: stackTrace);
     }
   }
 
@@ -222,9 +302,14 @@ class AuthService {
   /// Đăng xuất người dùng
   Future<void> logout() async {
     try {
-      // Đăng xuất từ Google Sign-In
-      await _googleSignIn.signOut();
-      await _googleSignIn.disconnect();
+      // Đăng xuất từ Google Sign-In v7+
+      try {
+        final googleSignIn = GoogleSignIn.instance;
+        await googleSignIn.signOut();
+      } catch (e) {
+        // Ignore Google Sign-In errors (user might not be signed in with Google)
+        logError('Lỗi đăng xuất Google Sign-In', error: e);
+      }
 
       // Đăng xuất từ Firebase Auth
       await _auth.signOut();
@@ -235,6 +320,7 @@ class AuthService {
         await offlineService.clearAllOfflineData();
       } catch (e) {
         // Ignore offline service errors during logout
+        logError('Lỗi xóa dữ liệu offline khi đăng xuất', error: e);
       }
 
       logInfo('Đăng xuất thành công');
@@ -264,20 +350,42 @@ class AuthService {
       // Cập nhật display name
       await user.updateDisplayName(name);
 
-      // Chuẩn bị dữ liệu cập nhật
-      final updateData = {
-        'name': name,
-        'email': email,
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      };
+      // Kiểm tra xem document có tồn tại không
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+      final now = DateTime.now();
 
-      // Thêm photo URL nếu có
-      if (photoUrl != null) {
-        updateData['photo_url'] = photoUrl;
+      if (userDoc.exists) {
+        // Document tồn tại - cập nhật bình thường
+        final updateData = {
+          'name': name,
+          'email': email,
+          'updated_at': Timestamp.fromDate(now),
+        };
+
+        // Thêm photo URL nếu có
+        if (photoUrl != null) {
+          updateData['photo_url'] = photoUrl;
+        }
+
+        await _firestore.collection('users').doc(user.uid).update(updateData);
+      } else {
+        // Document không tồn tại - tạo mới
+        final newUserData = UserModel(
+          userId: user.uid,
+          name: name,
+          email: email,
+          photoUrl: photoUrl,
+          createdAt: now,
+          updatedAt: now,
+        );
+
+        await _firestore.collection('users').doc(user.uid).set(newUserData.toMap());
+        
+        // Tạo danh mục mặc định cho user mới
+        await _createDefaultCategories(user.uid);
+        
+        logInfo('Tạo document user mới trong Firestore khi cập nhật profile: ${user.uid}');
       }
-
-      // Cập nhật thông tin trong Firestore
-      await _firestore.collection('users').doc(user.uid).update(updateData);
 
       logInfo('Cập nhật profile thành công cho user: ${user.uid}');
     } catch (e, stackTrace) {

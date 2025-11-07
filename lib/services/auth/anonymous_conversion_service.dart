@@ -193,7 +193,7 @@ class AnonymousConversionService {
         }
 
         // Thêm timeout để tránh blocking UI trong debug mode
-        final queryTask = () async {
+        Future<Map<String, dynamic>> queryTask() async {
           // Đếm số giao dịch
           final transactionsSnapshot = await _firestore
               .collection('users')
@@ -217,7 +217,7 @@ class AnonymousConversionService {
             'createdAt': user.metadata.creationTime,
             'lastSignIn': user.metadata.lastSignInTime,
           };
-        };
+        }
 
         return await queryTask().timeout(const Duration(seconds: 5));
       },
