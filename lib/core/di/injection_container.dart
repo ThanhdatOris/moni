@@ -5,26 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../screens/assistant/services/global_agent_service.dart';
 import '../../screens/assistant/services/real_data_service.dart';
-import '../../services/advanced_validation_service.dart';
-// Legacy Services - Simple architecture
-import '../../services/ai_processor_service.dart';
-import '../../services/anonymous_conversion_service.dart';
-import '../../services/auth_service.dart';
-import '../../services/budget_alert_service.dart';
-import '../../services/category_service.dart';
-import '../../services/chart_data_service.dart';
-import '../../services/chat_log_service.dart';
-import '../../services/conversation_service.dart';
-import '../../services/duplicate_detection_service.dart';
-import '../../services/environment_service.dart';
-import '../../services/firebase_service.dart';
-import '../../services/ocr_service.dart';
-import '../../services/offline_service.dart';
-import '../../services/offline_sync_service.dart';
-import '../../services/report_service.dart';
-import '../../services/transaction_service.dart';
-import '../../services/transaction_validation_service.dart';
-
+import '../../services/services.dart';
 final getIt = GetIt.instance;
 
 /// Simple Dependency Injection for Legacy Architecture

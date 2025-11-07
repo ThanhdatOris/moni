@@ -4,8 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/category_model.dart';
-import '../models/transaction_model.dart';
+import '../../models/category_model.dart';
+import '../../models/transaction_model.dart';
 
 /// Service theo dõi usage của categories để đưa ra smart suggestions
 class CategoryUsageTracker {

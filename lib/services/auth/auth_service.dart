@@ -4,11 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../models/user_model.dart';
-import 'category_service.dart';
-import 'error_handler.dart';
-import 'logging_service.dart';
-import 'offline_service.dart';
+import '../../models/user_model.dart';
+import '../data/category_service.dart';
+import '../core/error_handler.dart';
+import '../core/logging_service.dart';
+import '../offline/offline_service.dart';
 
 /// Service xử lý xác thực người dùng
 class AuthService {

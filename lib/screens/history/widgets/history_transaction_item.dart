@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../../services/category_service.dart';
+import '../../../services/services.dart';
 import '../../../utils/formatting/currency_formatter.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 

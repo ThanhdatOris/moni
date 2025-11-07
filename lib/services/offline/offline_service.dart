@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/category_model.dart';
-import '../models/transaction_model.dart';
-import 'logging_service.dart';
+import '../../models/category_model.dart';
+import '../../models/transaction_model.dart';
+import '../core/logging_service.dart';
 
 /// Service xử lý offline functionality
 class OfflineService {

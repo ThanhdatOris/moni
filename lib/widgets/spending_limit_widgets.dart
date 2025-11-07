@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../constants/app_colors.dart';
-import '../services/spending_limit_service.dart';
+import '../../../services/services.dart';
 import '../utils/formatting/currency_formatter.dart';
 
 /// Dialog cảnh báo giới hạn chi tiêu

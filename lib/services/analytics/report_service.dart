@@ -2,10 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
-import '../models/report_model.dart';
-import '../models/transaction_model.dart';
-import 'offline_service.dart';
-import 'transaction_service.dart';
+import '../../models/report_model.dart';
+import '../../models/transaction_model.dart';
+import '../offline/offline_service.dart';
+import '../data/transaction_service.dart';
 
 /// Service tạo và quản lý báo cáo tài chính
 class ReportService {

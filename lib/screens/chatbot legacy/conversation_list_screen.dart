@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../constants/app_colors.dart';
 import '../../models/conversation_model.dart';
-import '../../services/conversation_service.dart';
+import '../../services/services.dart';
 import 'chatbot_screen.dart';
 
 /// Màn hình danh sách các cuộc hội thoại

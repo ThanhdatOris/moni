@@ -4,8 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 
 import '../../../models/report_model.dart';
-import '../../../services/ai_processor_service.dart';
-import '../../../services/report_service.dart';
+import '../../../services/services.dart';
 import '../models/agent_request_model.dart';
 import '../models/agent_response_model.dart';
 import 'assistant_context_manager.dart';

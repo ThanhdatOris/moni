@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 import '../core/di/injection_container.dart';
-import '../services/auth_service.dart';
+import '../../../services/services.dart';
 
 /// Widget hiển thị thông tin user và nút chuyển đổi tài khoản
 class GoogleAccountSwitcher extends StatefulWidget {

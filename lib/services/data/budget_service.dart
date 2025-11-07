@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../models/budget_model.dart';
-import '../services/base_service.dart';
+import '../../models/budget_model.dart';
+import '../core/base_service.dart';
 
 /// Service quản lý ngân sách - Tích hợp với Firestore
 class BudgetService extends BaseService {

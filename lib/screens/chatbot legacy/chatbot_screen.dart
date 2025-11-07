@@ -5,9 +5,7 @@ import 'package:logger/logger.dart';
 
 import '../../constants/app_colors.dart';
 import '../../models/chat_log_model.dart';
-import '../../services/ai_processor_service.dart';
-import '../../services/chat_log_service.dart';
-import '../../services/conversation_service.dart';
+import '../../services/services.dart';
 import 'conversation_list_screen.dart';
 import 'models/chat_message_model.dart';
 import 'widgets/chat_input_widget.dart';

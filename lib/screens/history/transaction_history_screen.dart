@@ -5,7 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../constants/app_colors.dart';
 import '../../models/transaction_model.dart';
-import '../../services/transaction_service.dart';
+import '../../services/services.dart';
 import '../../utils/formatting/currency_formatter.dart';
 import '../../widgets/custom_page_header.dart';
 import 'transaction_detail_screen.dart';

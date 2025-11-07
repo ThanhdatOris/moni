@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import '../models/transaction_model.dart';
+import '../../models/transaction_model.dart';
 
 /// Service phát hiện giao dịch trùng lặp
 class DuplicateDetectionService {

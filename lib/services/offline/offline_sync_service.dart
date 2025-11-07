@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import 'category_service.dart';
-import 'logging_service.dart';
+import '../data/category_service.dart';
+import '../core/logging_service.dart';
 import 'offline_service.dart';
-import 'transaction_service.dart';
+import '../data/transaction_service.dart';
 
 /// Service quản lý sync dữ liệu offline với cloud
 class OfflineSyncService {

@@ -3,8 +3,7 @@ import 'package:logger/logger.dart';
 
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../../services/category_service.dart';
-import '../../../services/transaction_service.dart';
+import '../../../services/services.dart';
 import '../../../widgets/charts/models/chart_data_model.dart';
 
 /// Service adapter để kết nối Assistant modules với dữ liệu thực

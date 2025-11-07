@@ -44,6 +44,12 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
   Map<String, dynamic>? _structuredInsight;
   List<String> _localTips = [];
 
+  // 🎯 OPTIMIZATION: Cache insights để giảm API calls
+  static const Duration _cacheDuration = Duration(hours: 6);
+  static final Map<String, _CachedInsight> _insightCache = {};
+
+  static String _getCacheKey(String moduleId) => 'insight_$moduleId';
+
   @override
   void initState() {
     super.initState();
@@ -58,6 +64,22 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
     });
 
     try {
+      // 🎯 OPTIMIZATION: Check cache first
+      final cacheKey = _getCacheKey(widget.moduleId);
+      final cached = _insightCache[cacheKey];
+      
+      if (cached != null && !cached.isExpired) {
+        // Use cached insight
+        setState(() {
+          _insightText = cached.text;
+          _insightMeta = cached.meta;
+          _structuredInsight = cached.structured;
+          _localTips = cached.tips;
+          _isLoading = false;
+        });
+        return;
+      }
+
       // Bổ sung ngữ cảnh thực tế từ dữ liệu transaction + analytics
       final analytics = await _realDataService.getAnalyticsData();
       final spendingSummary = await _realDataService.getSpendingSummary();
@@ -142,6 +164,16 @@ ${jsonEncode(contextPayload)}
               Map<String, dynamic>.from(responseData['insight']);
         }
         _isLoading = false;
+
+        // 🎯 OPTIMIZATION: Cache the insight for 6 hours
+        final cacheKey = _getCacheKey(widget.moduleId);
+        _insightCache[cacheKey] = _CachedInsight(
+          text: result.response,
+          meta: result.insights,
+          structured: _structuredInsight,
+          tips: _localTips,
+          cachedAt: DateTime.now(),
+        );
       });
     } catch (e) {
       if (!mounted) return;
@@ -463,4 +495,25 @@ ${jsonEncode(contextPayload)}
 
     return tips;
   }
+}
+
+// 🎯 OPTIMIZATION: Cached insight model
+class _CachedInsight {
+  final String text;
+  final Map<String, dynamic> meta;
+  final Map<String, dynamic>? structured;
+  final List<String> tips;
+  final DateTime cachedAt;
+
+  _CachedInsight({
+    required this.text,
+    required this.meta,
+    this.structured,
+    required this.tips,
+    required this.cachedAt,
+  });
+
+  bool get isExpired =>
+      DateTime.now().difference(cachedAt) >
+      _GlobalInsightPanelState._cacheDuration;
 }

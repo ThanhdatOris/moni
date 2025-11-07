@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../../services/category_service.dart';
+import '../../../services/services.dart';
 import 'detail_amount_card.dart';
 import 'detail_info_card.dart';
 

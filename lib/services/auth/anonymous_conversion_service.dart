@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../models/user_model.dart';
-import 'error_handler.dart';
-import 'logging_service.dart';
-import 'offline_service.dart';
-import 'offline_sync_service.dart';
+import '../../models/user_model.dart';
+import '../core/error_handler.dart';
+import '../core/logging_service.dart';
+import '../offline/offline_service.dart';
+import '../offline/offline_sync_service.dart';
 
 /// Service xử lý chuyển đổi anonymous user thành registered user
 class AnonymousConversionService {

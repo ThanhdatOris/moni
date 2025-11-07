@@ -1,8 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:logger/logger.dart';
 
-import '../firebase_options.dart';
-import 'app_check_service.dart';
+import '../../firebase_options.dart';
+import '../auth/app_check_service.dart';
 import 'environment_service.dart';
 
 /// Service khởi tạo và cấu hình Firebase

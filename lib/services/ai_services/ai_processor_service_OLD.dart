@@ -8,13 +8,11 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/category_model.dart';
-import '../models/transaction_model.dart';
-import '../utils/formatting/currency_formatter.dart';
-import 'category_service.dart';
-import 'environment_service.dart';
-import 'ocr_service.dart';
-import 'transaction_service.dart';
+import '../../models/category_model.dart';
+import '../../models/transaction_model.dart';
+import '../../utils/formatting/currency_formatter.dart';
+import 'ai_response_cache.dart';
+import '../services.dart';
 
 /// Service xử lý các chức năng AI sử dụng Gemini API
 class AIProcessorService {
@@ -24,13 +22,14 @@ class AIProcessorService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Cache để tránh gọi API trùng lặp
-  final Map<String, String> _categoryCache = {};
-  static const int _cacheMaxSize = 100;
+  // 🎯 OPTIMIZATION: Smart persistent cache
+  final AIResponseCache _smartCache = AIResponseCache();
 
-  // Rate limiting
+  // Rate limiting for Google API (15 requests/minute for free tier)
   DateTime? _lastApiCall;
   static const Duration _minApiInterval = Duration(milliseconds: 500);
+  final List<DateTime> _apiCallTimestamps = []; // Track calls in last minute
+  static const int _maxCallsPerMinute = 12; // Conservative limit (free tier = 15)
 
   // Token usage tracking
   int _dailyTokenCount = 0;
@@ -49,8 +48,11 @@ class AIProcessorService {
       throw Exception('Gemini API key not found in environment variables');
     }
     
-    // Load saved token count from SharedPreferences
+    // Load saved token count from SharedPreferences & Firestore
     _loadTokenUsage();
+    
+    // 🎯 OPTIMIZATION: Load persistent cache
+    _smartCache.loadFromDisk();
 
     // Define function declarations for chatbot
     final List<FunctionDeclaration> functions = [
@@ -108,7 +110,7 @@ class AIProcessorService {
         '\n  Model: $initializedModel'
         '\n  Functions: ${functions.length} available'
         '\n  Token Limit: $_dailyTokenLimit/day'
-        '\n  Cache Size: $_cacheMaxSize entries');
+        '\n  Smart Cache: Enabled with tiered priorities');
   }
 
   /// Trích xuất thông tin giao dịch từ hình ảnh sử dụng OCR + AI
@@ -520,9 +522,12 @@ User input: "$input"
       return "🤖 AI đang quá tải hiện tại. Vui lòng thử lại sau ít phút.\n\nMôi trường AI hiện đang có nhiều người dùng, hãy kiên nhẫn một chút nhé! 😊";
     }
 
-    // Rate limit errors (429)
-    if (errorString.contains('429') || errorString.contains('rate limit')) {
-      return "⏰ Bạn đã gửi quá nhiều tin nhắn trong thời gian ngắn. Vui lòng chờ một chút trước khi tiếp tục.\n\nHãy thư giãn và thử lại sau vài giây! ☕";
+    // Rate limit errors (429) - GOOGLE API SPECIFIC
+    if (errorString.contains('429') || 
+        errorString.contains('rate limit') ||
+        errorString.contains('requests per minute') ||
+        errorString.contains('quota exceeded')) {
+      return "⏰ Đang có quá nhiều yêu cầu AI cùng lúc. Vui lòng chờ 10-30 giây rồi thử lại.\n\nĐây là giới hạn của Google API, không phải ứng dụng. App sẽ tự động retry! 🔄";
     }
 
     // Authentication errors (401, 403)
@@ -541,7 +546,7 @@ User input: "$input"
       return "📶 Kết nối mạng không ổn định. Vui lòng kiểm tra internet và thử lại.\n\nHãy đảm bảo bạn có kết nối mạng tốt! 🌐";
     }
 
-    // Quota/limit exceeded errors
+    // Quota/limit exceeded errors (App-level)
     if (errorString.contains('quota') ||
         errorString.contains('limit') ||
         errorString.contains('usage')) {
@@ -733,14 +738,14 @@ ${transactionType == TransactionType.expense ? '📉' : '📈'} **Loại:** ${tr
 
   /// Gợi ý danh mục cho giao dịch dựa trên mô tả
   Future<String> suggestCategory(String description) async {
-    // Kiểm tra cache trước
-    final cacheKey = description.toLowerCase().trim();
-    if (_categoryCache.containsKey(cacheKey)) {
-      // ✅ IMPROVED: Only log cache hits in debug mode
+    // 🎯 OPTIMIZATION: Check smart cache first
+    final cacheKey = 'category:${description.toLowerCase().trim()}';
+    final cached = _smartCache.get(cacheKey, CachePriority.high);
+    if (cached != null) {
       if (EnvironmentService.debugMode) {
-        _logger.d('📁 Category cache hit for: $description');
+        _logger.d('📁 Smart cache hit for category: $description');
       }
-      return _categoryCache[cacheKey]!;
+      return cached;
     }
 
     try {
@@ -768,8 +773,9 @@ Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "G
       final responseTokens = _estimateTokens(result);
       await _updateTokenCount(estimatedTokens + responseTokens);
 
-      // Lưu vào cache
-      _addToCache(_categoryCache, cacheKey, result);
+      // 🎯 OPTIMIZATION: Save to smart cache (7 days TTL)
+      _smartCache.put(cacheKey, result, CachePriority.high);
+      _smartCache.saveToDisk(); // Persist immediately
 
       // ✅ IMPROVED: Only log successful category suggestion in debug mode
       if (EnvironmentService.debugMode) {
@@ -779,6 +785,119 @@ Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "G
     } catch (e) {
       _logger.e('❌ Error suggesting category: $e');
       return 'Ăn uống'; // Default fallback category
+    }
+  }
+
+  /// 🎯 OPTIMIZATION: Batch category suggestions to reduce API calls
+  /// Use this when importing multiple transactions or batch processing
+  /// Returns Map<description, category>
+  Future<Map<String, String>> suggestCategoriesBatch(
+      List<String> descriptions) async {
+    if (descriptions.isEmpty) return {};
+
+    // 🎯 OPTIMIZATION: Check smart cache first
+    final Map<String, String> results = {};
+    final List<String> uncachedDescriptions = [];
+
+    for (final desc in descriptions) {
+      final cacheKey = 'category:${desc.toLowerCase().trim()}';
+      final cached = _smartCache.get(cacheKey, CachePriority.high);
+      if (cached != null) {
+        results[desc] = cached;
+      } else {
+        uncachedDescriptions.add(desc);
+      }
+    }
+
+    if (uncachedDescriptions.isEmpty) {
+      _logger.d('📁 All ${descriptions.length} categories from smart cache');
+      return results;
+    }
+
+    try {
+      // Check rate limit
+      await _checkRateLimit();
+
+      _logger.i(
+          '🤔 Batch suggesting categories for ${uncachedDescriptions.length} transactions');
+
+      // Build batch prompt
+      final indexedDescriptions = uncachedDescriptions
+          .asMap()
+          .entries
+          .map((e) => '${e.key}: "${e.value}"')
+          .join('\n');
+
+      final prompt = '''
+Suggest best Vietnamese category for each transaction.
+Return ONLY valid JSON object mapping index to category name.
+
+Transactions:
+$indexedDescriptions
+
+Valid categories: "Ăn uống", "Mua sắm", "Đi lại", "Giải trí", "Y tế", "Học tập", "Hóa đơn", "Lương", "Đầu tư", "Thưởng", "Freelance", "Bán hàng", "Khác"
+
+Response format: {"0": "Ăn uống", "1": "Đi lại", ...}
+''';
+
+      // Estimate tokens
+      final estimatedTokens = _estimateTokens(prompt);
+      if (_dailyTokenCount + estimatedTokens > _dailyTokenLimit) {
+        // Return defaults if quota exceeded
+        for (final desc in uncachedDescriptions) {
+          results[desc] = 'Ăn uống';
+        }
+        return results;
+      }
+
+      final response = await _model.generateContent([Content.text(prompt)]);
+      final responseText = response.text?.trim() ?? '{}';
+
+      // Update token count
+      final responseTokens = _estimateTokens(responseText);
+      await _updateTokenCount(estimatedTokens + responseTokens);
+
+      // Parse JSON response
+      try {
+        // Extract JSON from markdown code blocks if present
+        final jsonMatch = RegExp(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```')
+            .firstMatch(responseText);
+        final jsonString = jsonMatch?.group(1) ?? responseText;
+
+        final Map<String, dynamic> parsed = jsonDecode(jsonString);
+
+        // Map results back to descriptions
+        for (var i = 0; i < uncachedDescriptions.length; i++) {
+          final category = parsed[i.toString()]?.toString() ?? 'Khác';
+          results[uncachedDescriptions[i]] = category;
+
+          // 🎯 OPTIMIZATION: Cache individual results to smart cache
+          final cacheKey =
+              'category:${uncachedDescriptions[i].toLowerCase().trim()}';
+          _smartCache.put(cacheKey, category, CachePriority.high);
+        }
+
+        // 🎯 OPTIMIZATION: Persist cache after batch operation
+        await _smartCache.saveToDisk();
+
+        _logger.d(
+            '✅ Batch suggested ${uncachedDescriptions.length} categories');
+      } catch (e) {
+        _logger.e('❌ Error parsing batch response: $e');
+        // Fallback to defaults
+        for (final desc in uncachedDescriptions) {
+          results[desc] = 'Ăn uống';
+        }
+      }
+
+      return results;
+    } catch (e) {
+      _logger.e('❌ Error in batch category suggestion: $e');
+      // Fallback to defaults
+      for (final desc in uncachedDescriptions) {
+        results[desc] = 'Ăn uống';
+      }
+      return results;
     }
   }
 
@@ -923,16 +1042,6 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
 ❓ Cần hỗ trợ gì khác không?''';
   }
 
-  /// Add item to cache with size limit
-  void _addToCache(Map<String, String> cache, String key, String value) {
-    if (cache.length >= _cacheMaxSize) {
-      // Remove oldest entry (first in map)
-      final firstKey = cache.keys.first;
-      cache.remove(firstKey);
-    }
-    cache[key] = value;
-  }
-
   /// Parse amount from various formats (18k, 1tr, 18000, etc.)
   double _parseAmount(dynamic rawAmount) {
     // Null-safe fallback
@@ -1038,7 +1147,27 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
       throw Exception('Daily token limit exceeded. Please try again tomorrow.');
     }
 
-    // Check minimum interval between API calls
+    // 🆕 Check Google API rate limit (requests per minute)
+    final oneMinuteAgo = now.subtract(const Duration(minutes: 1));
+    
+    // Remove timestamps older than 1 minute
+    _apiCallTimestamps.removeWhere((timestamp) => timestamp.isBefore(oneMinuteAgo));
+    
+    // Check if we've hit the per-minute limit
+    if (_apiCallTimestamps.length >= _maxCallsPerMinute) {
+      final oldestCall = _apiCallTimestamps.first;
+      final waitTime = const Duration(minutes: 1) - now.difference(oldestCall);
+      
+      if (waitTime.inSeconds > 0) {
+        _logger.w('⏰ Rate limit: ${_apiCallTimestamps.length}/$_maxCallsPerMinute calls/min. Waiting ${waitTime.inSeconds}s...');
+        await Future.delayed(waitTime + const Duration(milliseconds: 100));
+        
+        // Clear old timestamps after waiting
+        _apiCallTimestamps.removeWhere((t) => t.isBefore(DateTime.now().subtract(const Duration(minutes: 1))));
+      }
+    }
+
+    // Check minimum interval between API calls (anti-spam)
     if (_lastApiCall != null) {
       final timeSinceLastCall = now.difference(_lastApiCall!);
       if (timeSinceLastCall < _minApiInterval) {
@@ -1047,7 +1176,9 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
       }
     }
 
+    // Record this API call
     _lastApiCall = DateTime.now();
+    _apiCallTimestamps.add(_lastApiCall!);
   }
 
   /// Load token usage from SharedPreferences and Firestore
@@ -1066,6 +1197,7 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
               .get();
 
           if (docSnapshot.exists) {
+            // User đã có data trong Firestore
             final data = docSnapshot.data()!;
             _dailyTokenCount = data['dailyTokenCount'] ?? 0;
             
@@ -1102,13 +1234,61 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
             }
             
             return;
+          } else {
+            // 🔄 MIGRATION: User cũ chưa có data trong Firestore
+            // Đọc từ local và migrate lên Firestore
+            _logger.i('🔄 Migrating existing user to Firestore token tracking...');
+            
+            final prefs = await SharedPreferences.getInstance();
+            final localTokenCount = prefs.getInt(_keyTokenCount);
+            final localLastReset = prefs.getInt(_keyLastTokenReset);
+            
+            if (localTokenCount != null || localLastReset != null) {
+              // Có data cũ trong local, migrate lên Firestore
+              _dailyTokenCount = localTokenCount ?? 0;
+              
+              if (localLastReset != null) {
+                _lastTokenReset = DateTime.fromMillisecondsSinceEpoch(localLastReset);
+              }
+              
+              // Check if need to reset for new day
+              final now = DateTime.now();
+              if (_lastTokenReset != null) {
+                final lastResetDate = DateTime(
+                  _lastTokenReset!.year,
+                  _lastTokenReset!.month,
+                  _lastTokenReset!.day,
+                );
+                final currentDate = DateTime(now.year, now.month, now.day);
+                
+                if (currentDate.isAfter(lastResetDate)) {
+                  // Reset for new day
+                  _dailyTokenCount = 0;
+                  _lastTokenReset = now;
+                }
+              } else {
+                _lastTokenReset = now;
+              }
+              
+              // Save migrated data to Firestore
+              await _saveTokenUsage();
+              _logger.i('✅ Migration complete: $_dailyTokenCount tokens migrated to Firestore');
+              return;
+            }
+            
+            // Không có data cũ, khởi tạo mới
+            _logger.i('🆕 New user: Initializing token tracking...');
+            _dailyTokenCount = 0;
+            _lastTokenReset = DateTime.now();
+            await _saveTokenUsage();
+            return;
           }
         } catch (e) {
           _logger.w('Error loading from Firestore, fallback to local: $e');
         }
       }
       
-      // Fallback: Load from SharedPreferences
+      // Fallback: Load from SharedPreferences (user chưa login hoặc lỗi Firestore)
       final prefs = await SharedPreferences.getInstance();
       
       // Load saved token count
@@ -1137,6 +1317,11 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
         } else {
           _logger.i('📊 Token usage loaded from local: $_dailyTokenCount / $_dailyTokenLimit');
         }
+      } else {
+        // No existing data
+        _dailyTokenCount = 0;
+        _lastTokenReset = DateTime.now();
+        await _saveTokenUsage();
       }
     } catch (e) {
       _logger.e('Error loading token usage: $e');
@@ -1190,6 +1375,33 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
         '(${(_dailyTokenCount / _dailyTokenLimit * 100).toStringAsFixed(1)}%)'
       );
     }
+  }
+
+  /// Get current token usage stats (for debugging/admin)
+  Future<Map<String, dynamic>> getTokenUsageStats() async {
+    final user = _auth.currentUser;
+    
+    return {
+      'dailyTokenCount': _dailyTokenCount,
+      'dailyTokenLimit': _dailyTokenLimit,
+      'percentUsed': (_dailyTokenCount / _dailyTokenLimit * 100).toStringAsFixed(1),
+      'remainingTokens': _dailyTokenLimit - _dailyTokenCount,
+      'lastTokenReset': _lastTokenReset?.toIso8601String(),
+      'userId': user?.uid,
+      'isLoggedIn': user != null,
+    };
+  }
+
+  /// Force reset token quota (for admin/debugging purposes)
+  /// Use with caution - only for stuck users or testing
+  Future<void> forceResetTokenQuota({String? reason}) async {
+    _logger.w('🔧 Force resetting token quota. Reason: ${reason ?? "Manual reset"}');
+    
+    _dailyTokenCount = 0;
+    _lastTokenReset = DateTime.now();
+    await _saveTokenUsage();
+    
+    _logger.i('✅ Token quota force reset complete');
   }
 
   /// Estimate tokens for input text (rough estimation)

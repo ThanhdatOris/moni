@@ -3,8 +3,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../../../constants/app_colors.dart';
 import '../../../../models/transaction_model.dart';
-import '../../../../services/chart_data_service.dart';
-import '../../../../services/transaction_service.dart';
+import '../../../../services/services.dart';
 import '../../../assistant/models/agent_request_model.dart';
 import '../../../assistant/services/global_agent_service.dart';
 import 'widgets/report_chart_preview.dart';

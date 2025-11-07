@@ -3,9 +3,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
-import '../models/transaction_model.dart';
-import 'environment_service.dart';
-import 'offline_service.dart';
+import '../../models/transaction_model.dart';
+import '../core/environment_service.dart';
+import '../offline/offline_service.dart';
 
 /// Service quản lý giao dịch tài chính
 class TransactionService {

@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../../../constants/app_colors.dart';
-import '../../../../../../services/category_service.dart';
-import '../../../../../../services/transaction_service.dart';
+import '../../../../../services/services.dart';
 import '../../../../../../utils/helpers/category_icon_helper.dart';
 import '../../../../history/transaction_detail_screen.dart';
 import '../../../models/chat_message_model.dart';
