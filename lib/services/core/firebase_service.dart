@@ -13,35 +13,30 @@ class FirebaseService {
   /// Khởi tạo Firebase
   static Future<void> initialize() async {
     try {
+      // Kiểm tra đã khởi tạo
       if (_isInitialized) {
-        // ✅ IMPROVED: Only log if already initialized when needed
         if (EnvironmentService.debugMode) {
           _logger.d('🔥 Firebase đã được khởi tạo');
         }
         return;
       }
 
-      // Kiểm tra Environment Service đã khởi tạo chưa (tránh duplicate)
+      // Kiểm tra Firebase app đã tồn tại
+      if (Firebase.apps.isNotEmpty) {
+        _isInitialized = true;
+        _logger.i('🔥 Firebase: Sử dụng instance có sẵn');
+        return;
+      }
+
+      // Khởi tạo Environment Service nếu cần
       if (!EnvironmentService.isInitialized) {
         await EnvironmentService.initialize();
       }
 
       if (!EnvironmentService.isInitialized) {
-        _logger.w(
-            '⚠️ Khởi tạo Environment Service không thành công, sử dụng fallback');
-      } else {
-        // ✅ IMPROVED: Consolidated environment status - chỉ log khi thật sự cần
-        if (EnvironmentService.loggingEnabled && EnvironmentService.debugMode) {
-          EnvironmentService.logConfiguration();
-        }
-      }
-
-      // Kiểm tra xem Firebase đã được khởi tạo chưa
-      if (Firebase.apps.isNotEmpty) {
-        // ✅ IMPROVED: Combined with initialization success message below
-        _isInitialized = true;
-        _logger.i('🔥 Firebase: App đã tồn tại, sử dụng instance có sẵn');
-        return;
+        _logger.w('⚠️ Environment Service không khởi tạo được, sử dụng fallback');
+      } else if (EnvironmentService.loggingEnabled && EnvironmentService.debugMode) {
+        EnvironmentService.logConfiguration();
       }
 
       // Kiểm tra Firebase configuration
@@ -60,19 +55,18 @@ class FirebaseService {
       await AppCheckService.initialize();
 
       _isInitialized = true;
-      // ✅ IMPROVED: Single comprehensive success message
       _logger.i('🔥 Khởi tạo Firebase thành công');
     } catch (e) {
       _logger.e('❌ Lỗi khởi tạo Firebase: $e');
 
-      // Nếu lỗi là duplicate app, vẫn coi như đã khởi tạo thành công
+      // Xử lý duplicate app error
       if (e.toString().contains('duplicate-app')) {
         _isInitialized = true;
         _logger.i('🔥 Firebase: App đã tồn tại, tiếp tục sử dụng');
         return;
       }
 
-      // Nếu lỗi configuration, ném exception cụ thể
+      // Xử lý configuration error
       if (e.toString().contains('configuration') ||
           e.toString().contains('your-project-id')) {
         throw Exception(

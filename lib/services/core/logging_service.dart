@@ -88,11 +88,6 @@ class LoggingService {
       outputs.add(ConsoleOutput());
     }
     
-    // File output chỉ cho production và chỉ log error/fatal
-    if (!kDebugMode) {
-      outputs.add(FileOutput());
-    }
-    
     _logger = Logger(
       level: kDebugMode ? Level.debug : Level.error, // ✅ PRODUCTION: CHỈ LOG ERROR
       printer: PrettyPrinter(
@@ -248,13 +243,10 @@ class LoggingService {
       _logger.e(message);
     }
     
-    // Buffer cho export và crash reporting (format đầy đủ)
+    // Buffer cho export (format đầy đủ)
     final context = _createContext(className, methodName);
     final logEntry = _formatLogEntry(LogLevel.error, message, context, data, error, stackTrace);
     _addToBuffer(logEntry);
-    
-    // Gửi lên crash reporting service
-    _reportCrash(message, error, stackTrace, context);
   }
 
   /// Log FATAL
@@ -273,13 +265,10 @@ class LoggingService {
       _logger.f(message);
     }
     
-    // Buffer cho export và crash reporting (format đầy đủ)
+    // Buffer cho export (format đầy đủ)
     final context = _createContext(className, methodName);
     final logEntry = _formatLogEntry(LogLevel.fatal, message, context, data, error, stackTrace);
     _addToBuffer(logEntry);
-    
-    // Luôn gửi lên crash reporting service
-    _reportCrash(message, error, stackTrace, context);
   }
 
   /// Format entry log để lưu vào buffer
@@ -316,17 +305,6 @@ class LoggingService {
     return buffer.toString();
   }
 
-  /// Gửi báo cáo lỗi (có thể tích hợp với Firebase Crashlytics)
-  void _reportCrash(
-    String message,
-    dynamic error,
-    StackTrace? stackTrace,
-    LogContext context,
-  ) {
-    // TODO: Tích hợp với Firebase Crashlytics
-    // FirebaseCrashlytics.instance.recordError(error, stackTrace);
-  }
-
   /// Thiết lập mức độ log
   void setLogLevel(LogLevel level) {
     _currentLogLevel = level;
@@ -355,14 +333,6 @@ class LoggingService {
       _logger.e('❌ Lỗi xuất log: $e');
       return null;
     }
-  }
-}
-
-/// Output log ra file
-class FileOutput extends LogOutput {
-  @override
-  void output(OutputEvent event) {
-    // TODO: Implement file output
   }
 }
 
