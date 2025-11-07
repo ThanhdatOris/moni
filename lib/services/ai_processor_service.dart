@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/category_model.dart';
 import '../models/transaction_model.dart';
@@ -18,6 +21,8 @@ class AIProcessorService {
   late final GenerativeModel _model;
   final Logger _logger = Logger();
   final GetIt _getIt = GetIt.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Cache để tránh gọi API trùng lặp
   final Map<String, String> _categoryCache = {};
@@ -31,6 +36,10 @@ class AIProcessorService {
   int _dailyTokenCount = 0;
   DateTime? _lastTokenReset;
   static const int _dailyTokenLimit = 10000;
+  
+  // SharedPreferences keys for persistent storage
+  static const String _keyTokenCount = 'ai_daily_token_count';
+  static const String _keyLastTokenReset = 'ai_last_token_reset';
 
   AIProcessorService() {
     // Load API key from environment variables
@@ -39,6 +48,9 @@ class AIProcessorService {
     if (apiKey.isEmpty) {
       throw Exception('Gemini API key not found in environment variables');
     }
+    
+    // Load saved token count from SharedPreferences
+    _loadTokenUsage();
 
     // Define function declarations for chatbot
     final List<FunctionDeclaration> functions = [
@@ -219,7 +231,7 @@ Lưu ý:
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
-      _dailyTokenCount += estimatedTokens;
+      await _updateTokenCount(estimatedTokens);
 
       final responseText = response.text ?? '';
       final parsedResult = _parseAIAnalysisResponse(responseText);
@@ -447,7 +459,7 @@ User input: "$input"
 ''';
 
       // Update token usage
-      _dailyTokenCount += estimatedTokens;
+      await _updateTokenCount(estimatedTokens);
 
       // Check if user is asking about categories or financial help
       final inputLower = input.toLowerCase();
@@ -470,13 +482,7 @@ User input: "$input"
 
       // Update token count (estimate response tokens too)
       final responseTokens = _estimateTokens(response.text ?? '');
-      _dailyTokenCount += responseTokens;
-
-      // ✅ IMPROVED: Consolidated token usage log (only when significant usage)
-      if (_dailyTokenCount > _dailyTokenLimit * 0.8) {
-        _logger.w(
-            '⚠️ High token usage: $_dailyTokenCount / $_dailyTokenLimit (${(_dailyTokenCount / _dailyTokenLimit * 100).toStringAsFixed(1)}%)');
-      }
+      await _updateTokenCount(responseTokens);
 
       // Check if AI wants to call functions
       if (response.functionCalls.isNotEmpty) {
@@ -760,7 +766,7 @@ Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "G
 
       // Update token count
       final responseTokens = _estimateTokens(result);
-      _dailyTokenCount += estimatedTokens + responseTokens;
+      await _updateTokenCount(estimatedTokens + responseTokens);
 
       // Lưu vào cache
       _addToCache(_categoryCache, cacheKey, result);
@@ -816,7 +822,7 @@ Question: "$question"
       final result = response.text ?? '';
 
       // cập nhật ước lượng token tiêu thụ
-      _dailyTokenCount += estimatedTokens + _estimateTokens(result);
+      await _updateTokenCount(estimatedTokens + _estimateTokens(result));
       return result;
     } catch (e) {
       _logger.e('Error generateText: $e');
@@ -1004,10 +1010,27 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
   Future<void> _checkRateLimit() async {
     // Check daily token reset
     final now = DateTime.now();
-    if (_lastTokenReset == null ||
-        now.difference(_lastTokenReset!).inDays >= 1) {
+    
+    // Reset token nếu đã qua ngày mới (so sánh date, không phải duration)
+    if (_lastTokenReset == null) {
       _dailyTokenCount = 0;
       _lastTokenReset = now;
+      await _saveTokenUsage();
+    } else {
+      // So sánh ngày (year, month, day) để reset đúng vào 0h mỗi ngày
+      final lastResetDate = DateTime(
+        _lastTokenReset!.year,
+        _lastTokenReset!.month,
+        _lastTokenReset!.day,
+      );
+      final currentDate = DateTime(now.year, now.month, now.day);
+      
+      if (currentDate.isAfter(lastResetDate)) {
+        _dailyTokenCount = 0;
+        _lastTokenReset = now;
+        await _saveTokenUsage();
+        _logger.i('🔄 Daily token limit reset: 0 / $_dailyTokenLimit');
+      }
     }
 
     // Check daily token limit
@@ -1025,6 +1048,148 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
     }
 
     _lastApiCall = DateTime.now();
+  }
+
+  /// Load token usage from SharedPreferences and Firestore
+  Future<void> _loadTokenUsage() async {
+    try {
+      final user = _auth.currentUser;
+      
+      // Ưu tiên đọc từ Firestore nếu user đã login
+      if (user != null) {
+        try {
+          final docSnapshot = await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('ai_usage')
+              .doc('token_tracking')
+              .get();
+
+          if (docSnapshot.exists) {
+            final data = docSnapshot.data()!;
+            _dailyTokenCount = data['dailyTokenCount'] ?? 0;
+            
+            if (data['lastTokenReset'] != null) {
+              _lastTokenReset = (data['lastTokenReset'] as Timestamp).toDate();
+            }
+            
+            // Check if need to reset (crossed to new day)
+            final now = DateTime.now();
+            if (_lastTokenReset != null) {
+              final lastResetDate = DateTime(
+                _lastTokenReset!.year,
+                _lastTokenReset!.month,
+                _lastTokenReset!.day,
+              );
+              final currentDate = DateTime(now.year, now.month, now.day);
+              
+              if (currentDate.isAfter(lastResetDate)) {
+                // Reset token count for new day
+                _dailyTokenCount = 0;
+                _lastTokenReset = now;
+                await _saveTokenUsage(); // Save reset to Firestore
+                _logger.i('🔄 Token usage reset for new day (Firestore)');
+              } else {
+                _logger.i('📊 Token usage loaded from Firestore: $_dailyTokenCount / $_dailyTokenLimit');
+              }
+            }
+            
+            // Cache local backup
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setInt(_keyTokenCount, _dailyTokenCount);
+            if (_lastTokenReset != null) {
+              await prefs.setInt(_keyLastTokenReset, _lastTokenReset!.millisecondsSinceEpoch);
+            }
+            
+            return;
+          }
+        } catch (e) {
+          _logger.w('Error loading from Firestore, fallback to local: $e');
+        }
+      }
+      
+      // Fallback: Load from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Load saved token count
+      _dailyTokenCount = prefs.getInt(_keyTokenCount) ?? 0;
+      
+      // Load last reset time
+      final lastResetMillis = prefs.getInt(_keyLastTokenReset);
+      if (lastResetMillis != null) {
+        _lastTokenReset = DateTime.fromMillisecondsSinceEpoch(lastResetMillis);
+        
+        // Check if need to reset (crossed to new day)
+        final now = DateTime.now();
+        final lastResetDate = DateTime(
+          _lastTokenReset!.year,
+          _lastTokenReset!.month,
+          _lastTokenReset!.day,
+        );
+        final currentDate = DateTime(now.year, now.month, now.day);
+        
+        if (currentDate.isAfter(lastResetDate)) {
+          // Reset token count for new day
+          _dailyTokenCount = 0;
+          _lastTokenReset = now;
+          await _saveTokenUsage();
+          _logger.i('🔄 Token usage reset for new day (local)');
+        } else {
+          _logger.i('📊 Token usage loaded from local: $_dailyTokenCount / $_dailyTokenLimit');
+        }
+      }
+    } catch (e) {
+      _logger.e('Error loading token usage: $e');
+      // Initialize with default values on error
+      _dailyTokenCount = 0;
+      _lastTokenReset = DateTime.now();
+    }
+  }
+
+  /// Save token usage to both Firestore and SharedPreferences
+  Future<void> _saveTokenUsage() async {
+    try {
+      // Save to Firestore first (if user logged in)
+      final user = _auth.currentUser;
+      if (user != null) {
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('ai_usage')
+            .doc('token_tracking')
+            .set({
+          'dailyTokenCount': _dailyTokenCount,
+          'lastTokenReset': _lastTokenReset != null 
+              ? Timestamp.fromDate(_lastTokenReset!) 
+              : null,
+          'dailyLimit': _dailyTokenLimit,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      
+      // Always save to local as backup
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_keyTokenCount, _dailyTokenCount);
+      if (_lastTokenReset != null) {
+        await prefs.setInt(_keyLastTokenReset, _lastTokenReset!.millisecondsSinceEpoch);
+      }
+    } catch (e) {
+      _logger.e('Error saving token usage: $e');
+    }
+  }
+
+  /// Update token count and save to persistent storage
+  Future<void> _updateTokenCount(int tokens) async {
+    _dailyTokenCount += tokens;
+    await _saveTokenUsage();
+    
+    // Log warning if approaching limit
+    if (_dailyTokenCount > _dailyTokenLimit * 0.8) {
+      _logger.w(
+        '⚠️ High token usage: $_dailyTokenCount / $_dailyTokenLimit '
+        '(${(_dailyTokenCount / _dailyTokenLimit * 100).toStringAsFixed(1)}%)'
+      );
+    }
   }
 
   /// Estimate tokens for input text (rough estimation)
