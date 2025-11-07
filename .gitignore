@@ -152,3 +152,4 @@ PACKAGE_UPDATE_GUIDE.md
 MoniAppDesign.txt
 /docs
 /out
+pubspec.lock
