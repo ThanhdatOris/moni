@@ -486,17 +486,6 @@ class AuthService {
       // Không throw exception vì đây không phải lỗi nghiêm trọng
     }
   }
-
-  /// Chuyển đổi tài khoản Google (force account picker)
-  Future<UserModel?> switchGoogleAccount() async {
-    try {
-      // TODO: Fix Google Sign-In API after upgrade
-      throw UnimplementedError('Google Sign-In switch account needs API migration');
-    } catch (e) {
-      logError('Lỗi chuyển đổi tài khoản Google', error: e);
-      return null;
-    }
-  }
 }
 
 /// Service quản lý authentication và tạo tài khoản test
@@ -509,7 +498,6 @@ class AuthServiceTest {
       const testEmail = 'test@example.com';
       const testPassword = '123456';
 
-      // TODO: Fix fetchSignInMethodsForEmail after Firebase Auth upgrade
       // Use try-catch to check if account exists
       try {
         await _auth.createUserWithEmailAndPassword(
@@ -556,7 +544,6 @@ class AuthServiceTest {
       const testEmail = 'test@example.com';
       const testPassword = '123456';
 
-      // TODO: Fix fetchSignInMethodsForEmail after Firebase Auth upgrade
       try {
         await _auth.createUserWithEmailAndPassword(
           email: testEmail,
