@@ -252,7 +252,6 @@ class _ReportExportOptionsState extends State<ReportExportOptions> {
                   Switch(
                     value: item.value,
                     onChanged: item.onChanged,
-                    activeColor: Colors.white,
                     activeTrackColor: Colors.white.withValues(alpha: 0.3),
                     inactiveThumbColor: Colors.white.withValues(alpha: 0.6),
                     inactiveTrackColor: Colors.white.withValues(alpha: 0.2),

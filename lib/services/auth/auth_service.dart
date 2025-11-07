@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../models/user_model.dart';
-import '../data/category_service.dart';
 import '../core/error_handler.dart';
 import '../core/logging_service.dart';
+import '../data/category_service.dart';
 import '../offline/offline_service.dart';
 
 /// Service xử lý xác thực người dùng
@@ -114,7 +114,7 @@ class AuthService {
       // Current implementation needs migration due to breaking changes
       throw UnimplementedError('Google Sign-In needs API migration after dependency upgrade');
     } catch (e) {
-      print('❌ Lỗi khi đăng nhập Google: $e');
+      logError('Lỗi khi đăng nhập Google', error: e);
       return null;
     }
   }
@@ -385,7 +385,7 @@ class AuthService {
       // TODO: Fix Google Sign-In API after upgrade
       throw UnimplementedError('Google Sign-In switch account needs API migration');
     } catch (e) {
-      print('❌ Lỗi chuyển đổi tài khoản Google: $e');
+      logError('Lỗi chuyển đổi tài khoản Google', error: e);
       return null;
     }
   }
@@ -408,16 +408,37 @@ class AuthServiceTest {
           email: testEmail,
           password: testPassword,
         );
-        print('Đã tạo tài khoản test: $testEmail');
+        LoggingService.instance.info(
+          'Đã tạo tài khoản test',
+          className: 'AuthServiceTest',
+          methodName: 'createTestAccount',
+          data: {'email': testEmail},
+        );
       } on FirebaseAuthException catch (e) {
         if (e.code == 'email-already-in-use') {
-          print('Tài khoản test đã tồn tại: $testEmail ✅');
+          LoggingService.instance.info(
+            'Tài khoản test đã tồn tại',
+            className: 'AuthServiceTest',
+            methodName: 'createTestAccount',
+            data: {'email': testEmail},
+          );
         } else {
-          print('Lỗi tạo tài khoản test: ${e.code} - ${e.message}');
+          LoggingService.instance.error(
+            'Lỗi tạo tài khoản test',
+            className: 'AuthServiceTest',
+            methodName: 'createTestAccount',
+            data: {'email': testEmail, 'code': e.code, 'message': e.message},
+            error: e,
+          );
         }
       }
     } catch (e) {
-      print('Lỗi tạo tài khoản test: $e');
+      LoggingService.instance.error(
+        'Lỗi tạo tài khoản test',
+        className: 'AuthServiceTest',
+        methodName: 'createTestAccount',
+        error: e,
+      );
     }
   }
 
@@ -433,16 +454,37 @@ class AuthServiceTest {
           email: testEmail,
           password: testPassword,
         );
-        print('Đã tạo tài khoản backup: $testEmail');
+        LoggingService.instance.info(
+          'Đã tạo tài khoản backup',
+          className: 'AuthServiceTest',
+          methodName: 'createBackupTestAccount',
+          data: {'email': testEmail},
+        );
       } on FirebaseAuthException catch (e) {
         if (e.code == 'email-already-in-use') {
-          print('Tài khoản backup đã tồn tại: $testEmail ✅');
+          LoggingService.instance.info(
+            'Tài khoản backup đã tồn tại',
+            className: 'AuthServiceTest',
+            methodName: 'createBackupTestAccount',
+            data: {'email': testEmail},
+          );
         } else {
-          print('Lỗi tạo tài khoản backup: ${e.code} - ${e.message}');
+          LoggingService.instance.error(
+            'Lỗi tạo tài khoản backup',
+            className: 'AuthServiceTest',
+            methodName: 'createBackupTestAccount',
+            data: {'email': testEmail, 'code': e.code, 'message': e.message},
+            error: e,
+          );
         }
       }
     } catch (e) {
-      print('Lỗi tạo tài khoản backup: $e');
+      LoggingService.instance.error(
+        'Lỗi tạo tài khoản backup',
+        className: 'AuthServiceTest',
+        methodName: 'createBackupTestAccount',
+        error: e,
+      );
     }
   }
 
@@ -457,10 +499,20 @@ class AuthServiceTest {
         password: testPassword,
       );
 
-      print('Đăng nhập thành công với tài khoản test');
+      LoggingService.instance.info(
+        'Đăng nhập thành công với tài khoản test',
+        className: 'AuthServiceTest',
+        methodName: 'signInWithTestAccount',
+        data: {'email': testEmail},
+      );
       return credential;
     } catch (e) {
-      print('Lỗi đăng nhập với tài khoản test: $e');
+      LoggingService.instance.error(
+        'Lỗi đăng nhập với tài khoản test',
+        className: 'AuthServiceTest',
+        methodName: 'signInWithTestAccount',
+        error: e,
+      );
       return null;
     }
   }
@@ -469,9 +521,18 @@ class AuthServiceTest {
   static Future<void> signOut() async {
     try {
       await _auth.signOut();
-      print('Đăng xuất thành công');
+      LoggingService.instance.info(
+        'Đăng xuất thành công',
+        className: 'AuthServiceTest',
+        methodName: 'signOut',
+      );
     } catch (e) {
-      print('Lỗi đăng xuất: $e');
+      LoggingService.instance.error(
+        'Lỗi đăng xuất',
+        className: 'AuthServiceTest',
+        methodName: 'signOut',
+        error: e,
+      );
     }
   }
 }

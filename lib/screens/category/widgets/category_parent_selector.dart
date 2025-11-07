@@ -62,7 +62,7 @@ class CategoryParentSelector extends StatelessWidget {
               Switch(
                 value: showParentSelector,
                 onChanged: onToggleParentSelector,
-                activeColor: selectedColor,
+                activeTrackColor: selectedColor,
               ),
             ],
           ),

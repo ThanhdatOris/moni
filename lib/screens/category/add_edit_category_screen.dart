@@ -554,7 +554,7 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
           name: _nameController.text.trim(),
           icon: _selectedIcon,
           iconType: _selectedIconType,
-          color: _selectedColor.value,
+          color: _selectedColor.toARGB32(),
           parentId: _selectedParent?.categoryId,
           updatedAt: now,
         );
@@ -569,7 +569,7 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
           type: _selectedTransactionType,
           icon: _selectedIcon!,
           iconType: _selectedIconType,
-          color: _selectedColor.value
+          color: _selectedColor.toARGB32()
 ,
           parentId: _selectedParent?.categoryId,
           createdAt: now,
