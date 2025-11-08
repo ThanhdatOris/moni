@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../models/chat_message_model.dart';
+import '../../../../../models/assistant/chat_message_model.dart';
 import '../../../services/real_data_service.dart';
 
 /// Enhanced conversation service with ChangeNotifier for real-time updates
@@ -41,7 +41,10 @@ class ConversationService extends ChangeNotifier {
 
   /// Start a new conversation
   Future<void> startNewConversation() async {
-    _currentConversationId = DateTime.now().millisecondsSinceEpoch.toString();
+    // Generate unique ID with timestamp + random to avoid collisions
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final random = (timestamp % 10000).toString().padLeft(4, '0');
+    _currentConversationId = '${timestamp}_$random';
     _currentMessages.clear();
 
     final prefs = await SharedPreferences.getInstance();
@@ -49,6 +52,9 @@ class ConversationService extends ChangeNotifier {
 
     // Always add welcome message for new conversations
     await addWelcomeMessage();
+    
+    // Save conversation immediately so it appears in history
+    await _saveCurrentConversation();
     notifyListeners();
   }
 
@@ -138,7 +144,11 @@ class ConversationService extends ChangeNotifier {
 
   /// Save current conversation
   Future<void> _saveCurrentConversation() async {
-    if (_currentConversationId == null || _currentMessages.isEmpty) return;
+    // Don't save if no conversation ID
+    if (_currentConversationId == null) return;
+    
+    // Save even with only welcome message, but skip if truly empty
+    if (_currentMessages.isEmpty) return;
 
     final prefs = await SharedPreferences.getInstance();
     final conversations = prefs.getStringList(_conversationsKey) ?? [];

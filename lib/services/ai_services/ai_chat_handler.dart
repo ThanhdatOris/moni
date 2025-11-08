@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
 
 import '../../models/category_model.dart';
@@ -31,9 +32,6 @@ class AIChatHandler {
   /// Process chat input and return AI response
   Future<String> processChatInput(String input) async {
     try {
-      // Rate limiting only (no quota check - let Google API handle quota)
-      await _tokenManager.checkRateLimit();
-
       // Improved debug log
       if (EnvironmentService.debugMode) {
         final estimatedTokens = AIHelpers.estimateTokens(input);
@@ -119,13 +117,15 @@ User input: "$input"
         return _handleGeneralHelp();
       }
 
+      // Check usage before API call
+      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
+
       // Process with AI model for transaction extraction or general chat
       final response = await _model.generateContent([Content.text(prompt)]);
 
-      // Track token usage for statistics (non-blocking)
-      final estimatedTokens = AIHelpers.estimateTokens(input);
-      final responseTokens = AIHelpers.estimateTokens(response.text ?? '');
-      await _tokenManager.updateTokenCount(estimatedTokens + responseTokens);
+      // Update token usage after API call
+      await AIHelpers.updateUsageAfterCall(
+          _tokenManager, prompt, response.text ?? '');
 
       // Check if AI wants to call functions
       if (response.functionCalls.isNotEmpty) {
@@ -178,7 +178,7 @@ User input: "$input"
               (typeStr.toLowerCase() == 'income' ? 'Lương' : 'Khác'))
           .toString();
 
-      final String? dateStr = args['date']?.toString();
+      final String? rawDateStr = args['date']?.toString();
 
       // Improved log for transaction processing
       _logger.i(
@@ -191,9 +191,9 @@ User input: "$input"
 
       // Parse date or use current date
       DateTime transactionDate;
-      if (dateStr != null) {
+      if (rawDateStr != null) {
         try {
-          transactionDate = DateTime.parse(dateStr);
+          transactionDate = DateTime.parse(rawDateStr);
         } catch (e) {
           transactionDate = DateTime.now();
         }
@@ -248,11 +248,26 @@ User input: "$input"
         updatedAt: DateTime.now(),
       );
 
-      await transactionService.createTransaction(transaction);
+      final transactionId =
+          await transactionService.createTransaction(transaction);
 
-      // Return success message
-      final typeText = transactionType == TransactionType.income ? 'thu' : 'chi';
-      return '✅ Đã thêm giao dịch $typeText: ${CurrencyFormatter.formatAmountWithCurrency(amount)} - $categoryName ($description)';
+      // Return success message với format đẹp và EDIT_BUTTON marker để hiển thị edit button và category badge
+      final typeDisplay =
+          transactionType == TransactionType.income ? 'Thu nhập' : 'Chi tiêu';
+      final formattedDate = DateFormat('d/M/yyyy').format(transactionDate);
+
+      final successMessage = '''✅ **Đã thêm giao dịch thành công!**
+
+💰 **Số tiền:** ${CurrencyFormatter.formatAmountWithCurrency(amount)}
+📝 **Mô tả:** $description
+📅 **Ngày:** $formattedDate
+📊 **Loại:** $typeDisplay
+
+🎉 Giao dịch đã được lưu với emoji phù hợp!
+
+[EDIT_BUTTON:$transactionId]''';
+
+      return successMessage;
     } catch (e) {
       _logger.e('❌ Error adding transaction: $e');
       return '❌ Lỗi khi thêm giao dịch: ${e.toString()}';

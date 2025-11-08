@@ -1,10 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../core/di/injection_container.dart';
 import '../../models/user_model.dart';
-import '../../services/services.dart';
+import 'package:moni/services/services.dart';
 import '../../widgets/custom_page_header.dart';
 import 'widgets/about_section.dart';
 import 'widgets/appearance_section.dart';

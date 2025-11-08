@@ -105,9 +105,6 @@ class AITransactionProcessor {
   Future<Map<String, dynamic>> _analyzeTextWithAI(
       String text, Map<String, dynamic> ocrAnalysis) async {
     try {
-      // Rate limiting only
-      await _tokenManager.checkRateLimit();
-
       final prompt = '''
 Phân tích văn bản hóa đơn sau và trích xuất thông tin giao dịch. Văn bản này đã được OCR từ ảnh hóa đơn.
 
@@ -139,12 +136,13 @@ Lưu ý:
 - Mô tả nên bao gồm thông tin về giao dịch, không cần tách riêng tên cửa hàng
 ''';
 
+      // Check usage before API call
+      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
+
       final response = await _model.generateContent([Content.text(prompt)]);
       
-      // Track token usage for statistics (non-blocking)
-      final estimatedTokens = AIHelpers.estimateTokens(text);
-      final responseTokens = AIHelpers.estimateTokens(response.text ?? '');
-      await _tokenManager.updateTokenCount(estimatedTokens + responseTokens);
+      // Update token usage after API call
+      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, response.text ?? '');
 
       final responseText = response.text ?? '';
       final parsedResult = _parseAIAnalysisResponse(responseText);

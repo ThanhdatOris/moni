@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
 import '../../category/category_management_screen.dart';
-import '../../../services/services.dart';
+import 'package:moni/services/services.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 
 /// Enhanced category selector với grid layout và smart suggestions

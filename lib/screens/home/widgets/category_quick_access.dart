@@ -1,177 +1,134 @@
-import 'dart:async';
-
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../../services/services.dart';
+import '../../../services/providers/providers.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
-import '../../../utils/logging/logging_utils.dart';
 import '../../category/category_management_screen.dart';
 import '../../transaction/add_transaction_screen.dart';
 
-class CategoryQuickAccess extends StatefulWidget {
+class CategoryQuickAccess extends ConsumerWidget {
   const CategoryQuickAccess({super.key});
 
   @override
-  State<CategoryQuickAccess> createState() => _CategoryQuickAccessState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watch providers
+    final categoriesAsync = ref.watch(allCategoriesProvider);
+    final transactionsAsync = ref.watch(allTransactionsProvider);
 
-class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
-  final GetIt _getIt = GetIt.instance;
-  late final CategoryService _categoryService;
-
-  List<CategoryModel> _expenseCategories = [];
-  List<CategoryModel> _incomeCategories = [];
-  bool _isLoading = false;
-
-  // Usage ranking maps
-  Map<String, int> _expenseUsageCount = {};
-  Map<String, DateTime> _expenseLastUsed = {};
-  Map<String, int> _incomeUsageCount = {};
-  Map<String, DateTime> _incomeLastUsed = {};
-
-  StreamSubscription<List<CategoryModel>>? _categoriesSubscription;
-  StreamSubscription<User?>? _authSubscription;
-  StreamSubscription<List<TransactionModel>>? _recentTxSub;
-
-  @override
-  void initState() {
-    super.initState();
-    _categoryService = _getIt<CategoryService>();
-
-    // Listen to auth changes
-    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (mounted) {
-        if (user != null) {
-          _loadCategories();
-          _listenRecentTransactions();
-        } else {
-          setState(() {
-            _expenseCategories = [];
-            _incomeCategories = [];
-            _expenseUsageCount = {};
-            _expenseLastUsed = {};
-            _incomeUsageCount = {};
-            _incomeLastUsed = {};
-          });
-        }
-      }
-    });
-
-    _loadCategories();
-    _listenRecentTransactions();
-  }
-
-  @override
-  void dispose() {
-    _categoriesSubscription?.cancel();
-    _authSubscription?.cancel();
-    _recentTxSub?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _loadCategories() async {
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      await _categoriesSubscription?.cancel();
-
-      // Load all categories with single subscription (tối ưu: 1 call thay vì 2)
-      _categoriesSubscription = _categoryService.getCategories().listen(
-        (allCategories) {
-          if (mounted) {
-            // Filter categories by type
-            final expenseCategories = allCategories
-                .where((cat) => cat.type == TransactionType.expense)
-                .toList();
-            final incomeCategories = allCategories
-                .where((cat) => cat.type == TransactionType.income)
-                .toList();
-
-            setState(() {
-              _expenseCategories = _sortByUsage(expenseCategories, true);
-              _incomeCategories = _sortByUsage(incomeCategories, false);
-              _isLoading = false;
-            });
-
-            // Debug: Log category summary (reduced spam)
-            if (EnvironmentService.debugMode &&
-                expenseCategories.isNotEmpty &&
-                incomeCategories.isNotEmpty) {
-              logDebug(
-                'CategoryQuickAccess loaded: ${expenseCategories.length} expense + ${incomeCategories.length} income categories',
-                className: 'CategoryQuickAccess',
-                methodName: '_loadCategories',
-              );
-            }
-          }
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+    if (categoriesAsync.isLoading || transactionsAsync.isLoading) {
+      return _buildLoadingState();
     }
-  }
 
-  // Listen recent transactions to compute usage frequency per category
-  void _listenRecentTransactions() {
-    final transactionService = _getIt<TransactionService>();
+    final allCategories = categoriesAsync.value ?? [];
+    final allTransactions = transactionsAsync.value ?? [];
+
+    // Filter categories by type
+    final expenseCategories = allCategories
+        .where((cat) => cat.type == TransactionType.expense && !cat.isDeleted)
+        .toList();
+    final incomeCategories = allCategories
+        .where((cat) => cat.type == TransactionType.income && !cat.isDeleted)
+        .toList();
+
+    // Calculate usage frequency từ transactions trong 60 ngày gần đây
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day)
         .subtract(const Duration(days: 60));
-    _recentTxSub = transactionService
-        .getTransactions(startDate: start, endDate: now)
-        .listen((txs) {
-      final expCount = <String, int>{};
-      final expLast = <String, DateTime>{};
-      final incCount = <String, int>{};
-      final incLast = <String, DateTime>{};
+    
+    final recentTransactions = allTransactions
+        .where((t) => 
+            !t.isDeleted &&
+            t.date.isAfter(start.subtract(const Duration(seconds: 1))) &&
+            t.date.isBefore(now.add(const Duration(seconds: 1))))
+        .toList();
 
-      for (final t in txs) {
-        if (t.categoryId.isEmpty) continue;
-        if (t.type == TransactionType.expense) {
-          expCount[t.categoryId] = (expCount[t.categoryId] ?? 0) + 1;
-          final prev = expLast[t.categoryId];
-          if (prev == null || t.date.isAfter(prev)) {
-            expLast[t.categoryId] = t.date;
-          }
-        } else if (t.type == TransactionType.income) {
-          incCount[t.categoryId] = (incCount[t.categoryId] ?? 0) + 1;
-          final prev = incLast[t.categoryId];
-          if (prev == null || t.date.isAfter(prev)) {
-            incLast[t.categoryId] = t.date;
-          }
+    final expCount = <String, int>{};
+    final expLast = <String, DateTime>{};
+    final incCount = <String, int>{};
+    final incLast = <String, DateTime>{};
+
+    for (final t in recentTransactions) {
+      if (t.categoryId.isEmpty) continue;
+      if (t.type == TransactionType.expense) {
+        expCount[t.categoryId] = (expCount[t.categoryId] ?? 0) + 1;
+        final prev = expLast[t.categoryId];
+        if (prev == null || t.date.isAfter(prev)) {
+          expLast[t.categoryId] = t.date;
+        }
+      } else if (t.type == TransactionType.income) {
+        incCount[t.categoryId] = (incCount[t.categoryId] ?? 0) + 1;
+        final prev = incLast[t.categoryId];
+        if (prev == null || t.date.isAfter(prev)) {
+          incLast[t.categoryId] = t.date;
         }
       }
+    }
 
-      if (!mounted) return;
-      setState(() {
-        _expenseUsageCount = expCount;
-        _expenseLastUsed = expLast;
-        _incomeUsageCount = incCount;
-        _incomeLastUsed = incLast;
-        // Re-sort lists when usage stats updated
-        _expenseCategories = _sortByUsage(_expenseCategories, true);
-        _incomeCategories = _sortByUsage(_incomeCategories, false);
-      });
-    });
+    // Sort by usage
+    final sortedExpenseCategories = _sortByUsage(
+      expenseCategories,
+      expCount,
+      expLast,
+    );
+    final sortedIncomeCategories = _sortByUsage(
+      incomeCategories,
+      incCount,
+      incLast,
+    );
+
+    if (sortedExpenseCategories.isEmpty && sortedIncomeCategories.isEmpty) {
+      return _buildEmptyState(context);
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(context),
+          const SizedBox(height: 16),
+          if (sortedExpenseCategories.isNotEmpty) ...[
+            _buildCategorySection(
+              context,
+              'Chi tiêu gần đây',
+              sortedExpenseCategories,
+              true,
+            ),
+            const SizedBox(height: 16),
+          ],
+          if (sortedIncomeCategories.isNotEmpty) ...[
+            _buildCategorySection(
+              context,
+              'Thu nhập gần đây',
+              sortedIncomeCategories,
+              false,
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   List<CategoryModel> _sortByUsage(
-      List<CategoryModel> categories, bool isExpense) {
-    final usageCount = isExpense ? _expenseUsageCount : _incomeUsageCount;
-    final lastUsed = isExpense ? _expenseLastUsed : _incomeLastUsed;
+    List<CategoryModel> categories,
+    Map<String, int> usageCount,
+    Map<String, DateTime> lastUsed,
+  ) {
     final sorted = [...categories];
     sorted.sort((a, b) {
       final ca = usageCount[a.categoryId] ?? 0;
@@ -192,15 +149,6 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     try {
       // Kiểm tra xem màu có hợp lệ không
       if (category.color <= 0) {
-        logWarning(
-          'Invalid color for category',
-          className: 'CategoryQuickAccess',
-          methodName: '_getCategoryColor',
-          data: {
-            'categoryName': category.name,
-            'color': category.color,
-          },
-        );
         return AppColors.primary;
       }
 
@@ -209,74 +157,13 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
       // Kiểm tra xem màu có quá tối hoặc quá sáng không
       final luminance = color.computeLuminance();
       if (luminance < 0.1 || luminance > 0.9) {
-        logWarning(
-          'Color too dark/bright for category',
-          className: 'CategoryQuickAccess',
-          methodName: '_getCategoryColor',
-          data: {
-            'categoryName': category.name,
-            'color': category.color,
-            'luminance': luminance,
-          },
-        );
         return AppColors.primary;
       }
 
       return color;
     } catch (e) {
-      logError(
-        'Error parsing color for category',
-        className: 'CategoryQuickAccess',
-        methodName: '_getCategoryColor',
-        data: {
-          'categoryName': category.name,
-          'color': category.color,
-        },
-        error: e,
-      );
       return AppColors.primary;
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isLoading) {
-      return _buildLoadingState();
-    }
-
-    if (_expenseCategories.isEmpty && _incomeCategories.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          if (_expenseCategories.isNotEmpty) ...[
-            _buildCategorySection('Chi tiêu gần đây', _expenseCategories, true),
-            const SizedBox(height: 16),
-          ],
-          if (_incomeCategories.isNotEmpty) ...[
-            _buildCategorySection('Thu nhập gần đây', _incomeCategories, false),
-          ],
-        ],
-      ),
-    );
   }
 
   Widget _buildLoadingState() {
@@ -297,7 +184,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
+          _buildHeader(null),
           const SizedBox(height: 16),
           Center(
             child: CircularProgressIndicator(
@@ -309,7 +196,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
@@ -327,7 +214,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
+          _buildHeader(context),
           const SizedBox(height: 16),
           Center(
             child: Column(
@@ -347,7 +234,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                _buildManageButton(),
+                _buildManageButton(context),
               ],
             ),
           ),
@@ -356,7 +243,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext? context) {
     return Row(
       children: [
         Container(
@@ -389,12 +276,12 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
             ),
           ),
         ),
-        _buildManageButtonSmall(),
+        if (context != null) _buildManageButtonSmall(context),
       ],
     );
   }
 
-  Widget _buildManageButtonSmall() {
+  Widget _buildManageButtonSmall(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -409,7 +296,14 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: _navigateToCategoryManagement,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CategoryManagementScreen(),
+              ),
+            );
+          },
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -430,7 +324,11 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
   }
 
   Widget _buildCategorySection(
-      String title, List<CategoryModel> categories, bool isExpense) {
+    BuildContext context,
+    String title,
+    List<CategoryModel> categories,
+    bool isExpense,
+  ) {
     if (categories.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -447,23 +345,27 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
           ),
         ),
         const SizedBox(height: 12),
-        _buildCategoryGrid(categories, isExpense),
+        _buildCategoryGrid(context, categories, isExpense),
       ],
     );
   }
 
-  Widget _buildCategoryGrid(List<CategoryModel> categories, bool isExpense) {
+  Widget _buildCategoryGrid(
+    BuildContext context,
+    List<CategoryModel> categories,
+    bool isExpense,
+  ) {
     // Tạo danh sách items
     List<Widget> items = [];
 
     // Thêm các category items (tối đa 6)
     for (int i = 0; i < categories.length && i < 6; i++) {
-      items.add(_buildCategoryCard(categories[i]));
+      items.add(_buildCategoryCard(context, categories[i]));
     }
 
     // Nếu có ít hơn 6 items, thêm thẻ "..." để hiển thị thêm
     if (categories.length < 6) {
-      items.add(_buildMoreCard());
+      items.add(_buildMoreCard(context));
     }
 
     return Column(
@@ -494,7 +396,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     );
   }
 
-  Widget _buildCategoryCard(CategoryModel category) {
+  Widget _buildCategoryCard(BuildContext context, CategoryModel category) {
     final categoryColor = _getCategoryColor(category);
 
     return Container(
@@ -512,7 +414,15 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () {
-            _navigateToAddTransaction(category);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AddTransactionScreen(
+                  initialType: category.type,
+                  initialCategoryId: category.categoryId,
+                ),
+              ),
+            );
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -544,7 +454,7 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     );
   }
 
-  Widget _buildMoreCard() {
+  Widget _buildMoreCard(BuildContext context) {
     return Container(
       height: 36,
       decoration: BoxDecoration(
@@ -559,7 +469,14 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
-          onTap: _navigateToCategoryManagement,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const CategoryManagementScreen(),
+              ),
+            );
+          },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Row(
@@ -590,11 +507,18 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     );
   }
 
-  Widget _buildManageButton() {
+  Widget _buildManageButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
-        onPressed: _navigateToCategoryManagement,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CategoryManagementScreen(),
+            ),
+          );
+        },
         icon: Icon(
           Icons.settings,
           size: 18,
@@ -618,24 +542,4 @@ class _CategoryQuickAccessState extends State<CategoryQuickAccess> {
     );
   }
 
-  void _navigateToCategoryManagement() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const CategoryManagementScreen(),
-      ),
-    );
-  }
-
-  void _navigateToAddTransaction(CategoryModel category) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddTransactionScreen(
-          initialType: category.type,
-          initialCategoryId: category.categoryId,
-        ),
-      ),
-    );
-  }
 }

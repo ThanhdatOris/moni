@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../../constants/app_colors.dart';
-import '../../../core/di/injection_container.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../../services/services.dart';
+import '../../../services/providers/providers.dart';
 import '../../../utils/formatting/currency_formatter.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 import '../../history/transaction_detail_screen.dart';
 import '../../history/transaction_history_screen.dart';
 import '../../transaction/add_transaction_screen.dart';
 
-class HomeRecentTransactions extends StatefulWidget {
+class HomeRecentTransactions extends ConsumerStatefulWidget {
   final VoidCallback? onNavigateToHistory;
 
   const HomeRecentTransactions({
@@ -21,28 +21,20 @@ class HomeRecentTransactions extends StatefulWidget {
   });
 
   @override
-  State<HomeRecentTransactions> createState() => _HomeRecentTransactionsState();
+  ConsumerState<HomeRecentTransactions> createState() => _HomeRecentTransactionsState();
 }
 
-class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
+class _HomeRecentTransactionsState extends ConsumerState<HomeRecentTransactions>
     with TickerProviderStateMixin {
-  late final TransactionService _transactionService;
-  late final CategoryService _categoryService;
   late final AnimationController _animationController;
   late final AnimationController _pullRefreshController;
   late final Animation<double> _fadeAnimation;
   late final Animation<Offset> _slideAnimation;
-
-  List<TransactionModel> _transactions = [];
-  Map<String, CategoryModel> _categoryMap = {};
-  bool _isLoading = true;
-  bool _isRefreshing = false;
+  bool _hasAnimated = false;
 
   @override
   void initState() {
     super.initState();
-    _transactionService = getIt<TransactionService>();
-    _categoryService = getIt<CategoryService>();
 
     // Animation controllers
     _animationController = AnimationController(
@@ -70,73 +62,40 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
       parent: _animationController,
       curve: Curves.easeOutCubic,
     ));
-
-    _loadRecentTransactions();
   }
 
-  Future<void> _loadRecentTransactions() async {
-    if (mounted) {
-      setState(() {
-        _isLoading = true;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Start animation when data is available
+    final transactionsAsync = ref.watch(allTransactionsProvider);
+    final transactions = transactionsAsync.value ?? [];
+    final recentTransactions = transactions
+        .where((t) => !t.isDeleted)
+        .take(5)
+        .toList();
+    
+    if (recentTransactions.isNotEmpty && !_hasAnimated && transactionsAsync.hasValue) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _animationController.forward();
+          _hasAnimated = true;
+        }
       });
-    }
-
-    try {
-      // Lấy danh sách giao dịch gần đây (5 giao dịch)
-      final transactions = await _transactionService
-          .getRecentTransactions(
-            limit: 5,
-          )
-          .first;
-
-      // Lấy danh sách tất cả danh mục (tối ưu: 1 call thay vì 2)
-      final allCategories = await _categoryService
-          .getCategories() // Không filter type, lấy tất cả
-          .first;
-
-      // Tạo map category ID -> category
-      final categoryMap = <String, CategoryModel>{};
-      for (final category in allCategories) {
-        categoryMap[category.categoryId] = category;
-      }
-
-      if (mounted) {
-        setState(() {
-          _transactions = transactions;
-          _categoryMap = categoryMap;
-          _isLoading = false;
-        });
-
-        // Start animation when data loaded
-        _animationController.forward();
-      }
-    } catch (e) {
-      // Error loading recent transactions: $e
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
     }
   }
 
   Future<void> _refreshTransactions() async {
-    if (_isRefreshing) return;
-
-    setState(() {
-      _isRefreshing = true;
-    });
-
     _pullRefreshController.forward();
 
     try {
+      // Invalidate cache để refetch
+      ref.invalidate(allTransactionsProvider);
+      ref.invalidate(allCategoriesProvider);
+      
       await Future.delayed(const Duration(milliseconds: 500)); // Smooth UX
-      await _loadRecentTransactions();
     } finally {
       if (mounted) {
-        setState(() {
-          _isRefreshing = false;
-        });
         _pullRefreshController.reverse();
       }
     }
@@ -168,10 +127,8 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
 
     // Refresh data khi quay về nếu có thay đổi
     if (result != null) {
-      // result có thể là:
-      // - true nếu transaction bị xóa
-      // - TransactionModel nếu transaction được update
-      await _loadRecentTransactions();
+      // Invalidate cache để refetch
+      ref.invalidate(allTransactionsProvider);
     }
   }
 
@@ -207,6 +164,28 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
 
   @override
   Widget build(BuildContext context) {
+    // Watch providers
+    final transactionsAsync = ref.watch(allTransactionsProvider);
+    final categoriesAsync = ref.watch(allCategoriesProvider);
+    
+    // Build category map
+    final categoryMap = <String, CategoryModel>{};
+    if (categoriesAsync.hasValue) {
+      for (final category in categoriesAsync.value!) {
+        categoryMap[category.categoryId] = category;
+      }
+    }
+
+    // Get recent transactions từ allTransactionsProvider trực tiếp để handle loading state tốt hơn
+    final allTransactions = transactionsAsync.value ?? [];
+    final recentTransactions = allTransactions
+        .where((t) => !t.isDeleted)
+        .take(5)
+        .toList();
+
+    final isLoading = transactionsAsync.isLoading || categoriesAsync.isLoading;
+    final hasTransactions = recentTransactions.isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
@@ -327,9 +306,9 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
             ),
 
             // Content
-            if (_isLoading)
+            if (isLoading)
               _buildLoadingState()
-            else if (_transactions.isEmpty)
+            else if (!hasTransactions)
               _buildEmptyState()
             else
               FadeTransition(
@@ -340,7 +319,7 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
                     children: [
                       // Transaction items với padding chung
                       for (int index = 0;
-                          index < _transactions.length;
+                          index < recentTransactions.length;
                           index++) ...[
                         AnimatedBuilder(
                           animation: _animationController,
@@ -356,14 +335,16 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
                               offset: Offset(0, 50 * (1 - animationValue)),
                               child: Opacity(
                                 opacity: animationValue,
-                                child:
-                                    _buildTransactionItem(_transactions[index]),
+                                child: _buildTransactionItem(
+                                  recentTransactions[index],
+                                  categoryMap,
+                                ),
                               ),
                             );
                           },
                         ),
                         // Divider giữa các items (trừ item cuối)
-                        if (index < _transactions.length - 1)
+                        if (index < recentTransactions.length - 1)
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
                             child: Divider(
@@ -490,8 +471,11 @@ class _HomeRecentTransactionsState extends State<HomeRecentTransactions>
     );
   }
 
-  Widget _buildTransactionItem(TransactionModel transaction) {
-    final category = _categoryMap[transaction.categoryId];
+  Widget _buildTransactionItem(
+    TransactionModel transaction,
+    Map<String, CategoryModel> categoryMap,
+  ) {
+    final category = categoryMap[transaction.categoryId];
     final isExpense = transaction.type == TransactionType.expense;
 
     // Sử dụng màu từ category nếu có, fallback về màu mặc định

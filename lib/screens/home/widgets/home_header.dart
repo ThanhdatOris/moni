@@ -1,11 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../services/services.dart';
+import '../../../services/providers/providers.dart';
 import '../../../utils/formatting/currency_formatter.dart';
 
 /// Bank card style header with financial overview
@@ -21,27 +20,19 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
   String _userName = 'Khách';
   String? _userPhotoUrl;
 
-  // Financial data
-  double balance = 0.0;
-  bool isLoadingFinancial = true;
-  
   // Balance visibility
   bool _isBalanceVisible = true;
-
-  final GetIt _getIt = GetIt.instance;
 
   @override
   void initState() {
     super.initState();
     _loadBalanceVisibility();
     _loadUserInfo();
-    _loadFinancialData();
     
     // Lắng nghe sự thay đổi auth state
     FirebaseAuth.instance.authStateChanges().listen((User? user) {
       if (mounted) {
         _loadUserInfo();
-        _loadFinancialData();
       }
     });
   }
@@ -98,27 +89,6 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
     }
   }
 
-  /// Load dữ liệu tài chính
-  Future<void> _loadFinancialData() async {
-    try {
-      final transactionService = _getIt<TransactionService>();
-      final currentBalance = await transactionService.getCurrentBalance();
-      
-      if (mounted) {
-        setState(() {
-          balance = currentBalance;
-          isLoadingFinancial = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          isLoadingFinancial = false;
-        });
-      }
-      debugPrint('Lỗi load financial data: $e');
-    }
-  }
 
   /// Toggle balance visibility
   void _toggleBalanceVisibility() {
@@ -130,19 +100,23 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
 
   @override
   Widget build(BuildContext context) {
+    // Watch balance from provider
+    final balance = ref.watch(currentBalanceProvider);
+    final isLoadingFinancial = ref.watch(allTransactionsProvider).isLoading;
+    
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 48, 16, 16), // Top spacing for notification bar
       child: Column(
         children: [
           // Main bank card
-          _buildBankCard(),
+          _buildBankCard(balance, isLoadingFinancial),
         ],
       ),
     );
   }
 
   /// Build main bank card với background pattern
-  Widget _buildBankCard() {
+  Widget _buildBankCard(double balance, bool isLoadingFinancial) {
     return Container(
       height: 200,
       decoration: BoxDecoration(
@@ -168,7 +142,7 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
           // Background pattern
           _buildBackgroundPattern(),
           // Card content
-          _buildCardContent(),
+          _buildCardContent(balance, isLoadingFinancial),
         ],
       ),
     );
@@ -248,7 +222,7 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
   }
 
   /// Build card content
-  Widget _buildCardContent() {
+  Widget _buildCardContent(double balance, bool isLoadingFinancial) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(

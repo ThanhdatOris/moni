@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
-import '../../services/services.dart';
+import '../../services/providers/providers.dart';
+import 'package:moni/services/services.dart';
 import '../../utils/helpers/category_icon_helper.dart';
 import 'widgets/category_color_selector.dart';
 import 'widgets/category_icon_picker_dialog.dart';
@@ -12,7 +14,7 @@ import 'widgets/category_parent_selector.dart';
 import 'widgets/category_preview_card.dart';
 import 'widgets/category_transaction_type_selector.dart';
 
-class AddEditCategoryV2Screen extends StatefulWidget {
+class AddEditCategoryV2Screen extends ConsumerStatefulWidget {
   final CategoryModel? category;
   final TransactionType? initialTransactionType;
 
@@ -23,10 +25,10 @@ class AddEditCategoryV2Screen extends StatefulWidget {
   });
 
   @override
-  State<AddEditCategoryV2Screen> createState() => _AddEditCategoryV2ScreenState();
+  ConsumerState<AddEditCategoryV2Screen> createState() => _AddEditCategoryV2ScreenState();
 }
 
-class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
+class _AddEditCategoryV2ScreenState extends ConsumerState<AddEditCategoryV2Screen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
@@ -43,12 +45,10 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
   CategoryIconType _selectedIconType = CategoryIconType.emoji;
   Color _selectedColor = const Color(0xFF2196F3);
   CategoryModel? _selectedParent;
-  List<CategoryModel> _availableParents = [];
   TransactionType _selectedTransactionType = TransactionType.expense;
   
   // UI state
   bool _isLoading = false;
-  bool _isLoadingParents = false;
   bool _showParentSelector = false;
 
   bool get isEditing => widget.category != null;
@@ -77,7 +77,6 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
 
     _initializeData();
-    _loadAvailableParents();
     
     // Start animations
     _fadeController.forward();
@@ -108,36 +107,28 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
     }
   }
 
-  Future<void> _loadAvailableParents() async {
-    setState(() => _isLoadingParents = true);
-
-    try {
-      final categories = await _categoryService
-          .getCategories(type: _selectedTransactionType)
-          .first;
-
-      final parents = categories
-          .where((c) => c.isParentCategory && 
-                       (!isEditing || c.categoryId != widget.category!.categoryId))
-          .toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
-
-      setState(() {
-        _availableParents = parents;
-        
-        // Set selected parent if editing
-        if (isEditing && widget.category!.parentId != null) {
-          _selectedParent = parents
-              .where((p) => p.categoryId == widget.category!.parentId)
-              .firstOrNull;
-        }
-        
-        _isLoadingParents = false;
-      });
-    } catch (e) {
-      setState(() => _isLoadingParents = false);
-      _showError('Lỗi tải danh sách danh mục: $e');
+  List<CategoryModel> _getAvailableParents() {
+    final categoriesAsync = ref.read(allCategoriesProvider);
+    if (!categoriesAsync.hasValue) return [];
+    
+    final allCategories = categoriesAsync.value!;
+    final parents = allCategories
+        .where((c) => 
+            !c.isDeleted &&
+            c.type == _selectedTransactionType &&
+            (c.parentId == null || c.parentId!.isEmpty) &&
+            (!isEditing || c.categoryId != widget.category!.categoryId))
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    
+    // Set selected parent if editing
+    if (isEditing && widget.category!.parentId != null && _selectedParent == null) {
+      _selectedParent = parents
+          .where((p) => p.categoryId == widget.category!.parentId)
+          .firstOrNull;
     }
+    
+    return parents;
   }
 
   @override
@@ -281,13 +272,8 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
             }
             // Reset parent selection since different types have different parents
             _selectedParent = null;
-            _availableParents = [];
             _showParentSelector = false;
           });
-          // Reload available parents for new transaction type
-          if (_showParentSelector) {
-            _loadAvailableParents();
-          }
         },
       ),
     );
@@ -411,27 +397,27 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
   }
 
   Widget _buildParentSection() {
+    // Watch parent categories provider
+    final categoriesAsync = ref.watch(allCategoriesProvider);
+    final availableParents = _getAvailableParents();
+    final isLoadingParents = categoriesAsync.isLoading;
+    
     return _buildSection(
       title: 'Danh mục cha',
       icon: Icons.folder_outlined,
       child: CategoryParentSelector(
         showParentSelector: _showParentSelector,
         selectedParent: _selectedParent,
-        availableParents: _availableParents,
-        isLoadingParents: _isLoadingParents,
+        availableParents: availableParents,
+        isLoadingParents: isLoadingParents,
         selectedColor: _selectedColor,
-        onToggleParentSelector: (value) async {
+        onToggleParentSelector: (value) {
           setState(() {
             _showParentSelector = value;
             if (!value) {
               _selectedParent = null;
             }
           });
-          
-          // Load parents when toggled on
-          if (value && _availableParents.isEmpty) {
-            await _loadAvailableParents();
-          }
         },
         onParentChanged: (value) => setState(() => _selectedParent = value),
       ),

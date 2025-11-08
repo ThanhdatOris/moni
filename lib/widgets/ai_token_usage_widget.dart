@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import '../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../services/ai_services/ai_processor_service.dart';
 
 /// Widget hiển thị AI token usage cho user

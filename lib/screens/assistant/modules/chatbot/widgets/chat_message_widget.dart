@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:moni/constants/app_colors.dart';
 
-import '../../../../../../constants/app_colors.dart';
-import '../../../../../services/services.dart';
 import '../../../../../../utils/helpers/category_icon_helper.dart';
+import '../../../../../models/assistant/chat_message_model.dart';
+import '../../../../../services/providers/providers.dart';
 import '../../../../history/transaction_detail_screen.dart';
-import '../../../models/chat_message_model.dart';
 
 /// Widget hiển thị một tin nhắn trong cuộc hội thoại
-class ChatMessageWidget extends StatelessWidget {
+class ChatMessageWidget extends ConsumerWidget {
   final ChatMessage message;
   final VoidCallback? onEditTransaction;
   final bool isLast;
@@ -21,7 +21,7 @@ class ChatMessageWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
       child: Row(
@@ -82,7 +82,7 @@ class ChatMessageWidget extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: _buildTransactionCategoryBadge(
-                          message.transactionId!),
+                          ref, message.transactionId!),
                     ),
                   // Render content với markdown support
                   if (message.isUser)
@@ -114,13 +114,12 @@ class ChatMessageWidget extends StatelessWidget {
                       ),
 
                       // Edit button for AI messages with transaction info
-                      if (!message.isUser &&
-                          message.text.contains('[EDIT_BUTTON]') &&
-                          message.transactionId != null)
+                      // Hiển thị khi có transactionId (không cần check [EDIT_BUTTON] marker vì đã được extract)
+                      if (!message.isUser && message.transactionId != null)
                         TextButton.icon(
                           onPressed: () {
-                            // Attempting to edit transaction: ${message.transactionId}
-                            _editTransaction(context, message.transactionId!);
+                            _editTransaction(
+                                context, ref, message.transactionId!);
                           },
                           icon: const Icon(Icons.edit, size: 16),
                           label: const Text('Chỉnh sửa'),
@@ -198,49 +197,43 @@ class ChatMessageWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionCategoryBadge(String transactionId) {
-    final transactionService = GetIt.instance<TransactionService>();
-    final categoryService = GetIt.instance<CategoryService>();
+  Widget _buildTransactionCategoryBadge(WidgetRef ref, String transactionId) {
+    // Sử dụng Riverpod providers thay vì GetIt
+    // transactionByIdProvider là Provider.family, trả về TransactionModel? trực tiếp
+    final transaction = ref.watch(transactionByIdProvider(transactionId));
 
-    return FutureBuilder(
-      future: transactionService.getTransaction(transactionId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const SizedBox.shrink();
-        }
-        final tx = snapshot.data;
-        if (tx == null) return const SizedBox.shrink();
-        return FutureBuilder(
-          future: categoryService.getCategory(tx.categoryId),
-          builder: (context, catSnap) {
-            if (!catSnap.hasData || catSnap.data == null) {
-              return const SizedBox.shrink();
-            }
-            final category = catSnap.data!;
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CategoryIconHelper.buildIcon(
-                  category,
-                  size: 18,
-                  showBackground: true,
-                  backgroundColor: Colors.white,
-                  isCompact: true,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  category.name,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
+    if (transaction == null) {
+      return const SizedBox.shrink();
+    }
+
+    // Sử dụng category provider
+    // categoryByIdProvider là Provider.family, trả về CategoryModel? trực tiếp
+    final category = ref.watch(categoryByIdProvider(transaction.categoryId));
+
+    if (category == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CategoryIconHelper.buildIcon(
+          category,
+          size: 18,
+          showBackground: true,
+          backgroundColor: Colors.white,
+          isCompact: true,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          category.name,
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 
@@ -312,13 +305,13 @@ class ChatMessageWidget extends StatelessWidget {
     return TextSpan(children: spans);
   }
 
-  void _editTransaction(BuildContext context, String transactionId) async {
+  void _editTransaction(
+      BuildContext context, WidgetRef ref, String transactionId) async {
     try {
-      // Lấy thông tin giao dịch từ service
-      final transactionService = GetIt.instance<TransactionService>();
+      // Sử dụng Riverpod provider để lấy transaction
+      // transactionByIdProvider là Provider.family, trả về TransactionModel? trực tiếp
+      final transaction = ref.read(transactionByIdProvider(transactionId));
 
-      final transaction =
-          await transactionService.getTransaction(transactionId);
       if (transaction == null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

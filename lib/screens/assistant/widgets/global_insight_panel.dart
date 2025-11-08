@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../services/ai_services/ai_services.dart';
 import '../../assistant/services/real_data_service.dart';
 import 'assistant_action_button.dart';
@@ -331,68 +331,142 @@ ${jsonEncode(contextPayload)}
 
   /// Render markdown nếu có, fallback Text nếu không
   Widget _buildMarkdownOrText(String content) {
-    // Hiện tại chưa có Markdown widget trong dự án, tạm thời xử lý đơn giản:
-    // - Thay các tiêu đề **bold** → TextStyle đậm
-    // - Giữ nguyên gạch đầu dòng '-'
-    // Có thể thay thế bằng markdown package sau nếu muốn render phong phú.
     final lines = content.split('\n');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final line in lines)
+        for (int i = 0; i < lines.length; i++)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: _buildMarkdownLine(line),
+            padding: EdgeInsets.only(
+              top: i == 0 ? 0 : 4,
+              bottom: i == lines.length - 1 ? 0 : 4,
+            ),
+            child: _buildMarkdownLine(lines[i]),
           ),
       ],
     );
   }
 
   Widget _buildMarkdownLine(String line) {
-    // xử lý bold **text** đơn giản
-    final boldRegex = RegExp(r"\*\*(.*?)\*\*");
-    if (boldRegex.hasMatch(line)) {
-      final spans = <TextSpan>[];
-      int start = 0;
-      for (final match in boldRegex.allMatches(line)) {
-        if (match.start > start) {
-          spans.add(TextSpan(text: line.substring(start, match.start)));
-        }
-        spans.add(TextSpan(
-          text: match.group(1),
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ));
-        start = match.end;
-      }
-      if (start < line.length) {
-        spans.add(TextSpan(text: line.substring(start)));
-      }
-      return RichText(
-        text: TextSpan(
-          style: const TextStyle(color: Colors.white, height: 1.35),
-          children: spans,
+    final trimmed = line.trim();
+    
+    // Empty line
+    if (trimmed.isEmpty) {
+      return const SizedBox(height: 8);
+    }
+
+    // Headers: ### Header (h3), ## Header (h2), # Header (h1)
+    if (trimmed.startsWith('### ')) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 12, bottom: 8),
+        child: Text(
+          trimmed.substring(4),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.95),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            height: 1.3,
+          ),
+        ),
+      );
+    }
+    
+    if (trimmed.startsWith('## ')) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 16, bottom: 10),
+        child: Text(
+          trimmed.substring(3),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.95),
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+            height: 1.3,
+          ),
+        ),
+      );
+    }
+    
+    if (trimmed.startsWith('# ')) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 20, bottom: 12),
+        child: Text(
+          trimmed.substring(2),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.95),
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            height: 1.3,
+          ),
         ),
       );
     }
 
-    // Bullet line
-    if (line.trimLeft().startsWith('- ')) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('• ', style: TextStyle(color: Colors.white)),
-          Expanded(
-            child: Text(
-              line.trimLeft().substring(2),
-              style: const TextStyle(color: Colors.white, height: 1.35),
+    // Bullet line: - item hoặc • item
+    if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
+      final bulletText = trimmed.startsWith('- ') 
+          ? trimmed.substring(2) 
+          : trimmed.substring(2);
+      return Padding(
+        padding: const EdgeInsets.only(left: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('• ', style: TextStyle(color: Colors.white, fontSize: 16)),
+            Expanded(
+              child: _buildInlineMarkdown(bulletText),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
-    return Text(line,
-        style: const TextStyle(color: Colors.white, height: 1.35));
+    // Regular line với inline markdown (bold, italic, etc.)
+    return _buildInlineMarkdown(line);
+  }
+
+  /// Render inline markdown trong một dòng (bold, italic, code)
+  Widget _buildInlineMarkdown(String text) {
+    final boldRegex = RegExp(r"\*\*(.*?)\*\*");
+    final spans = <TextSpan>[];
+    int start = 0;
+
+    // Xử lý bold **text**
+    for (final match in boldRegex.allMatches(text)) {
+      if (match.start > start) {
+        spans.add(TextSpan(
+          text: text.substring(start, match.start),
+          style: const TextStyle(color: Colors.white, height: 1.35),
+        ));
+      }
+      spans.add(TextSpan(
+        text: match.group(1),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          height: 1.35,
+        ),
+      ));
+      start = match.end;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(start),
+        style: const TextStyle(color: Colors.white, height: 1.35),
+      ));
+    }
+
+    if (spans.length == 1 && spans.first.style?.fontWeight == null) {
+      // Không có bold, chỉ là text thường
+      return Text(
+        text,
+        style: const TextStyle(color: Colors.white, height: 1.35),
+      );
+    }
+
+    return RichText(
+      text: TextSpan(children: spans),
+    );
   }
 
   Widget _buildStructuredInsight(Map<String, dynamic> data) {

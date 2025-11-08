@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 
 /// Smart loading widget that adapts to different content types
 class SmartLoadingWidget extends StatefulWidget {

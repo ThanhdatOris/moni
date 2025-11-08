@@ -1,16 +1,15 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
-import 'package:logger/logger.dart';
 
-import '../../../constants/app_colors.dart';
-import '../../../models/category_model.dart';
-import '../../../models/transaction_model.dart';
-import '../../../services/services.dart';
+import 'package:moni/constants/app_colors.dart';
+import '../../../services/providers/providers.dart';
+import 'package:moni/services/services.dart';
 import 'transaction_image_picker.dart';
 
-class TransactionAiScanTab extends StatefulWidget {
+class TransactionAiScanTab extends ConsumerStatefulWidget {
   final Function(Map<String, dynamic>) onScanComplete;
 
   const TransactionAiScanTab({
@@ -19,76 +18,29 @@ class TransactionAiScanTab extends StatefulWidget {
   });
 
   @override
-  State<TransactionAiScanTab> createState() => _TransactionAiScanTabState();
+  ConsumerState<TransactionAiScanTab> createState() => _TransactionAiScanTabState();
 }
 
-class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
+class _TransactionAiScanTabState extends ConsumerState<TransactionAiScanTab> {
   String? _selectedImagePath;
   bool _isProcessingImage = false;
   Map<String, dynamic>? _scanResults;
-  List<CategoryModel> _categories = [];
   String? _errorMessage;
-  bool _isCategoriesLoading = true;
 
-  final GetIt _getIt = GetIt.instance;
   late final AIProcessorService _aiProcessorService;
-  late final CategoryService _categoryService;
 
   @override
   void initState() {
     super.initState();
-    _aiProcessorService = _getIt<AIProcessorService>();
-    _categoryService = _getIt<CategoryService>();
-    _loadCategories();
-  }
-
-  Future<void> _loadCategories() async {
-    try {
-      // Load categories with proper stream handling
-      final List<CategoryModel> allCategories = [];
-      
-      // Load expense categories
-      try {
-        final expenseStream = _categoryService.getCategories(type: TransactionType.expense);
-        await for (final expenseCategories in expenseStream.take(1)) {
-          allCategories.addAll(expenseCategories.where((cat) => !cat.isDeleted));
-          break;
-        }
-      } catch (e) {
-        Logger().e('Error loading expense categories: $e');
-      }
-
-      // Load income categories  
-      try {
-        final incomeStream = _categoryService.getCategories(type: TransactionType.income);
-        await for (final incomeCategories in incomeStream.take(1)) {
-          allCategories.addAll(incomeCategories.where((cat) => !cat.isDeleted));
-          break;
-        }
-      } catch (e) {
-        Logger().e('Error loading income categories: $e');
-      }
-
-      if (mounted) {
-        setState(() {
-          _categories = allCategories;
-          _isCategoriesLoading = false;
-        });
-        Logger().i('Loaded ${allCategories.length} categories for scan tab');
-      }
-    } catch (e) {
-      Logger().e('Error in _loadCategories: $e');
-      if (mounted) {
-        setState(() {
-          _categories = [];
-          _isCategoriesLoading = false;
-        });
-      }
-    }
+    _aiProcessorService = GetIt.instance<AIProcessorService>();
   }
 
   @override
   Widget build(BuildContext context) {
+    // Watch categories provider
+    final categoriesAsync = ref.watch(allCategoriesProvider);
+    final isCategoriesLoading = categoriesAsync.isLoading;
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -96,7 +48,7 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
         children: [
           _buildAiHeader(),
           const SizedBox(height: 24),
-          if (_isCategoriesLoading) ...[
+          if (isCategoriesLoading) ...[
             _buildCategoriesLoadingCard(),
           ] else if (_selectedImagePath == null) ...[
             TransactionImagePicker(
@@ -411,7 +363,8 @@ class _TransactionAiScanTabState extends State<TransactionAiScanTab> {
   Future<void> _handleImagePicked(File imageFile) async {
     try {
       // Check if categories are loaded
-      if (_categories.isEmpty) {
+      final categoriesAsync = ref.read(allCategoriesProvider);
+      if (!categoriesAsync.hasValue || categoriesAsync.value!.isEmpty) {
         throw Exception('Chưa có danh mục khả dụng. Vui lòng tạo danh mục trước khi scan.');
       }
 

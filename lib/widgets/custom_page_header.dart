@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 
 /// Widget tiêu đề tùy chỉnh cho các trang trong ứng dụng Moni
 /// Sử dụng thay thế cho AppBar để tạo giao diện nhất quán giữa các trang

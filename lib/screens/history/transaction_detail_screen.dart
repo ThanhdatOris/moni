@@ -2,19 +2,20 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
-import '../../services/services.dart';
+import '../../services/providers/providers.dart';
+import 'package:moni/services/services.dart';
 import '../../utils/formatting/currency_formatter.dart';
 import 'widgets/detail_app_bar.dart';
 import 'widgets/detail_details_tab.dart';
 import 'widgets/detail_edit_form.dart';
 
-class TransactionDetailScreen extends StatefulWidget {
+class TransactionDetailScreen extends ConsumerStatefulWidget {
   final TransactionModel transaction;
   final int? initialTabIndex;
 
@@ -25,18 +26,17 @@ class TransactionDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<TransactionDetailScreen> createState() =>
+  ConsumerState<TransactionDetailScreen> createState() =>
       _TransactionDetailScreenState();
 }
 
-class _TransactionDetailScreenState extends State<TransactionDetailScreen>
+class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   // Services
   final GetIt _getIt = GetIt.instance;
   late final TransactionService _transactionService;
-  late final CategoryService _categoryService;
 
   // Form controllers
   final _formKey = GlobalKey<FormState>();
@@ -48,16 +48,12 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   late TransactionType _selectedType;
   CategoryModel? _selectedCategory;
   late DateTime _selectedDate;
-  List<CategoryModel> _categories = [];
 
   // UI state
   bool _isLoading = false;
-  bool _isCategoriesLoading = false;
   bool _isDeleting = false;
-  String? _categoriesError;
 
   // Stream subscriptions
-  StreamSubscription<List<CategoryModel>>? _categoriesSubscription;
   StreamSubscription<User?>? _authSubscription;
 
   @override
@@ -77,7 +73,6 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     
     try {
       _transactionService = _getIt<TransactionService>();
-      _categoryService = _getIt<CategoryService>();
     } catch (e) {
       // Handle service initialization error
     }
@@ -96,12 +91,10 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       }
     });
 
-    _loadCategories();
   }
 
   @override
   void dispose() {
-    _categoriesSubscription?.cancel();
     _authSubscription?.cancel();
     _tabController.dispose();
     _amountController.dispose();
@@ -109,71 +102,24 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     super.dispose();
   }
 
-  Future<void> _loadCategories() async {
-    try {
-      await _categoriesSubscription?.cancel();
-
-      // Chỉ set loading state nếu chưa được set
-      if (!_isCategoriesLoading && mounted) {
+  void _preselectCategory() {
+    final categoriesAsync = ref.read(allCategoriesProvider);
+    if (categoriesAsync.hasValue) {
+      final allCategories = categoriesAsync.value!;
+      try {
+        final matchingCategory = allCategories.firstWhere(
+          (cat) => cat.categoryId == _currentTransaction.categoryId && !cat.isDeleted,
+          orElse: () => allCategories.firstWhere(
+            (cat) => cat.type == _selectedType && !cat.isDeleted,
+            orElse: () => allCategories.first,
+          ),
+        );
         setState(() {
-          _isCategoriesLoading = true;
-          _categoriesError = null;
+          _selectedCategory = matchingCategory;
         });
+      } catch (_) {
+        // Category not found, ignore
       }
-
-      _categoriesSubscription =
-          _categoryService.getCategories(type: _selectedType).listen(
-        (categories) {
-          // Defer setState để tránh layout cycle
-          SchedulerBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _categories = categories;
-                _isCategoriesLoading = false;
-
-                // Find and set current category
-                _selectedCategory = categories.firstWhere(
-                  (cat) => cat.categoryId == _currentTransaction.categoryId,
-                  orElse: () => categories.isNotEmpty
-                      ? categories.first
-                      : CategoryModel(
-                          categoryId: 'other',
-                          userId: '',
-                          name: 'Khác',
-                          type: _selectedType,
-                          icon: '📝',
-                          iconType: CategoryIconType.emoji,
-                          color: 0xFF9E9E9E,
-                          createdAt: DateTime.now(),
-                          updatedAt: DateTime.now(),
-                        ),
-                );
-              });
-            }
-          });
-        },
-        onError: (error) {
-          // Defer setState để tránh layout cycle
-          SchedulerBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _isCategoriesLoading = false;
-                _categoriesError = error.toString();
-              });
-            }
-          });
-        },
-      );
-    } catch (e) {
-      // Defer setState để tránh layout cycle
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          setState(() {
-            _isCategoriesLoading = false;
-            _categoriesError = e.toString();
-          });
-        }
-      });
     }
   }
 
@@ -334,21 +280,32 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
   }
 
   Widget _buildEditTab() {
-    if (_isCategoriesLoading) {
+    // Watch categories provider
+    final categoriesAsync = ref.watch(allCategoriesProvider);
+    final categories = ref.watch(categoriesByTypeProvider(_selectedType));
+    final isCategoriesLoading = categoriesAsync.isLoading;
+    final categoriesError = categoriesAsync.hasError 
+        ? categoriesAsync.error.toString()
+        : null;
+
+    if (isCategoriesLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (_categoriesError != null) {
+    if (categoriesError != null) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.error_outline, size: 48, color: AppColors.error),
             const SizedBox(height: 16),
-            Text('Lỗi tải dữ liệu: $_categoriesError'),
+            Text('Lỗi tải dữ liệu: $categoriesError'),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadCategories,
+              onPressed: () {
+                // Invalidate cache to retry
+                ref.invalidate(allCategoriesProvider);
+              },
               child: const Text('Thử lại'),
             ),
           ],
@@ -363,44 +320,37 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
       selectedType: _selectedType,
       selectedCategory: _selectedCategory,
       selectedDate: _selectedDate,
-      categories: _categories,
-      isCategoriesLoading: _isCategoriesLoading,
+      categories: categories,
+      isCategoriesLoading: isCategoriesLoading,
       isLoading: _isLoading,
       onTypeChanged: (type) {
-        // Update UI ngay lập tức cho responsive UX
         if (mounted) {
           setState(() {
             _selectedType = type;
             _selectedCategory = null;
-            _categories = []; // Clear old categories immediately
-            _isCategoriesLoading = true; // Show loading state immediately
-            _categoriesError = null;
           });
-          // Load categories sau khi state đã update
-          Future.microtask(() => _loadCategories());
+          // Preselect category for new type
+          _preselectCategory();
         }
       },
       onCategoryChanged: (category) {
-        // Defer setState để tránh layout cycle
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {
-              _selectedCategory = category;
-            });
-          }
-        });
+        if (mounted) {
+          setState(() {
+            _selectedCategory = category;
+          });
+        }
       },
       onDateChanged: (date) {
-        // Defer setState để tránh layout cycle
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {
-              _selectedDate = date;
-            });
-          }
-        });
+        if (mounted) {
+          setState(() {
+            _selectedDate = date;
+          });
+        }
       },
-      onRetry: _loadCategories,
+      onRetry: () {
+        // Invalidate cache to retry
+        ref.invalidate(allCategoriesProvider);
+      },
       onSave: _updateTransaction,
     );
   }

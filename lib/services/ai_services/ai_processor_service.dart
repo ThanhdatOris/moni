@@ -8,10 +8,10 @@ import '../core/environment_service.dart';
 import 'ai_services.dart';
 
 /// AI Processor Service - Facade Pattern
-/// 
+///
 /// This is the main entry point for all AI operations.
 /// Delegates to specialized modules for specific tasks.
-/// 
+///
 /// Modules:
 /// - AITokenManager: Token quota & rate limiting
 /// - AIResponseCache: Smart persistent caching
@@ -22,7 +22,7 @@ import 'ai_services.dart';
 class AIProcessorService {
   final Logger _logger = Logger();
   final GetIt _getIt = GetIt.instance;
-  
+
   // Specialized modules
   late final AITokenManager _tokenManager;
   late final AIResponseCache _cache;
@@ -30,9 +30,11 @@ class AIProcessorService {
   late final AITextGenerator _textGenerator;
   late final AIChatHandler _chatHandler;
   late final AITransactionProcessor _transactionProcessor;
-  
-  // Gemini model
+
+  // Gemini models với fallback
   late final GenerativeModel _model;
+  GenerativeModel? _fallbackModel1;
+  GenerativeModel? _fallbackModel2;
 
   AIProcessorService() {
     // Initialize Gemini model
@@ -69,42 +71,80 @@ class AIProcessorService {
       ),
     ];
 
-    // Initialize Gemini 2.0 Flash Live
+    // Initialize Gemini models với fallback chain
+    // Tạo tất cả models để có thể fallback khi runtime error
     String initializedModel = '';
+
     try {
+      // Primary model: gemini-2.0-flash
       _model = GenerativeModel(
-        model: 'gemini-2.0-flash-live',
+        model: 'gemini-2.0-flash',
         apiKey: apiKey,
         tools: [Tool(functionDeclarations: functions)],
       );
-      initializedModel = 'gemini-2.0-flash-live';
+      initializedModel = 'gemini-2.0-flash';
+      _logger.i('✅ Primary model: Gemini 2.0 Flash');
+
+      // Fallback model 1: gemini-pro
+      try {
+        _fallbackModel1 = GenerativeModel(
+          model: 'gemini-pro',
+          apiKey: apiKey,
+          tools: [Tool(functionDeclarations: functions)],
+        );
+        _logger.d('✅ Fallback model 1: Gemini Pro');
+      } catch (e) {
+        _logger.w('⚠️ Fallback model 1 (gemini-pro) initialization failed: $e');
+      }
+
+      // Fallback model 2: gemini-1.5-pro (nếu có)
+      try {
+        _fallbackModel2 = GenerativeModel(
+          model: 'gemini-1.5-pro',
+          apiKey: apiKey,
+          tools: [Tool(functionDeclarations: functions)],
+        );
+        _logger.d('✅ Fallback model 2: Gemini 1.5 Pro');
+      } catch (e) {
+        _logger.w(
+            '⚠️ Fallback model 2 (gemini-1.5-pro) initialization failed: $e');
+      }
     } catch (e) {
-      _logger.e('❌ Failed to initialize Gemini 2.0 Flash Live: $e');
-      throw Exception(
-          'Could not initialize Gemini model. Please check your API key and internet connection.');
+      _logger.e('❌ Failed to initialize primary Gemini model: $e');
+      // Thử fallback ngay trong constructor
+      if (_fallbackModel1 != null) {
+        _model = _fallbackModel1!;
+        initializedModel = 'gemini-pro';
+        _logger.w('⚠️ Using fallback model 1 (gemini-pro)');
+      } else {
+        throw Exception(
+            'Could not initialize any Gemini model. Please check your API key and internet connection.');
+      }
     }
 
     // Initialize specialized modules
     _tokenManager = AITokenManager();
     _cache = AIResponseCache();
     _cache.loadFromDisk();
-    
+
     _categoryService = AICategoryService(
       model: _model,
       cache: _cache,
       tokenManager: _tokenManager,
     );
-    
+
     _textGenerator = AITextGenerator(
       model: _model,
+      fallbackModel1: _fallbackModel1,
+      fallbackModel2: _fallbackModel2,
       tokenManager: _tokenManager,
     );
-    
+
     _chatHandler = AIChatHandler(
       model: _model,
       tokenManager: _tokenManager,
     );
-    
+
     final ocrService = _getIt<OCRService>();
     _transactionProcessor = AITransactionProcessor(
       model: _model,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 
 class AiFilledBanner extends StatelessWidget {
   final Set<String> aiFilledFields;

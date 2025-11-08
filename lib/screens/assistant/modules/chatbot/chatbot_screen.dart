@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../services/ui_optimization_service.dart';
 import '../../widgets/assistant_error_card.dart';
 import '../../widgets/assistant_loading_card.dart';
@@ -27,7 +27,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    // Default to History tab (index 1) instead of Chat tab (index 0)
+    _tabController = TabController(length: 3, vsync: this, initialIndex: 1);
     _tabController.addListener(_onInnerTabChanged);
     _initializeChatbot();
     // Đồng bộ trạng thái menubar theo tab hiện tại sau frame đầu tiên

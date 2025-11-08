@@ -4,8 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../constants/app_colors.dart';
-import '../services/services.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/services/services.dart';
 import '../widgets/google_signin_setup_dialog.dart';
 
 class AuthScreen extends StatefulWidget {

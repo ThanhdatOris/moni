@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../services/services.dart';
-import '../constants/app_colors.dart';
+import 'package:moni/services/services.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../utils/formatting/currency_formatter.dart';
 
 /// Dialog cảnh báo giới hạn chi tiêu

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:moni/constants/app_colors.dart';
 
-import '../../constants/app_colors.dart';
 import '../../widgets/custom_page_header.dart';
 import 'modules/budget/budget_screen.dart';
 import 'modules/chatbot/chatbot_screen.dart';
@@ -33,12 +33,13 @@ class _AssistantScreenState extends State<AssistantScreen>
   late TabController _tabController;
   late AnimationController _iconAnimationController;
   final UIOptimizationService _uiOptimization = UIOptimizationService();
-  
+
   // Define modules inline
   static const List<AssistantModule> modules = [
-    AssistantModule(id: 'budget', name: 'Ngân sách', icon: Icons.account_balance_wallet),
-    AssistantModule(id: 'reports', name: 'Báo cáo', icon: Icons.analytics),
     AssistantModule(id: 'chatbot', name: 'Chat AI', icon: Icons.chat_bubble),
+    AssistantModule(
+        id: 'budget', name: 'Ngân sách', icon: Icons.account_balance_wallet),
+    AssistantModule(id: 'reports', name: 'Báo cáo', icon: Icons.analytics),
   ];
 
   @override
@@ -124,10 +125,7 @@ class _AssistantScreenState extends State<AssistantScreen>
                 animation: _tabController.animation!,
                 builder: (context, child) {
                   return Row(
-                    children: modules
-                        .asMap()
-                        .entries
-                        .map((entry) {
+                    children: modules.asMap().entries.map((entry) {
                       final index = entry.key;
                       final module = entry.value;
                       final animValue = _tabController.animation!.value;
@@ -269,10 +267,9 @@ class _AssistantScreenState extends State<AssistantScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // Analytics module removed
+                  const ChatbotScreen(), // Chat AI screen
                   const BudgetScreen(),
                   const ReportsScreen(),
-                  const ChatbotScreen(), // New chatbot screen
                 ],
               ),
             ),

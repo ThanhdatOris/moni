@@ -1,4 +1,4 @@
-import '../../../models/transaction_model.dart';
+import '../transaction_model.dart';
 /// Kết quả phân tích mẫu chi tiêu tổng quan
 class SpendingPatternAnalysis {
   final Map<String, WeeklySpendingPattern> weeklyPatterns;
