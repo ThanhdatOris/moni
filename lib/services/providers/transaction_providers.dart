@@ -4,6 +4,7 @@ import '../../core/di/injection_container.dart' as di;
 import '../../models/transaction_model.dart';
 import '../../utils/formatting/date_formatter.dart';
 import '../data/transaction_service.dart';
+import 'auth_providers.dart';
 
 /// Service Provider
 final transactionServiceProvider = Provider<TransactionService>((ref) {
@@ -14,7 +15,18 @@ final transactionServiceProvider = Provider<TransactionService>((ref) {
 /// Cache toàn bộ transactions để các derived providers filter từ cache
 final allTransactionsProvider = StreamProvider<List<TransactionModel>>((ref) {
   final service = ref.watch(transactionServiceProvider);
+  
+  // Invalidate provider khi auth state thay đổi để đảm bảo stream được reconnect
+  ref.listen(authStateProvider, (previous, next) {
+    if (previous?.value != next.value) {
+      // Auth state changed, invalidate để reconnect stream
+      ref.invalidateSelf();
+    }
+  });
+  
   // Query tất cả transactions không filter để cache
+  // Keep alive để đảm bảo stream được giữ active khi không có listeners
+  ref.keepAlive();
   return service.getTransactions();
 });
 

@@ -15,6 +15,8 @@ final categoryServiceProvider = Provider<CategoryService>((ref) {
 final allCategoriesProvider = StreamProvider<List<CategoryModel>>((ref) {
   final service = ref.watch(categoryServiceProvider);
   // Query tất cả categories không filter để cache
+  // Keep alive để đảm bảo stream được giữ active khi không có listeners
+  ref.keepAlive();
   return service.getCategories();
 });
 

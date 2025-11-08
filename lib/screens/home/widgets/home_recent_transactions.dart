@@ -68,8 +68,14 @@ class _HomeRecentTransactionsState extends ConsumerState<HomeRecentTransactions>
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Start animation when data is available
-    final transactions = ref.watch(recentTransactionsProvider);
-    if (transactions.isNotEmpty && !_hasAnimated) {
+    final transactionsAsync = ref.watch(allTransactionsProvider);
+    final transactions = transactionsAsync.value ?? [];
+    final recentTransactions = transactions
+        .where((t) => !t.isDeleted)
+        .take(5)
+        .toList();
+    
+    if (recentTransactions.isNotEmpty && !_hasAnimated && transactionsAsync.hasValue) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _animationController.forward();
@@ -162,9 +168,6 @@ class _HomeRecentTransactionsState extends ConsumerState<HomeRecentTransactions>
     final transactionsAsync = ref.watch(allTransactionsProvider);
     final categoriesAsync = ref.watch(allCategoriesProvider);
     
-    // Get recent transactions (limit 5)
-    final recentTransactions = ref.watch(recentTransactionsProvider).take(5).toList();
-    
     // Build category map
     final categoryMap = <String, CategoryModel>{};
     if (categoriesAsync.hasValue) {
@@ -172,6 +175,13 @@ class _HomeRecentTransactionsState extends ConsumerState<HomeRecentTransactions>
         categoryMap[category.categoryId] = category;
       }
     }
+
+    // Get recent transactions từ allTransactionsProvider trực tiếp để handle loading state tốt hơn
+    final allTransactions = transactionsAsync.value ?? [];
+    final recentTransactions = allTransactions
+        .where((t) => !t.isDeleted)
+        .take(5)
+        .toList();
 
     final isLoading = transactionsAsync.isLoading || categoriesAsync.isLoading;
     final hasTransactions = recentTransactions.isNotEmpty;
