@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:uuid/uuid.dart';
 
 import '../../../../../constants/app_colors.dart';
-import '../../../models/agent_request_model.dart';
+import '../../../../../services/ai_services/ai_services.dart';
 import '../../../models/chat_message_model.dart';
-import '../../../services/global_agent_service.dart';
 import '../../../services/ui_optimization_service.dart';
 import '../services/conversation_service.dart';
 import 'chat_message_widget.dart';
@@ -23,7 +21,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
   @override
   bool get wantKeepAlive => true;
 
-  final GlobalAgentService _agentService = GetIt.instance<GlobalAgentService>();
+  final AIProcessorService _aiService = GetIt.instance<AIProcessorService>();
   final ConversationService _conversationService = ConversationService();
   final UIOptimizationService _uiOptimization = UIOptimizationService();
   final TextEditingController _messageController = TextEditingController();
@@ -101,18 +99,12 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     _scrollToBottom();
 
     try {
-      final response = await _agentService.processRequest(AgentRequest.chat(
-        message: text.trim(),
-        conversationId: 'chatbot_conversation',
-        parameters: {
-          'timestamp': DateTime.now().toIso8601String(),
-          'messageId': const Uuid().v4(),
-        },
-      ));
+      // Direct AI call without wrapper layers
+      final response = await _aiService.processChatInput(text.trim());
 
       // Extract transactionId from EDIT_BUTTON marker in text
       String? transactionId;
-      String messageText = response.message;
+      String messageText = response;
 
       final editButtonRegex = RegExp(r'\[EDIT_BUTTON:([^\]]+)\]');
       final match = editButtonRegex.firstMatch(messageText);
