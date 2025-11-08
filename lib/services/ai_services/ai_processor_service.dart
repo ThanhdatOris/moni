@@ -69,28 +69,19 @@ class AIProcessorService {
       ),
     ];
 
-    // Try modern model first, with fallback options
+    // Initialize Gemini 2.0 Flash Live
     String initializedModel = '';
     try {
       _model = GenerativeModel(
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.0-flash-live',
         apiKey: apiKey,
         tools: [Tool(functionDeclarations: functions)],
       );
-      initializedModel = 'gemini-1.5-flash';
+      initializedModel = 'gemini-2.0-flash-live';
     } catch (e) {
-      try {
-        _model = GenerativeModel(
-          model: 'gemini-1.5-flash-001',
-          apiKey: apiKey,
-          tools: [Tool(functionDeclarations: functions)],
-        );
-        initializedModel = 'gemini-1.5-flash-001';
-      } catch (e2) {
-        _logger.e('❌ Failed to initialize Gemini models: $e2');
-        throw Exception(
-            'Could not initialize Gemini model. Please check your API key and internet connection.');
-      }
+      _logger.e('❌ Failed to initialize Gemini 2.0 Flash Live: $e');
+      throw Exception(
+          'Could not initialize Gemini model. Please check your API key and internet connection.');
     }
 
     // Initialize specialized modules

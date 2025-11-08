@@ -5,9 +5,9 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:logger/logger.dart';
 
 import '../core/environment_service.dart';
-import 'ocr_service.dart';
 import 'ai_helpers.dart';
 import 'ai_token_manager.dart';
+import 'ocr_service.dart';
 
 /// Handles transaction extraction from images
 /// - OCR processing
@@ -105,12 +105,8 @@ class AITransactionProcessor {
   Future<Map<String, dynamic>> _analyzeTextWithAI(
       String text, Map<String, dynamic> ocrAnalysis) async {
     try {
-      final estimatedTokens = AIHelpers.estimateTokens(text);
-
-      if (_tokenManager.hasExceededQuota(estimatedTokens)) {
-        _logger.w('Daily token limit exceeded, using OCR results only');
-        return {};
-      }
+      // Rate limiting only
+      await _tokenManager.checkRateLimit();
 
       final prompt = '''
 Phân tích văn bản hóa đơn sau và trích xuất thông tin giao dịch. Văn bản này đã được OCR từ ảnh hóa đơn.
@@ -144,7 +140,11 @@ Lưu ý:
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
-      await _tokenManager.updateTokenCount(estimatedTokens);
+      
+      // Track token usage for statistics (non-blocking)
+      final estimatedTokens = AIHelpers.estimateTokens(text);
+      final responseTokens = AIHelpers.estimateTokens(response.text ?? '');
+      await _tokenManager.updateTokenCount(estimatedTokens + responseTokens);
 
       final responseText = response.text ?? '';
       final parsedResult = _parseAIAnalysisResponse(responseText);

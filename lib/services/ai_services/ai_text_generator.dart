@@ -22,22 +22,26 @@ class AITextGenerator {
   /// Generate text from prompt (no caching, direct API call)
   Future<String> generateText(String prompt) async {
     try {
+      // Rate limiting only (no quota check - let Google API handle quota)
       await _tokenManager.checkRateLimit();
-      
-      final estimatedTokens = AIHelpers.estimateTokens(prompt);
-      if (_tokenManager.hasExceededQuota(estimatedTokens)) {
-        return 'Quota AI đã vượt giới hạn ngày hôm nay.';
-      }
 
       final response = await _model.generateContent([Content.text(prompt)]);
       final result = response.text ?? '';
 
-      // Update token count
+      // Track token usage for statistics (non-blocking)
+      final estimatedTokens = AIHelpers.estimateTokens(prompt);
       await _tokenManager.updateTokenCount(
           estimatedTokens + AIHelpers.estimateTokens(result));
+      
       return result;
     } catch (e) {
       _logger.e('Error generateText: $e');
+      
+      // Check if it's a real quota error from Google
+      if (e.toString().contains('429') || e.toString().contains('quota')) {
+        return 'Quota AI đã vượt giới hạn. Vui lòng thử lại sau.';
+      }
+      
       return '';
     }
   }
@@ -45,6 +49,9 @@ class AITextGenerator {
   /// Answer financial questions
   Future<String> answerQuestion(String question) async {
     try {
+      // Rate limiting only
+      await _tokenManager.checkRateLimit();
+      
       _logger.i('💡 Processing financial question (${question.length} chars)');
 
       final prompt = '''
@@ -68,6 +75,9 @@ Question: "$question"
   Future<String> analyzeSpendingHabits(
       Map<String, dynamic> transactionData) async {
     try {
+      // Rate limiting only
+      await _tokenManager.checkRateLimit();
+      
       _logger.i(
           '📊 Analyzing spending habits (${transactionData.keys.length} data points)');
 

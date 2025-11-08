@@ -39,7 +39,7 @@ class AICategoryService {
     }
 
     try {
-      // Check rate limit
+      // Rate limiting only
       await _tokenManager.checkRateLimit();
 
       _logger.i('🤔 Suggesting category for: "$description"');
@@ -49,16 +49,11 @@ Suggest best category for transaction: "$description"
 Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "Giải trí", "Lương", etc.
 ''';
 
-      // Estimate tokens
-      final estimatedTokens = AIHelpers.estimateTokens(prompt);
-      if (_tokenManager.hasExceededQuota(estimatedTokens)) {
-        return 'Ăn uống'; // Return default if quota exceeded
-      }
-
       final response = await _model.generateContent([Content.text(prompt)]);
       final result = response.text?.trim() ?? 'Khác';
 
-      // Update token count
+      // Track token usage for statistics (non-blocking)
+      final estimatedTokens = AIHelpers.estimateTokens(prompt);
       final responseTokens = AIHelpers.estimateTokens(result);
       await _tokenManager.updateTokenCount(estimatedTokens + responseTokens);
 
@@ -128,20 +123,11 @@ Valid categories: "Ăn uống", "Mua sắm", "Đi lại", "Giải trí", "Y tế
 Response format: {"0": "Ăn uống", "1": "Đi lại", ...}
 ''';
 
-      // Estimate tokens
-      final estimatedTokens = AIHelpers.estimateTokens(prompt);
-      if (_tokenManager.hasExceededQuota(estimatedTokens)) {
-        // Return defaults if quota exceeded
-        for (final desc in uncachedDescriptions) {
-          results[desc] = 'Ăn uống';
-        }
-        return results;
-      }
-
       final response = await _model.generateContent([Content.text(prompt)]);
       final responseText = response.text?.trim() ?? '{}';
 
-      // Update token count
+      // Track token usage for statistics (non-blocking)
+      final estimatedTokens = AIHelpers.estimateTokens(prompt);
       final responseTokens = AIHelpers.estimateTokens(responseText);
       await _tokenManager.updateTokenCount(estimatedTokens + responseTokens);
 

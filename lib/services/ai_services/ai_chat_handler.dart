@@ -5,8 +5,8 @@ import 'package:logger/logger.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../utils/formatting/currency_formatter.dart';
-import '../data/category_service.dart';
 import '../core/environment_service.dart';
+import '../data/category_service.dart';
 import '../data/transaction_service.dart';
 import 'ai_helpers.dart';
 import 'ai_token_manager.dart';
@@ -31,17 +31,12 @@ class AIChatHandler {
   /// Process chat input and return AI response
   Future<String> processChatInput(String input) async {
     try {
-      // Check rate limit and token usage
+      // Rate limiting only (no quota check - let Google API handle quota)
       await _tokenManager.checkRateLimit();
-
-      // Estimate tokens
-      final estimatedTokens = AIHelpers.estimateTokens(input);
-      if (_tokenManager.hasExceededQuota(estimatedTokens)) {
-        return AIHelpers.getUserFriendlyErrorMessage('QUOTA_EXCEEDED');
-      }
 
       // Improved debug log
       if (EnvironmentService.debugMode) {
+        final estimatedTokens = AIHelpers.estimateTokens(input);
         _logger.d(
             '💬 Processing chat input (${input.length} chars, ~$estimatedTokens tokens)');
       }
@@ -108,9 +103,6 @@ Guidelines:
 User input: "$input"
 ''';
 
-      // Update token usage
-      await _tokenManager.updateTokenCount(estimatedTokens);
-
       // Check if user is asking about categories or financial help
       final inputLower = input.toLowerCase();
       if (inputLower.contains('danh mục') ||
@@ -130,9 +122,10 @@ User input: "$input"
       // Process with AI model for transaction extraction or general chat
       final response = await _model.generateContent([Content.text(prompt)]);
 
-      // Update token count (estimate response tokens too)
+      // Track token usage for statistics (non-blocking)
+      final estimatedTokens = AIHelpers.estimateTokens(input);
       final responseTokens = AIHelpers.estimateTokens(response.text ?? '');
-      await _tokenManager.updateTokenCount(responseTokens);
+      await _tokenManager.updateTokenCount(estimatedTokens + responseTokens);
 
       // Check if AI wants to call functions
       if (response.functionCalls.isNotEmpty) {
