@@ -81,7 +81,7 @@ dependencies:
   path: ^1.8.3
   
   # Date time
-  intl: ^0.19.0
+  intl: 0.20.2
   
   # File và storage
   shared_preferences: ^2.2.2

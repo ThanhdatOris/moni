@@ -90,7 +90,7 @@ class ReportChartPreview extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(
-                      '${item.value.toStringAsFixed(0)}',
+                      item.value.toStringAsFixed(0),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 10,

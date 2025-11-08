@@ -4,7 +4,7 @@ import 'package:get_it/get_it.dart';
 import '../../constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
-import '../../services/category_service.dart';
+import '../../services/services.dart';
 import '../../utils/helpers/category_icon_helper.dart';
 import 'widgets/category_color_selector.dart';
 import 'widgets/category_icon_picker_dialog.dart';
@@ -554,7 +554,7 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
           name: _nameController.text.trim(),
           icon: _selectedIcon,
           iconType: _selectedIconType,
-          color: _selectedColor.value,
+          color: _selectedColor.toARGB32(),
           parentId: _selectedParent?.categoryId,
           updatedAt: now,
         );
@@ -569,7 +569,7 @@ class _AddEditCategoryV2ScreenState extends State<AddEditCategoryV2Screen>
           type: _selectedTransactionType,
           icon: _selectedIcon!,
           iconType: _selectedIconType,
-          color: _selectedColor.value
+          color: _selectedColor.toARGB32()
 ,
           parentId: _selectedParent?.categoryId,
           createdAt: now,

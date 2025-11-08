@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../services/services.dart';
 import '../constants/app_colors.dart';
-import '../services/spending_limit_service.dart';
 import '../utils/formatting/currency_formatter.dart';
 
 /// Dialog cảnh báo giới hạn chi tiêu
@@ -387,18 +387,39 @@ class _BudgetLimitEditDialogState extends State<BudgetLimitEditDialog> {
                 ),
               ),
               const SizedBox(height: 8),
-              ...LimitType.values
-                  .map((type) => RadioListTile<LimitType>(
-                        title: Text(_getLimitTypeDisplayName(type)),
-                        value: type,
-                        groupValue: _selectedType,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedType = value!;
-                          });
-                        },
-                        contentPadding: EdgeInsets.zero,
-                      )),
+              ...LimitType.values.map((type) {
+                final isSelected = _selectedType == type;
+                return InkWell(
+                  onTap: () {
+                    setState(() {
+                      _selectedType = type;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSelected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: isSelected ? AppColors.primary : Colors.grey,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            _getLimitTypeDisplayName(type),
+                            style: TextStyle(
+                              color: isSelected ? Colors.black : Colors.grey[700],
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
               const SizedBox(height: 16),
               SwitchListTile(
                 title: const Text('Cho phép vượt giới hạn'),

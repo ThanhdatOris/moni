@@ -8,10 +8,7 @@ import 'constants/app_colors.dart';
 import 'constants/app_strings.dart';
 import 'core/di/injection_container.dart' as di;
 import 'screens/splash_wrapper.dart';
-import 'services/auth_service.dart';
-import 'services/environment_service.dart';
-import 'services/firebase_service.dart';
-
+import 'services/services.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

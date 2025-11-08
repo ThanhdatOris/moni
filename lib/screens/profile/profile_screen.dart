@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../core/di/injection_container.dart';
 import '../../models/user_model.dart';
-import '../../services/auth_service.dart';
+import '../../services/services.dart';
 import '../../widgets/custom_page_header.dart';
 import 'widgets/about_section.dart';
 import 'widgets/appearance_section.dart';

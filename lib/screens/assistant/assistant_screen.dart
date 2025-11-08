@@ -5,8 +5,20 @@ import '../../widgets/custom_page_header.dart';
 import 'modules/budget/budget_screen.dart';
 import 'modules/chatbot/chatbot_screen.dart';
 import 'modules/reports/reports_screen.dart';
-import 'services/assistant_navigation_service.dart';
 import 'services/ui_optimization_service.dart';
+
+/// Module definition
+class AssistantModule {
+  final String id;
+  final String name;
+  final IconData icon;
+
+  const AssistantModule({
+    required this.id,
+    required this.name,
+    required this.icon,
+  });
+}
 
 /// Enhanced Main Assistant Screen with Cross-Module Integration
 class AssistantScreen extends StatefulWidget {
@@ -20,15 +32,20 @@ class _AssistantScreenState extends State<AssistantScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   late AnimationController _iconAnimationController;
-  final AssistantNavigationService _navigationService =
-      AssistantNavigationService();
   final UIOptimizationService _uiOptimization = UIOptimizationService();
+  
+  // Define modules inline
+  static const List<AssistantModule> modules = [
+    AssistantModule(id: 'budget', name: 'Ngân sách', icon: Icons.account_balance_wallet),
+    AssistantModule(id: 'reports', name: 'Báo cáo', icon: Icons.analytics),
+    AssistantModule(id: 'chatbot', name: 'Chat AI', icon: Icons.chat_bubble),
+  ];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: AssistantNavigationService.modules.length,
+      length: modules.length,
       vsync: this,
     );
 
@@ -37,20 +54,15 @@ class _AssistantScreenState extends State<AssistantScreen>
       vsync: this,
     );
 
-    // Listen to navigation changes
-    _navigationService.addNavigationListener(_onNavigationChanged);
-
-    // Sync tab controller with navigation service
+    // Sync tab controller
     _tabController.addListener(_onTabChanged);
 
     // Đồng bộ trạng thái menubar theo tab hiện tại sau frame đầu tiên
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final chatbotIndex = AssistantNavigationService.modules
-          .indexWhere((m) => m.id == 'chatbot');
+      final chatbotIndex = modules.indexWhere((m) => m.id == 'chatbot');
       final isInChatbotModule = _tabController.index == chatbotIndex;
       // Đồng bộ active module để các widget con biết trạng thái hiện tại
-      _uiOptimization.setActiveModule(
-          AssistantNavigationService.modules[_tabController.index].id);
+      _uiOptimization.setActiveModule(modules[_tabController.index].id);
       if (isInChatbotModule) {
         _uiOptimization.enterAssistantChatMode();
       } else {
@@ -61,7 +73,6 @@ class _AssistantScreenState extends State<AssistantScreen>
 
   @override
   void dispose() {
-    _navigationService.removeNavigationListener(_onNavigationChanged);
     _tabController.dispose();
     _iconAnimationController.dispose();
     // Đảm bảo hiện lại menubar khi rời AssistantScreen
@@ -69,23 +80,11 @@ class _AssistantScreenState extends State<AssistantScreen>
     super.dispose();
   }
 
-  void _onNavigationChanged() {
-    if (mounted) {
-      final newIndex = _navigationService.currentTabIndex;
-      if (_tabController.index != newIndex) {
-        _tabController.animateTo(newIndex);
-      }
-    }
-  }
-
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-    _navigationService.navigateToTab(_tabController.index);
     // Cập nhật active module và trạng thái menubar theo module hiện tại.
-    final chatbotIndex =
-        AssistantNavigationService.modules.indexWhere((m) => m.id == 'chatbot');
-    final currentModuleId =
-        AssistantNavigationService.modules[_tabController.index].id;
+    final chatbotIndex = modules.indexWhere((m) => m.id == 'chatbot');
+    final currentModuleId = modules[_tabController.index].id;
     _uiOptimization.setActiveModule(currentModuleId);
     if (_tabController.index != chatbotIndex) {
       _uiOptimization.exitAssistantChatMode();
@@ -125,7 +124,7 @@ class _AssistantScreenState extends State<AssistantScreen>
                 animation: _tabController.animation!,
                 builder: (context, child) {
                   return Row(
-                    children: AssistantNavigationService.modules
+                    children: modules
                         .asMap()
                         .entries
                         .map((entry) {

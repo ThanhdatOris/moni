@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../../constants/app_colors.dart';
-import '../../../assistant/models/agent_request_model.dart';
-import '../../../assistant/services/global_agent_service.dart';
+import '../../../../services/ai_services/ai_services.dart';
 import '../../../assistant/services/real_data_service.dart' as real_data;
 import 'widgets/budget_breakdown_chart.dart';
 import 'widgets/budget_input_form.dart';
@@ -35,7 +34,7 @@ class BudgetScreen extends StatefulWidget {
 
 class _BudgetScreenState extends State<BudgetScreen>
     with TickerProviderStateMixin {
-  final GlobalAgentService _agentService = GetIt.instance<GlobalAgentService>();
+  final AIProcessorService _aiService = GetIt.instance<AIProcessorService>();
   final real_data.RealDataService _realDataService =
       GetIt.instance<real_data.RealDataService>();
   late TabController _tabController;
@@ -326,31 +325,23 @@ class _BudgetScreenState extends State<BudgetScreen>
     setState(() => _isLoading = true);
 
     try {
-      final request = AgentRequest.budget(
-        message:
-            'Tạo gợi ý ngân sách chi tiết mới. Bao gồm: phân bổ theo danh mục, '
-            'mục tiêu tiết kiệm, và lời khuyên thực tế cho việc quản lý tài chính.',
-        parameters: {
-          'analysis_type': 'budget_recommendation',
-          'include_tips': true,
-        },
-      );
-
-      final response = await _agentService.processRequest(request);
+      // Direct AI call without wrapper layers
+      final prompt = 'Tạo gợi ý ngân sách chi tiết mới. Bao gồm: phân bổ theo danh mục, '
+            'mục tiêu tiết kiệm, và lời khuyên thực tế cho việc quản lý tài chính.';
+      
+      final response = await _aiService.generateText(prompt);
 
       if (mounted) {
-        if (response.isSuccess) {
+        if (response.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Đã tạo gợi ý mới!')),
           );
           setState(() {
-            _aiRecommendationText = response.message;
+            _aiRecommendationText = response;
           });
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content:
-                    Text('Lỗi: ${response.error ?? "Không thể tạo gợi ý"}')),
+            const SnackBar(content: Text('Lỗi: Không thể tạo gợi ý')),
           );
         }
       }
@@ -454,7 +445,7 @@ class _BudgetScreenState extends State<BudgetScreen>
       );
     }).toList();
 
-    final newTotal = updated.fold(0.0, (sum, c) => sum + c.budget);
+    final newTotal = updated.fold(0.0, (total, c) => total + c.budget);
 
     setState(() {
       _budgetData = real_data.BudgetData(

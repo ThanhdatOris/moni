@@ -4,7 +4,7 @@ import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
 import '../../category/category_management_screen.dart';
-import '../../../services/category_usage_tracker.dart';
+import '../../../services/services.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 
 /// Enhanced category selector với grid layout và smart suggestions

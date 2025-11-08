@@ -7,8 +7,7 @@ import 'package:logger/logger.dart';
 import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../../services/ai_processor_service.dart';
-import '../../../services/category_service.dart';
+import '../../../services/services.dart';
 import 'transaction_image_picker.dart';
 
 class TransactionAiScanTab extends StatefulWidget {

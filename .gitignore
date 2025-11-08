@@ -152,3 +152,6 @@ PACKAGE_UPDATE_GUIDE.md
 MoniAppDesign.txt
 /docs
 /out
+pubspec.lock
+/node_modules
+package-lock.json

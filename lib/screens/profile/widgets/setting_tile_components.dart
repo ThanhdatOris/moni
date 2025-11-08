@@ -59,7 +59,7 @@ class SettingTileComponents {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: const Color(0xFF4CAF50),
+        activeTrackColor: const Color(0xFF4CAF50),
       ),
     );
   }
