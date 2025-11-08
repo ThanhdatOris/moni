@@ -4,8 +4,6 @@ import 'package:get_it/get_it.dart';
 import '../../../../constants/app_colors.dart';
 import '../../../../models/transaction_model.dart';
 import '../../../../services/services.dart';
-import '../../../assistant/models/agent_request_model.dart';
-import '../../../assistant/services/global_agent_service.dart';
 import 'widgets/report_chart_preview.dart';
 import 'widgets/report_export_options.dart';
 import 'widgets/report_preview_container.dart';
@@ -21,7 +19,7 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen>
     with TickerProviderStateMixin {
-  final GlobalAgentService _agentService = GetIt.instance<GlobalAgentService>();
+  final AIProcessorService _aiService = GetIt.instance<AIProcessorService>();
   final TransactionService _transactionService =
       GetIt.instance<TransactionService>();
   final ChartDataService _chartDataService = GetIt.instance<ChartDataService>();
@@ -393,29 +391,21 @@ class _ReportsScreenState extends State<ReportsScreen>
     setState(() => _isLoading = true);
 
     try {
-      final request = AgentRequest.budget(
-        message: 'Tạo ${template.name} với dữ liệu thực tế của người dùng. '
-            'Bao gồm phân tích chi tiết, biểu đồ và gợi ý cải thiện.',
-        parameters: {
-          'template_id': template.id,
-          'category': template.category.name,
-          'features': template.features,
-        },
-      );
-
-      final response = await _agentService.processRequest(request);
+      // Direct AI call without wrapper layers
+      final prompt = 'Tạo ${template.name} với dữ liệu thực tế của người dùng. '
+            'Bao gồm phân tích chi tiết, biểu đồ và gợi ý cải thiện.';
+      
+      final response = await _aiService.generateText(prompt);
 
       if (mounted) {
-        if (response.isSuccess) {
+        if (response.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Báo cáo đã được tạo thành công!')),
           );
           _tabController.animateTo(2); // Switch to export tab
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content:
-                    Text('Lỗi: ${response.error ?? "Không thể tạo báo cáo"}')),
+            const SnackBar(content: Text('Lỗi: Không thể tạo báo cáo')),
           );
         }
       }

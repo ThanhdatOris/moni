@@ -3,7 +3,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../screens/assistant/services/global_agent_service.dart';
 import '../../screens/assistant/services/real_data_service.dart';
 import '../../services/services.dart';
 final getIt = GetIt.instance;
@@ -80,14 +79,10 @@ Future<void> init() async {
   // NEW AI SERVICES
   // ==========================================================================
 
-  // Global Agent Service (Assistant Module Coordinator)
-  getIt.registerLazySingleton<GlobalAgentService>(() => GlobalAgentService());
-
   // Real Data Service for Assistant modules
   getIt.registerLazySingleton<RealDataService>(() => RealDataService());
 
   // Initialize AI services after registration
-  await getIt<GlobalAgentService>().initialize();
   await getIt<RealDataService>().initialize();
 
   // Validation Services
@@ -129,8 +124,7 @@ AIProcessorService get aiProcessorService => getIt<AIProcessorService>();
 ChatLogService get chatLogService => getIt<ChatLogService>();
 ConversationService get conversationService => getIt<ConversationService>();
 
-// AI Services
-GlobalAgentService get globalAgentService => getIt<GlobalAgentService>();
+// Validation Services
 AdvancedValidationService get advancedValidationService =>
     getIt<AdvancedValidationService>();
 DuplicateDetectionService get duplicateDetectionService =>
