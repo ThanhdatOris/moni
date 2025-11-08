@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../models/user_model.dart';
@@ -635,21 +634,5 @@ class AuthServiceTest {
 // =============================================================================
 // RIVERPOD PROVIDERS
 // =============================================================================
-
-/// Auth Service Provider
-final authServiceProvider = Provider<AuthService>((ref) => AuthService());
-
-/// Auth State Provider - Stream theo dõi trạng thái đăng nhập
-final authStateProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
-});
-
-/// Current User Provider
-final currentUserProvider = Provider<User?>((ref) {
-  final authState = ref.watch(authStateProvider);
-  return authState.when(
-    data: (user) => user,
-    loading: () => null,
-    error: (_, __) => null,
-  );
-});
+// Providers đã được move sang lib/services/providers/auth_providers.dart
+// Import: import 'package:moni/services/providers/providers.dart';

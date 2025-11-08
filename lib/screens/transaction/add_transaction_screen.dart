@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 
 import 'package:moni/constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
+import '../../services/providers/providers.dart';
 import 'package:moni/services/services.dart';
 import '../../utils/formatting/currency_formatter.dart';
 import '../../widgets/advanced_validation_widgets.dart';
@@ -17,7 +19,7 @@ import 'widgets/transaction_ai_scan_tab.dart';
 import 'widgets/transaction_app_bar.dart';
 import 'widgets/transaction_manual_form.dart';
 
-class AddTransactionScreen extends StatefulWidget {
+class AddTransactionScreen extends ConsumerStatefulWidget {
   final TransactionType? initialType;
   final String? initialCategoryId;
 
@@ -28,10 +30,10 @@ class AddTransactionScreen extends StatefulWidget {
   });
 
   @override
-  State<AddTransactionScreen> createState() => _AddTransactionScreenState();
+  ConsumerState<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
-class _AddTransactionScreenState extends State<AddTransactionScreen>
+class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final Logger _logger = Logger();
@@ -47,23 +49,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       TransactionType.expense; // Track current type for AI workflow
   CategoryModel? _selectedCategory;
   DateTime _selectedDate = DateTime.now();
-  List<CategoryModel> _categories = [];
-  bool _isLoading = false;
-  bool _isCategoriesLoading = false;
-  String? _categoriesError;
 
   // AI auto-fill tracking for UI enhancement
   final Set<String> _aiFilledFields = {};
   bool _showAiFilledHint = false;
+  bool _isLoading = false;
 
   final GetIt _getIt = GetIt.instance;
   late final TransactionService _transactionService;
   late final CategoryService _categoryService;
 
   // Stream subscriptions
-  StreamSubscription<List<CategoryModel>>? _categoriesSubscription;
   StreamSubscription<User?>? _authSubscription;
-  Timer? _timeoutTimer;
 
   @override
   void initState() {
@@ -91,173 +88,40 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       if (mounted) {
         if (user == null) {
           Navigator.of(context).pop();
-        } else {
-          _loadCategories();
-          // Debug all categories
-          _debugAllCategories();
         }
       }
     });
 
-    _loadCategories();
+    // Preselect category if provided
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.initialCategoryId != null) {
+        _preselectCategory();
+      }
+    });
   }
 
-  Future<void> _loadCategories() async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        if (mounted) {
-          setState(() {
-            _categories = [];
-            _isCategoriesLoading = false;
-            _categoriesError = 'Người dùng chưa đăng nhập';
-          });
-        }
-        return;
-      }
-
-      // Cancel existing subscription and timer
-      await _categoriesSubscription?.cancel();
-      _categoriesSubscription = null;
-      _timeoutTimer?.cancel();
-      _timeoutTimer = null;
-
-      if (mounted) {
+  /// Preselect category if initialCategoryId is provided
+  void _preselectCategory() {
+    if (widget.initialCategoryId == null) return;
+    
+    final categoriesAsync = ref.read(allCategoriesProvider);
+    if (categoriesAsync.hasValue) {
+      final allCategories = categoriesAsync.value!;
+      try {
+        final category = allCategories.firstWhere(
+          (c) => c.categoryId == widget.initialCategoryId && !c.isDeleted,
+        );
         setState(() {
-          _categories = [];
-          _isCategoriesLoading = true;
-          _categoriesError = null;
+          _selectedCategory = category;
+          _selectedType = category.type;
+          _currentTransactionType = category.type;
         });
-      }
-
-      // Track if request has timed out
-      bool hasTimedOut = false;
-
-      // Create new subscription with improved error handling and retry logic
-      _logger.d('🔍 Starting category subscription for type: $_selectedType');
-      _categoriesSubscription =
-          _categoryService.getCategories(type: _selectedType).listen(
-        (categories) async {
-          _timeoutTimer?.cancel();
-          if (mounted && !hasTimedOut) {
-            _logger.d(
-                '📦 Received ${categories.length} categories for type: $_selectedType');
-
-            // If no categories found, try to create default categories
-            if (categories.isEmpty) {
-              _logger
-                  .d('🔧 No categories found, creating default categories...');
-              try {
-                await _categoryService.createDefaultCategories();
-                _logger.d('✅ Default categories created successfully');
-                // The stream will automatically emit new data after creation
-              } catch (e) {
-                _logger.e('❌ Failed to create default categories: $e');
-              }
-            } else {
-              // Debug: log category names
-              for (var cat in categories) {
-                _logger.d('   - ${cat.name} (${cat.type.value})');
-              }
-            }
-
-            setState(() {
-              _categories = categories;
-              _isCategoriesLoading = false;
-              _categoriesError = null;
-              // Preselect category if provided
-              if (widget.initialCategoryId != null &&
-                  _selectedCategory == null) {
-                try {
-                  _selectedCategory = categories.firstWhere(
-                    (c) => c.categoryId == widget.initialCategoryId,
-                    orElse: () =>
-                        _selectedCategory ??
-                        (categories.isNotEmpty ? categories.first : null)!,
-                  );
-                } catch (_) {
-                  // ignore if not found
-                }
-              }
-            });
-          }
-        },
-        onError: (error) {
-          _timeoutTimer?.cancel();
-          if (mounted && !hasTimedOut) {
-            setState(() {
-              _isCategoriesLoading = false;
-              _categoriesError = _formatErrorMessage(error);
-            });
-          }
-        },
-        cancelOnError: false,
-      );
-
-      // Set optimized timeout for better UX
-      _timeoutTimer = Timer(const Duration(seconds: 5), () {
-        hasTimedOut = true;
-        _categoriesSubscription?.cancel();
-        if (mounted) {
-          setState(() {
-            _isCategoriesLoading = false;
-            _categoriesError = 'Tải danh mục mất quá lâu. Vui lòng thử lại.';
-          });
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isCategoriesLoading = false;
-          _categoriesError = _formatErrorMessage(e);
-        });
+      } catch (_) {
+        // Category not found, ignore
       }
     }
   }
 
-  /// Retry loading categories
-  Future<void> _retryLoadCategories() async {
-    _logger.d('Retrying load categories');
-    await _loadCategories();
-  }
-
-  /// Debug method to check all categories without type filter
-  Future<void> _debugAllCategories() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      _logger.d('🔍 Debug: Checking all categories without type filter...');
-      _categoryService.getCategories().listen((allCategories) {
-        _logger.d('📊 Total categories in DB: ${allCategories.length}');
-        final expenseCount = allCategories
-            .where((c) => c.type == TransactionType.expense)
-            .length;
-        final incomeCount =
-            allCategories.where((c) => c.type == TransactionType.income).length;
-        _logger.d('   - Expense categories: $expenseCount');
-        _logger.d('   - Income categories: $incomeCount');
-
-        for (var cat in allCategories) {
-          _logger.d('   - ${cat.name} (${cat.type.value})');
-        }
-      });
-
-      // Also test optimized version
-      _logger.d('🔍 Debug: Testing getCategoriesOptimized for current type...');
-      _categoryService
-          .getCategoriesOptimized(type: _selectedType)
-          .listen((categories) {
-        _logger.d(
-            '📦 Optimized method returned: ${categories.length} categories for type: $_selectedType');
-        for (var cat in categories) {
-          _logger.d('   - ${cat.name} (${cat.type})');
-        }
-      });
-    } catch (e) {
-      _logger.e('❌ Debug all categories failed: $e');
-    }
-  }
 
   String _formatErrorMessage(dynamic error) {
     String errorMessage = error.toString();
@@ -305,6 +169,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   }
 
   Widget _buildCompactManualInputTab() {
+    // Watch categories provider
+    final categoriesAsync = ref.watch(allCategoriesProvider);
+    final categories = ref.watch(categoriesByTypeProvider(_selectedType));
+    final isLoading = categoriesAsync.isLoading;
+    final categoriesError = categoriesAsync.hasError 
+        ? _formatErrorMessage(categoriesAsync.error!)
+        : null;
+
     return TransactionManualForm(
       formKey: _formKey,
       logger: _logger,
@@ -313,9 +185,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       selectedType: _selectedType,
       selectedCategory: _selectedCategory,
       selectedDate: _selectedDate,
-      categories: _categories,
-      isCategoriesLoading: _isCategoriesLoading,
-      categoriesError: _categoriesError,
+      categories: categories,
+      isCategoriesLoading: isLoading,
+      categoriesError: categoriesError,
       isLoading: _isLoading,
       aiFilledFields: _aiFilledFields,
       showAiFilledHint: _showAiFilledHint,
@@ -326,12 +198,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           _selectedType = type;
           _currentTransactionType = type;
           _selectedCategory = null;
-          _categoriesError = null;
           _aiFilledFields.remove('type');
           if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
         });
-        _logger.d('📋 Loading categories for type: $type');
-        _loadCategories();
+        _logger.d('📋 Type changed to: $type');
       },
       onAmountChanged: (value) {
         _validateAmountRealTime(value);
@@ -347,7 +217,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           if (_aiFilledFields.isEmpty) _showAiFilledHint = false;
         });
       },
-      onRetryLoadCategories: _retryLoadCategories,
+      onRetryLoadCategories: () {
+        // Invalidate cache to retry
+        ref.invalidate(allCategoriesProvider);
+      },
       onDateChanged: (date) {
         setState(() {
           _selectedDate = date;
@@ -356,7 +229,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         });
       },
       onSaveTransaction: _saveTransaction,
-      onDebugAllCategories: _debugAllCategories,
+      onDebugAllCategories: () {
+        // Debug info available from providers
+        final categoriesAsync = ref.read(allCategoriesProvider);
+        if (categoriesAsync.hasValue) {
+          final allCategories = categoriesAsync.value!;
+          _logger.d('📊 Total categories: ${allCategories.length}');
+          final expenseCount = allCategories
+              .where((c) => c.type == TransactionType.expense)
+              .length;
+          final incomeCount = allCategories
+              .where((c) => c.type == TransactionType.income)
+              .length;
+          _logger.d('   - Expense: $expenseCount, Income: $incomeCount');
+        }
+      },
       onDismissAiBanner: () {
         setState(() {
           _showAiFilledHint = false;
@@ -474,10 +361,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       });
       _aiFilledFields.add('type');
 
-      // CRITICAL: Reload categories cho type mới và đợi hoàn thành
-      _logger.d('⏳ Loading categories for $newType...');
-      await _loadCategoriesForType(newType);
-      _logger.d('✅ Categories loaded for $newType');
+      // Categories sẽ tự động update từ provider khi type thay đổi
+      _logger.d('✅ Type changed to $newType, categories will update automatically');
     }
 
     // Điền date với fallback an toàn
@@ -535,9 +420,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
               _showAiFilledHint = _aiFilledFields.isNotEmpty;
             });
           } else {
+            final categories = ref.read(categoriesByTypeProvider(_selectedType));
             _logger.w('❌ Category not found: ${categoryName.toString()}');
             _logger.d(
-                '📋 Available categories: ${_categories.map((c) => c.name).join(', ')}');
+                '📋 Available categories: ${categories.map((c) => c.name).join(', ')}');
           }
         }
       }
@@ -545,11 +431,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   }
 
   CategoryModel? _findCategoryByName(String categoryName) {
-    if (_categories.isEmpty) return null;
+    final categories = ref.read(categoriesByTypeProvider(_selectedType));
+    if (categories.isEmpty) return null;
 
     try {
       // Chỉ tìm trong categories của type hiện tại
-      final currentTypeCategories = _categories
+      final categories = ref.read(categoriesByTypeProvider(_selectedType));
+      final currentTypeCategories = categories
           .where((cat) => cat.type == _currentTransactionType)
           .toList();
       _logger.d(
@@ -714,11 +602,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     }
 
     // Advanced validation
+    final categories = ref.read(categoriesByTypeProvider(_selectedType));
     final advancedValidationResult =
         await AdvancedValidationService.validateSpendingPattern(
       newTransaction: newTransaction,
       recentTransactions: recentTransactions,
-      categories: _categories,
+      categories: categories,
     );
 
     // Hiển thị advanced validation nếu có warnings
@@ -903,91 +792,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     }
   }
 
-  /// Load categories for specific transaction type
-  Future<void> _loadCategoriesForType(TransactionType type) async {
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        if (mounted) {
-          setState(() {
-            _categories = [];
-            _isCategoriesLoading = false;
-            _categoriesError = 'Người dùng chưa đăng nhập';
-          });
-        }
-        return;
-      }
-
-      // Cancel existing subscription
-      await _categoriesSubscription?.cancel();
-      _categoriesSubscription = null;
-      _timeoutTimer?.cancel();
-      _timeoutTimer = null;
-
-      if (mounted) {
-        setState(() {
-          _categories = [];
-          _isCategoriesLoading = true;
-          _categoriesError = null;
-        });
-      }
-
-      _logger.d('🔄 Loading categories for type: $type');
-
-      // Create new subscription for specific type
-      _categoriesSubscription =
-          _categoryService.getCategoriesOptimized(type: type).listen(
-        (categories) {
-          _timeoutTimer?.cancel();
-          if (mounted) {
-            _logger.d('✅ Loaded ${categories.length} categories for $type');
-            setState(() {
-              _categories = categories;
-              _isCategoriesLoading = false;
-              _categoriesError = null;
-            });
-          }
-        },
-        onError: (error) {
-          _timeoutTimer?.cancel();
-          if (mounted) {
-            _logger.e('❌ Error loading categories: $error');
-            setState(() {
-              _isCategoriesLoading = false;
-              _categoriesError = _formatErrorMessage(error);
-            });
-          }
-        },
-        cancelOnError: false,
-      );
-
-      // Set timeout
-      _timeoutTimer = Timer(const Duration(seconds: 10), () {
-        if (mounted && _isCategoriesLoading) {
-          setState(() {
-            _isCategoriesLoading = false;
-            _categoriesError = 'Timeout khi tải danh mục';
-          });
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isCategoriesLoading = false;
-          _categoriesError = _formatErrorMessage(e);
-        });
-      }
-    }
-  }
 
   @override
   void dispose() {
-    _categoriesSubscription?.cancel();
     _authSubscription?.cancel();
     _tabController.dispose();
     _amountController.dispose();
     _noteController.dispose();
-    _timeoutTimer?.cancel();
     super.dispose();
   }
 }

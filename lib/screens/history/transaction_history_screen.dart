@@ -1,12 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moni/constants/app_colors.dart';
+
 import '../../models/transaction_model.dart';
-import 'package:moni/services/services.dart';
+import '../../services/providers/providers.dart';
 import '../../utils/formatting/currency_formatter.dart';
+import '../../utils/formatting/date_formatter.dart';
 import '../../widgets/custom_page_header.dart';
 import 'transaction_detail_screen.dart';
 import 'widgets/history_calendar_grid.dart';
@@ -15,7 +14,7 @@ import 'widgets/history_grouped_transactions_list.dart';
 import 'widgets/history_summary_item.dart';
 import 'widgets/history_transaction_item.dart';
 
-class TransactionHistoryScreen extends StatefulWidget {
+class TransactionHistoryScreen extends ConsumerStatefulWidget {
   final String? categoryId;
   final TransactionType? filterType;
   final DateTime? filterDate;
@@ -28,27 +27,17 @@ class TransactionHistoryScreen extends StatefulWidget {
   });
 
   @override
-  State<TransactionHistoryScreen> createState() =>
+  ConsumerState<TransactionHistoryScreen> createState() =>
       _TransactionHistoryScreenState();
 }
 
-class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
+class _TransactionHistoryScreenState
+    extends ConsumerState<TransactionHistoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late DateTime _selectedDay;
   late DateTime _focusedDay;
-  final GetIt _getIt = GetIt.instance;
-  late final TransactionService _transactionService;
-
-  Map<DateTime, List<TransactionModel>> _transactions = {};
-  List<TransactionModel> _selectedDayTransactions = [];
-  List<TransactionModel> _allTransactions = [];
-  bool _isLoading = true;
   TransactionType? _filterType;
-
-  // Stream subscriptions
-  StreamSubscription<List<TransactionModel>>? _monthlyTransactionsSubscription;
-  StreamSubscription<List<TransactionModel>>? _allTransactionsSubscription;
 
   @override
   void initState() {
@@ -59,83 +48,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
     _selectedDay = widget.filterDate ?? DateTime.now();
     _focusedDay = widget.filterDate ?? DateTime.now();
     _filterType = widget.filterType;
-
-    _transactionService = _getIt<TransactionService>();
-    _loadTransactions();
   }
 
   @override
   void dispose() {
-    _monthlyTransactionsSubscription?.cancel();
-    _allTransactionsSubscription?.cancel();
     _tabController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadTransactions() async {
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      // Cancel existing subscriptions
-      await _monthlyTransactionsSubscription?.cancel();
-      await _allTransactionsSubscription?.cancel();
-
-      // Lấy giao dịch của tháng được chọn cho calendar view
-      final startOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
-      final endOfMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
-
-      _monthlyTransactionsSubscription = _transactionService
-          .getTransactions(
-        startDate: startOfMonth,
-        endDate: endOfMonth,
-      )
-          .listen(
-        (transactions) {
-          if (mounted) {
-            setState(() {
-              _transactions = _groupTransactionsByDay(transactions);
-              _selectedDayTransactions = _getTransactionsForDay(_selectedDay);
-              _isLoading = false;
-            });
-          }
-        },
-        onError: (error) {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-          }
-        },
-      );
-
-      // Lấy tất cả giao dịch cho list view
-      _allTransactionsSubscription = _transactionService
-          .getTransactions(
-        categoryId: widget.categoryId,
-      )
-          .listen(
-        (transactions) {
-          if (mounted) {
-            setState(() {
-              _allTransactions = transactions;
-            });
-          }
-        },
-        onError: (error) {
-          // Handle error silently for all transactions
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 
   void _changeMonth(int delta) {
@@ -145,9 +63,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
       _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + delta, 1);
       // Reset selected day to first of new month
       _selectedDay = _focusedDay;
-      _selectedDayTransactions = [];
     });
-    _loadTransactions();
   }
 
   Future<void> _showMonthYearPicker() async {
@@ -178,9 +94,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
       setState(() {
         _focusedDay = DateTime(selectedDate.year, selectedDate.month, 1);
         _selectedDay = _focusedDay;
-        _selectedDayTransactions = [];
       });
-      _loadTransactions();
     }
   }
 
@@ -188,6 +102,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
       List<TransactionModel> transactions) {
     Map<DateTime, List<TransactionModel>> data = {};
     for (var transaction in transactions) {
+      if (transaction.isDeleted) continue;
       final date = DateTime(
           transaction.date.year, transaction.date.month, transaction.date.day);
       if (data[date] != null) {
@@ -199,19 +114,39 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
     return data;
   }
 
-  List<TransactionModel> _getFilteredTransactions() {
-    if (_filterType == null) return _allTransactions;
-    return _allTransactions.where((t) => t.type == _filterType).toList();
+  List<TransactionModel> _getFilteredTransactions(
+      List<TransactionModel> allTransactions) {
+    var filtered = allTransactions;
+
+    // Filter by category if provided
+    if (widget.categoryId != null) {
+      filtered =
+          filtered.where((t) => t.categoryId == widget.categoryId).toList();
+    }
+
+    // Filter by type
+    if (_filterType != null) {
+      filtered = filtered.where((t) => t.type == _filterType).toList();
+    }
+
+    return filtered;
   }
 
-  List<TransactionModel> _getTransactionsForDay(DateTime day) {
+  List<TransactionModel> _getTransactionsForDay(
+    DateTime day,
+    Map<DateTime, List<TransactionModel>> transactions,
+  ) {
     final normalizedDay = DateTime(day.year, day.month, day.day);
-    return _transactions[normalizedDay] ?? [];
+    return transactions[normalizedDay] ?? [];
   }
 
-  double _getDayTotal(DateTime day, TransactionType type) {
-    final transactions = _getTransactionsForDay(day);
-    return transactions
+  double _getDayTotal(
+    DateTime day,
+    TransactionType type,
+    Map<DateTime, List<TransactionModel>> transactions,
+  ) {
+    final dayTransactions = _getTransactionsForDay(day, transactions);
+    return dayTransactions
         .where((t) => t.type == type)
         .fold(0.0, (total, t) => total + t.amount);
   }
@@ -230,9 +165,9 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
       ),
     );
 
-    // If transaction was deleted or updated, refresh the view
+    // If transaction was deleted or updated, invalidate cache
     if (mounted && result == true) {
-      _loadTransactions();
+      ref.invalidate(allTransactionsProvider);
     }
   }
 
@@ -343,6 +278,23 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
   }
 
   Widget _buildCalendarView() {
+    // Watch providers for calendar view
+    final transactionsAsync = ref.watch(allTransactionsProvider);
+
+    // Get transactions for current month
+    final startOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
+    final endOfMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
+    final monthRange = DateRange(start: startOfMonth, end: endOfMonth);
+    final monthTransactions =
+        ref.watch(transactionsByDateRangeProvider(monthRange));
+
+    // Group transactions by day
+    final transactionsByDay = _groupTransactionsByDay(monthTransactions);
+    final selectedDayTransactions =
+        _getTransactionsForDay(_selectedDay, transactionsByDay);
+
+    final isLoading = transactionsAsync.isLoading;
+
     return CustomScrollView(
       slivers: [
         // Calendar Grid
@@ -350,21 +302,20 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
           child: HistoryCalendarGrid(
             focusedDay: _focusedDay,
             selectedDay: _selectedDay,
-            transactions: _transactions,
+            transactions: transactionsByDay,
             onMonthChanged: _changeMonth,
             onMonthYearPicker: _showMonthYearPicker,
             onDaySelected: (day) {
               if (!mounted) return;
               setState(() {
                 _selectedDay = day;
-                _selectedDayTransactions = _getTransactionsForDay(day);
               });
             },
           ),
         ),
 
         // Selected day summary
-        if (_selectedDayTransactions.isNotEmpty)
+        if (selectedDayTransactions.isNotEmpty)
           SliverToBoxAdapter(
             child: Container(
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
@@ -382,8 +333,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                   Expanded(
                     child: HistorySummaryItem(
                       title: 'Thu nhập',
-                      amount: _formatCurrency(
-                          _getDayTotal(_selectedDay, TransactionType.income)),
+                      amount: _formatCurrency(_getDayTotal(_selectedDay,
+                          TransactionType.income, transactionsByDay)),
                       icon: Icons.trending_up,
                     ),
                   ),
@@ -395,8 +346,8 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
                   Expanded(
                     child: HistorySummaryItem(
                       title: 'Chi tiêu',
-                      amount: _formatCurrency(
-                          _getDayTotal(_selectedDay, TransactionType.expense)),
+                      amount: _formatCurrency(_getDayTotal(_selectedDay,
+                          TransactionType.expense, transactionsByDay)),
                       icon: Icons.trending_down,
                     ),
                   ),
@@ -406,37 +357,37 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
           ),
 
         // Loading indicator
-        if (_isLoading)
+        if (isLoading)
           const SliverFillRemaining(
             child: Center(child: CircularProgressIndicator()),
           ),
 
         // Empty state
-        if (!_isLoading && _selectedDayTransactions.isEmpty)
+        if (!isLoading && selectedDayTransactions.isEmpty)
           SliverFillRemaining(
             child: HistoryEmptyState(selectedDay: _selectedDay),
           ),
 
         // Transactions list for selected day
-        if (!_isLoading && _selectedDayTransactions.isNotEmpty)
+        if (!isLoading && selectedDayTransactions.isNotEmpty)
           SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   return HistoryTransactionItem(
-                    transaction: _selectedDayTransactions[index],
+                    transaction: selectedDayTransactions[index],
                     onTap: () => _navigateToTransactionDetail(
-                        _selectedDayTransactions[index]),
+                        selectedDayTransactions[index]),
                   );
                 },
-                childCount: _selectedDayTransactions.length,
+                childCount: selectedDayTransactions.length,
               ),
             ),
           ),
 
         // Bottom spacing for calendar view when transactions exist
-        if (!_isLoading && _selectedDayTransactions.isNotEmpty)
+        if (!isLoading && selectedDayTransactions.isNotEmpty)
           const SliverToBoxAdapter(
             child: SizedBox(height: 100),
           ),
@@ -445,6 +396,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
   }
 
   Widget _buildListView() {
+    // Watch providers for list view
+    final transactionsAsync = ref.watch(allTransactionsProvider);
+    final allTransactions = transactionsAsync.value ?? [];
+    final filteredTransactions = _getFilteredTransactions(allTransactions);
+    final isLoading = transactionsAsync.isLoading;
+
     return Column(
       children: [
         // Filter Section
@@ -485,12 +442,12 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen>
 
         // Grouped Transactions List
         Expanded(
-          child: _isLoading
+          child: isLoading
               ? const Center(child: CircularProgressIndicator())
-              : _getFilteredTransactions().isEmpty
+              : filteredTransactions.isEmpty
                   ? const HistoryEmptyState(isListView: true)
                   : HistoryGroupedTransactionsList(
-                      transactions: _getFilteredTransactions(),
+                      transactions: filteredTransactions,
                       onTransactionTap: _navigateToTransactionDetail,
                     ),
         ),
