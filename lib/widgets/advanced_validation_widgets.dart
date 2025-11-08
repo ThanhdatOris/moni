@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
-import '../services/advanced_validation_service.dart';
+import '../../../services/services.dart';
 
 /// Dialog hiển thị advanced validation warnings
 class BudgetAdvancedValidationDialog extends StatelessWidget {

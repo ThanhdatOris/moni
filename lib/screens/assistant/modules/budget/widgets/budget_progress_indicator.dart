@@ -240,7 +240,7 @@ class BudgetProgressIndicator extends StatelessWidget {
   }
 
   Widget _buildCategoryProgress(CategoryBudgetProgress category) {
-    final progressPercent = category.budget > 0 ? category.spent / category.budget : 0;
+    final progressPercent = category.budget > 0 ? category.spent.toDouble() / category.budget : 0.0;
     final isOverBudget = category.spent > category.budget;
 
     return Container(
@@ -295,7 +295,7 @@ class BudgetProgressIndicator extends StatelessWidget {
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: (progressPercent as double).clamp(0.0, 1.0),
+              widthFactor: progressPercent.clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
                   color: isOverBudget ? AppColors.error : Colors.white,

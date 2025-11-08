@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../constants/app_colors.dart';
-import '../../../services/category_service.dart';
+import '../../../services/services.dart';
 
 class CategoryDebugSection extends StatelessWidget {
   final List categories;

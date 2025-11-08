@@ -109,7 +109,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
                   icon: Icons.message,
                   title: 'Tin nhắn',
                   value:
-                      '${_conversations.fold(0, (sum, c) => sum + c.messageCount)}',
+                      '${_conversations.fold(0, (count, c) => count + c.messageCount)}',
                   color: AppColors.info,
                   height: h,
                 ),
@@ -569,7 +569,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Đổi tên cuộc trò chuyện'),
         content: TextField(
           controller: controller,
@@ -581,17 +581,22 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
             onPressed: () async {
               final newTitle = controller.text.trim();
               if (newTitle.isNotEmpty) {
+                // Cache Navigator before async gap
+                final navigator = Navigator.of(dialogContext);
+                
                 await _conversationService.renameConversation(
                     conversation.id, newTitle);
                 await _loadConversationHistory();
-                if (mounted) Navigator.pop(context);
+                
+                // Use cached navigator instead of context
+                navigator.pop();
               }
             },
             child: const Text('Lưu'),
@@ -604,20 +609,25 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
   void _showDeleteDialog(ConversationSummary conversation) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Xóa cuộc trò chuyện'),
         content: Text(
             'Bạn có chắc muốn xóa cuộc trò chuyện "${conversation.title}"?\n\nHành động này không thể hoàn tác.'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
           ),
           ElevatedButton(
             onPressed: () async {
+              // Cache Navigator before async gap
+              final navigator = Navigator.of(dialogContext);
+              
               await _conversationService.deleteConversation(conversation.id);
               await _loadConversationHistory();
-              if (mounted) Navigator.pop(context);
+              
+              // Use cached navigator instead of context
+              navigator.pop();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Xóa', style: TextStyle(color: Colors.white)),

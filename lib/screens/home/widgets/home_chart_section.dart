@@ -3,7 +3,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../../constants/app_colors.dart';
 import '../../../models/transaction_model.dart';
-import '../../../services/chart_data_service.dart';
+import '../../../services/services.dart';
 import '../../../widgets/charts/components/category_list.dart';
 import '../../../widgets/charts/components/combined_chart.dart';
 import '../../../widgets/charts/components/donut_chart.dart';

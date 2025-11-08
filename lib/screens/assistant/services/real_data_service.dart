@@ -3,8 +3,7 @@ import 'package:logger/logger.dart';
 
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../../services/category_service.dart';
-import '../../../services/transaction_service.dart';
+import '../../../services/services.dart';
 import '../../../widgets/charts/models/chart_data_model.dart';
 
 /// Service adapter để kết nối Assistant modules với dữ liệu thực
@@ -53,11 +52,11 @@ class RealDataService {
       // Tính toán dữ liệu analytics
       final totalIncome = transactions
           .where((t) => t.type == TransactionType.income)
-          .fold(0.0, (sum, t) => sum + t.amount);
+          .fold(0.0, (total, t) => total + t.amount);
 
       final totalExpense = transactions
           .where((t) => t.type == TransactionType.expense)
-          .fold(0.0, (sum, t) => sum + t.amount);
+          .fold(0.0, (total, t) => total + t.amount);
 
       final balance = totalIncome - totalExpense;
       final transactionCount = transactions.length;
@@ -151,7 +150,7 @@ class RealDataService {
             .where((t) =>
                 t.categoryId == category.categoryId &&
                 t.type == TransactionType.expense)
-            .fold(0.0, (sum, t) => sum + t.amount);
+            .fold(0.0, (total, t) => total + t.amount);
 
         // Estimate budget based on historical data or use default
         final estimatedBudget =
@@ -170,8 +169,8 @@ class RealDataService {
       }
 
       final totalBudget =
-          categoryProgress.fold(0.0, (sum, c) => sum + c.budget);
-      final totalSpent = categoryProgress.fold(0.0, (sum, c) => sum + c.spent);
+          categoryProgress.fold(0.0, (total, c) => total + c.budget);
+      final totalSpent = categoryProgress.fold(0.0, (total, c) => total + c.spent);
 
       return BudgetData(
         totalBudget: totalBudget,
@@ -318,7 +317,7 @@ class RealDataService {
       if (categoryTransactions.isEmpty) return null;
 
       final totalSpent =
-          categoryTransactions.fold(0.0, (sum, t) => sum + t.amount);
+          categoryTransactions.fold(0.0, (total, t) => total + t.amount);
       final avgMonthlySpending = totalSpent / 3; // 3 months average
 
       return avgMonthlySpending * 1.1; // Add 10% buffer

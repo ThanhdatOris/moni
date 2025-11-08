@@ -244,7 +244,7 @@ class _TransactionScanResultState extends State<TransactionScanResult> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<CategoryModel>(
-            value: _selectedCategory,
+            initialValue: _selectedCategory,
             decoration: InputDecoration(
               hintText: 'Chọn danh mục',
               border: OutlineInputBorder(

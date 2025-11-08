@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
 import '../../../constants/app_colors.dart';
-import '../../assistant/models/agent_request_model.dart';
+import '../../../services/ai_services/ai_services.dart';
 import '../../assistant/services/real_data_service.dart';
-import '../../assistant/services/universal_ai_processor.dart';
 import 'assistant_action_button.dart';
 import 'assistant_base_card.dart';
 
@@ -34,7 +34,7 @@ class GlobalInsightPanel extends StatefulWidget {
 }
 
 class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
-  final UniversalAIProcessor _processor = UniversalAIProcessor();
+  final AIProcessorService _aiService = GetIt.instance<AIProcessorService>();
   final RealDataService _realDataService = RealDataService();
 
   bool _isLoading = false;
@@ -43,6 +43,12 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
   Map<String, dynamic> _insightMeta = {};
   Map<String, dynamic>? _structuredInsight;
   List<String> _localTips = [];
+
+  // 🎯 OPTIMIZATION: Cache insights để giảm API calls
+  static const Duration _cacheDuration = Duration(hours: 6);
+  static final Map<String, _CachedInsight> _insightCache = {};
+
+  static String _getCacheKey(String moduleId) => 'insight_$moduleId';
 
   @override
   void initState() {
@@ -58,6 +64,22 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
     });
 
     try {
+      // 🎯 OPTIMIZATION: Check cache first
+      final cacheKey = _getCacheKey(widget.moduleId);
+      final cached = _insightCache[cacheKey];
+      
+      if (cached != null && !cached.isExpired) {
+        // Use cached insight
+        setState(() {
+          _insightText = cached.text;
+          _insightMeta = cached.meta;
+          _structuredInsight = cached.structured;
+          _localTips = cached.tips;
+          _isLoading = false;
+        });
+        return;
+      }
+
       // Bổ sung ngữ cảnh thực tế từ dữ liệu transaction + analytics
       final analytics = await _realDataService.getAnalyticsData();
       final spendingSummary = await _realDataService.getSpendingSummary();
@@ -108,40 +130,31 @@ DỮ LIỆU:
 ${jsonEncode(contextPayload)}
 ''';
 
-      final enrichedContext = {
-        'source': 'global_insight_panel',
-        'spending_summary': spendingSummary,
-        'analytics_totals': contextPayload['totals'],
-        if (widget.additionalContext != null) ...widget.additionalContext!,
-      };
-
-      final result = await _processor.processRequest(
-        moduleId: widget.moduleId,
-        requestType: AgentRequestType.analytics,
-        query: prompt,
-        additionalContext: enrichedContext,
-      );
+      // Direct AI call without wrapper layers
+      final response = await _aiService.generateText(prompt);
 
       if (!mounted) return;
-      if (result.isError) {
+      if (response.isEmpty) {
         setState(() {
-          _error = result.errorMessage ?? 'Không thể tạo insight';
+          _error = 'Không thể tạo insight';
           _isLoading = false;
         });
         return;
       }
 
       setState(() {
-        _insightText = result.response;
-        _insightMeta = result.insights;
-        // Nếu response có data.insight (được đi qua Universal → GlobalAgentService), lấy để render
-        // AgentResponse từ GlobalAgentService sẽ chứa data.insight.
-        final responseData = result.context['response_data'];
-        if (responseData is Map && responseData['insight'] != null) {
-          _structuredInsight =
-              Map<String, dynamic>.from(responseData['insight']);
-        }
+        _insightText = response;
         _isLoading = false;
+
+        // 🎯 OPTIMIZATION: Cache the insight for 6 hours
+        final cacheKey = _getCacheKey(widget.moduleId);
+        _insightCache[cacheKey] = _CachedInsight(
+          text: response,
+          meta: {},
+          structured: null,
+          tips: _localTips,
+          cachedAt: DateTime.now(),
+        );
       });
     } catch (e) {
       if (!mounted) return;
@@ -463,4 +476,25 @@ ${jsonEncode(contextPayload)}
 
     return tips;
   }
+}
+
+// 🎯 OPTIMIZATION: Cached insight model
+class _CachedInsight {
+  final String text;
+  final Map<String, dynamic> meta;
+  final Map<String, dynamic>? structured;
+  final List<String> tips;
+  final DateTime cachedAt;
+
+  _CachedInsight({
+    required this.text,
+    required this.meta,
+    this.structured,
+    required this.tips,
+    required this.cachedAt,
+  });
+
+  bool get isExpired =>
+      DateTime.now().difference(cachedAt) >
+      _GlobalInsightPanelState._cacheDuration;
 }

@@ -308,7 +308,7 @@ class HistoryCalendarGrid extends StatelessWidget {
           ),
 
           // Vertical Divider
-          if (transactions.values.fold(0, (sum, list) => sum + list.length) >
+          if (transactions.values.fold(0, (count, list) => count + list.length) >
               0) ...[
             Container(
               width: 1,
@@ -334,7 +334,7 @@ class HistoryCalendarGrid extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '${transactions.values.fold(0, (sum, list) => sum + list.length)} giao dịch',
+                    '${transactions.values.fold(0, (count, list) => count + list.length)} giao dịch',
                     style: TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,
@@ -402,10 +402,10 @@ class HistoryCalendarGrid extends StatelessWidget {
     final dayTransactions = _getTransactionsForDay(day);
     final income = dayTransactions
         .where((t) => t.type == TransactionType.income)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (total, t) => total + t.amount);
     final expense = dayTransactions
         .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (total, t) => total + t.amount);
     final hasTransactions = income > 0 || expense > 0;
     final isSelected = day.day == selectedDay.day &&
         day.month == selectedDay.month &&
