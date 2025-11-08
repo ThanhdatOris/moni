@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -33,7 +34,7 @@ void main() async {
   await EnvironmentService.initialize();
 
   // Log configuration nếu ở development mode
-  if (EnvironmentService.isDevelopment) {
+  if (EnvironmentService.isDevelopment && kDebugMode) {
     EnvironmentService.logConfiguration();
   }
 
@@ -41,12 +42,13 @@ void main() async {
   await FirebaseService.initialize();
 
   // Tạo tài khoản test chỉ trong production (không chạy khi debug)
-  if (EnvironmentService.isProduction) {
+  if (EnvironmentService.isProduction && !kDebugMode) {
     try {
       await AuthServiceTest.createTestAccount();
       await AuthServiceTest.createBackupTestAccount();
     } catch (e) {
-      //print('Lỗi tạo tài khoản test: $e');
+      // ✅ TẮT LOG: Không cần log lỗi tạo test account
+      // Chỉ là test account, không quan trọng
     }
   }
 

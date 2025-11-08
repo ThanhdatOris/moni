@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:logger/logger.dart';
 
@@ -11,10 +12,18 @@ class EnvironmentService {
     try {
       await dotenv.load(fileName: ".env");
       _isInitialized = true;
-      _logger.i('Environment initialized successfully');
+      
+      // ✅ CHỈ LOG TRONG DEBUG MODE
+      if (kDebugMode) {
+        _logger.i('Environment initialized successfully');
+      }
     } catch (e) {
-      _logger.e('Failed to load environment: $e');
       _isInitialized = false;
+      
+      // ✅ CHỈ LOG ERROR TRONG DEBUG MODE
+      if (kDebugMode) {
+        _logger.e('Failed to load environment: $e');
+      }
     }
   }
 
