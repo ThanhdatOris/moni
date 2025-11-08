@@ -31,9 +31,6 @@ class AIChatHandler {
   /// Process chat input and return AI response
   Future<String> processChatInput(String input) async {
     try {
-      // Rate limiting only (no quota check - let Google API handle quota)
-      await _tokenManager.checkRateLimit();
-
       // Improved debug log
       if (EnvironmentService.debugMode) {
         final estimatedTokens = AIHelpers.estimateTokens(input);
@@ -119,13 +116,14 @@ User input: "$input"
         return _handleGeneralHelp();
       }
 
+      // Check usage before API call
+      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
+
       // Process with AI model for transaction extraction or general chat
       final response = await _model.generateContent([Content.text(prompt)]);
 
-      // Track token usage for statistics (non-blocking)
-      final estimatedTokens = AIHelpers.estimateTokens(input);
-      final responseTokens = AIHelpers.estimateTokens(response.text ?? '');
-      await _tokenManager.updateTokenCount(estimatedTokens + responseTokens);
+      // Update token usage after API call
+      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, response.text ?? '');
 
       // Check if AI wants to call functions
       if (response.functionCalls.isNotEmpty) {

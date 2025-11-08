@@ -57,6 +57,21 @@ class CurrencyFormatter {
     return formatAmountWithCurrency(amount);
   }
 
+  /// Format currency cho error messages với đơn vị tiếng Việt
+  /// Ví dụ: 1000000 -> "1.0 triệu VNĐ", 5000000000 -> "5.0 tỷ VNĐ"
+  /// Sử dụng cho validation errors và warnings
+  static String formatCurrencyForError(double amount) {
+    if (amount >= 1000000000) {
+      return '${(amount / 1000000000).toStringAsFixed(1)} tỷ VNĐ';
+    } else if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(1)} triệu VNĐ';
+    } else if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)} nghìn VNĐ';
+    } else {
+      return '${amount.toStringAsFixed(0)} VNĐ';
+    }
+  }
+
   // ===== INPUT FORMATTING METHODS =====
 
   /// Lấy raw value (số nguyên) từ formatted text

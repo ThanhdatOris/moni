@@ -829,7 +829,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Số tiền khá lớn (${TransactionValidationService.formatCurrency(amount)})'),
+                'Số tiền khá lớn (${CurrencyFormatter.formatCurrencyForError(amount)})'),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 2),
           ),

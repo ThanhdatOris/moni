@@ -16,7 +16,6 @@ lib/utils/
 │
 ├── helpers/                            # Helper utilities
 │   ├── category_icon_helper.dart       # Category icon handling
-│   ├── date_helper.dart                # Legacy date helper (hidden DateRange)
 │   ├── string_helper.dart              # String utilities
 │   └── list_helper.dart                # List utilities
 │
@@ -135,9 +134,10 @@ final filtered = transactions.filter((t) => t.amount > 100000);
 
 ## 🚀 Migration Guide
 
-### Từ DateHelper cũ:
+### ⚠️ DateHelper đã được xóa
+DateHelper đã được deprecated và xóa hoàn toàn. Sử dụng DateFormatter thay thế:
 ```dart
-// Cũ
+// Cũ (đã xóa)
 import 'package:moni/utils/date_helper.dart';
 final dateStr = DateHelper.formatDate(date);
 

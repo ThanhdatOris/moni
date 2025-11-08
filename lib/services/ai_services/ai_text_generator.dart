@@ -22,16 +22,14 @@ class AITextGenerator {
   /// Generate text from prompt (no caching, direct API call)
   Future<String> generateText(String prompt) async {
     try {
-      // Rate limiting only (no quota check - let Google API handle quota)
-      await _tokenManager.checkRateLimit();
+      // Check usage before API call
+      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
 
       final response = await _model.generateContent([Content.text(prompt)]);
       final result = response.text ?? '';
 
-      // Track token usage for statistics (non-blocking)
-      final estimatedTokens = AIHelpers.estimateTokens(prompt);
-      await _tokenManager.updateTokenCount(
-          estimatedTokens + AIHelpers.estimateTokens(result));
+      // Update token usage after API call
+      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, result);
       
       return result;
     } catch (e) {
@@ -49,9 +47,6 @@ class AITextGenerator {
   /// Answer financial questions
   Future<String> answerQuestion(String question) async {
     try {
-      // Rate limiting only
-      await _tokenManager.checkRateLimit();
-      
       _logger.i('💡 Processing financial question (${question.length} chars)');
 
       final prompt = '''
@@ -60,9 +55,15 @@ You are a personal finance expert. Answer professionally in Vietnamese with prac
 Question: "$question"
 ''';
 
+      // Check usage before API call
+      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
+
       final response = await _model.generateContent([Content.text(prompt)]);
       final result = response.text ??
           'Xin lỗi, tôi không thể trả lời câu hỏi này lúc này.';
+
+      // Update token usage after API call
+      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, result);
 
       return result;
     } catch (e) {
@@ -75,9 +76,6 @@ Question: "$question"
   Future<String> analyzeSpendingHabits(
       Map<String, dynamic> transactionData) async {
     try {
-      // Rate limiting only
-      await _tokenManager.checkRateLimit();
-      
       _logger.i(
           '📊 Analyzing spending habits (${transactionData.keys.length} data points)');
 
@@ -87,8 +85,16 @@ Analyze spending habits and give specific advice to improve personal finance. An
 Data: ${transactionData.toString()}
 ''';
 
+      // Check usage before API call
+      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
+
       final response = await _model.generateContent([Content.text(prompt)]);
-      return response.text ?? 'Không thể phân tích dữ liệu lúc này.';
+      final result = response.text ?? 'Không thể phân tích dữ liệu lúc này.';
+
+      // Update token usage after API call
+      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, result);
+
+      return result;
     } catch (e) {
       _logger.e('❌ Error analyzing spending habits: $e');
       return 'Đã có lỗi xảy ra khi phân tích thói quen chi tiêu.';

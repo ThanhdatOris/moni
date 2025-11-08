@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../models/transaction_model.dart';
+import 'ai_token_manager.dart';
 
 /// Helper utilities for AI service
 /// - Amount parsing from various formats
 /// - Smart icon/emoji selection
 /// - Token estimation
+/// - Usage checking and token tracking
 class AIHelpers {
   /// Parse amount from various formats (18k, 1tr, 18000, etc.)
   static double parseAmount(dynamic rawAmount) {
@@ -254,5 +256,80 @@ class AIHelpers {
       default:
         return 'Đã có lỗi xảy ra. Vui lòng thử lại sau. 😅';
     }
+  }
+
+  /// Check usage before making API call
+  /// Handles rate limiting automatically
+  /// 
+  /// Usage:
+  /// ```dart
+  /// await AIHelpers.checkUsageBeforeCall(tokenManager, inputText);
+  /// ```
+  static Future<void> checkUsageBeforeCall(
+    AITokenManager tokenManager,
+    String input,
+  ) async {
+    await tokenManager.checkRateLimit();
+  }
+
+  /// Update token usage after API call
+  /// Automatically estimates tokens from input and response
+  /// 
+  /// Usage:
+  /// ```dart
+  /// await AIHelpers.updateUsageAfterCall(tokenManager, inputText, responseText);
+  /// ```
+  static Future<void> updateUsageAfterCall(
+    AITokenManager tokenManager,
+    String input,
+    String response,
+  ) async {
+    final inputTokens = estimateTokens(input);
+    final responseTokens = estimateTokens(response);
+    await tokenManager.updateTokenCount(inputTokens + responseTokens);
+  }
+
+  /// Check usage before API call and update after
+  /// Convenience method that combines both operations
+  /// 
+  /// Usage:
+  /// ```dart
+  /// await AIHelpers.checkAndUpdateUsage(tokenManager, inputText, responseText);
+  /// ```
+  static Future<void> checkAndUpdateUsage(
+    AITokenManager tokenManager,
+    String input,
+    String response,
+  ) async {
+    await checkUsageBeforeCall(tokenManager, input);
+    await updateUsageAfterCall(tokenManager, input, response);
+  }
+
+  /// Check usage before API call with custom input tokens
+  /// Useful when you have pre-calculated token estimates
+  /// 
+  /// Usage:
+  /// ```dart
+  /// await AIHelpers.checkUsageBeforeCallWithTokens(tokenManager, estimatedTokens);
+  /// ```
+  static Future<void> checkUsageBeforeCallWithTokens(
+    AITokenManager tokenManager,
+    int estimatedTokens,
+  ) async {
+    await tokenManager.checkRateLimit();
+  }
+
+  /// Update token usage with custom token count
+  /// Useful when you have exact token counts from API response
+  /// 
+  /// Usage:
+  /// ```dart
+  /// await AIHelpers.updateUsageWithTokens(tokenManager, tokensUsed);
+  /// ```
+  static Future<void> updateUsageWithTokens(
+    AITokenManager tokenManager,
+    int tokensUsed,
+  ) async {
+    await tokenManager.updateTokenCount(tokensUsed);
   }
 }

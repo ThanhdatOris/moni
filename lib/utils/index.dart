@@ -2,9 +2,9 @@
 // UTILS EXPORT FILE
 // =============================================================================
 
+// Extension methods
 export 'extensions/date_extensions.dart';
 export 'extensions/list_extensions.dart';
-// Extension methods
 export 'extensions/string_extensions.dart';
 // =============================================================================
 // LEGACY EXPORTS (for backward compatibility)
@@ -19,7 +19,8 @@ export 'formatting/date_formatter.dart';
 // Helper utilities
 export 'helpers/category_icon_helper.dart';
 export 'helpers/category_icon_helper.dart' show CategoryIconHelper;
-export 'helpers/date_helper.dart' hide DateRange; // Hide duplicate DateRange
+// date_helper.dart is deprecated - use DateFormatter instead
+// export 'helpers/date_helper.dart' hide DateRange; // DEPRECATED: Use DateFormatter
 export 'helpers/list_helper.dart';
 export 'helpers/string_helper.dart';
 // Logging utilities

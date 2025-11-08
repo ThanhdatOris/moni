@@ -1,5 +1,6 @@
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
+import '../../utils/formatting/currency_formatter.dart';
 
 /// Service validation nâng cao cho transaction form
 class TransactionValidationService {
@@ -80,20 +81,20 @@ class TransactionValidationService {
 
     if (amount < minAmount) {
       return _AmountValidation(
-        error: 'Số tiền phải lớn hơn ${_formatCurrency(minAmount)}',
+        error: 'Số tiền phải lớn hơn ${CurrencyFormatter.formatCurrencyForError(minAmount)}',
       );
     }
 
     if (amount > maxAmount) {
       return _AmountValidation(
-        error: 'Số tiền không được vượt quá ${_formatCurrency(maxAmount)}',
+        error: 'Số tiền không được vượt quá ${CurrencyFormatter.formatCurrencyForError(maxAmount)}',
       );
     }
 
     // Warning cho số tiền lớn
     String? warning;
     if (amount > suspiciousAmount) {
-      warning = 'Số tiền khá lớn (${_formatCurrency(amount)}). Vui lòng kiểm tra lại.';
+      warning = 'Số tiền khá lớn (${CurrencyFormatter.formatCurrencyForError(amount)}). Vui lòng kiểm tra lại.';
     }
 
     return _AmountValidation(amount: amount, warning: warning);
@@ -173,21 +174,10 @@ class TransactionValidationService {
   }
 
   /// Format currency cho error messages (public method)
+  /// @deprecated Sử dụng CurrencyFormatter.formatCurrencyForError() thay thế
+  @Deprecated('Use CurrencyFormatter.formatCurrencyForError() instead')
   static String formatCurrency(double amount) {
-    return _formatCurrency(amount);
-  }
-
-  /// Format currency cho error messages
-  static String _formatCurrency(double amount) {
-    if (amount >= 1000000000) {
-      return '${(amount / 1000000000).toStringAsFixed(1)} tỷ VNĐ';
-    } else if (amount >= 1000000) {
-      return '${(amount / 1000000).toStringAsFixed(1)} triệu VNĐ';
-    } else if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(0)} nghìn VNĐ';
-    } else {
-      return '${amount.toStringAsFixed(0)} VNĐ';
-    }
+    return CurrencyFormatter.formatCurrencyForError(amount);
   }
 
   /// Kiểm tra duplicate transaction

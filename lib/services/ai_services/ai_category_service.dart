@@ -39,9 +39,6 @@ class AICategoryService {
     }
 
     try {
-      // Rate limiting only
-      await _tokenManager.checkRateLimit();
-
       _logger.i('🤔 Suggesting category for: "$description"');
 
       final prompt = '''
@@ -49,13 +46,14 @@ Suggest best category for transaction: "$description"
 Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "Giải trí", "Lương", etc.
 ''';
 
+      // Check usage before API call
+      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
+
       final response = await _model.generateContent([Content.text(prompt)]);
       final result = response.text?.trim() ?? 'Khác';
 
-      // Track token usage for statistics (non-blocking)
-      final estimatedTokens = AIHelpers.estimateTokens(prompt);
-      final responseTokens = AIHelpers.estimateTokens(result);
-      await _tokenManager.updateTokenCount(estimatedTokens + responseTokens);
+      // Update token usage after API call
+      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, result);
 
       // Save to smart cache (7 days TTL)
       _cache.put(cacheKey, result, CachePriority.high);
@@ -98,9 +96,6 @@ Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "G
     }
 
     try {
-      // Check rate limit
-      await _tokenManager.checkRateLimit();
-
       _logger.i(
           '🤔 Batch suggesting categories for ${uncachedDescriptions.length} transactions');
 
@@ -123,13 +118,14 @@ Valid categories: "Ăn uống", "Mua sắm", "Đi lại", "Giải trí", "Y tế
 Response format: {"0": "Ăn uống", "1": "Đi lại", ...}
 ''';
 
+      // Check usage before API call
+      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
+
       final response = await _model.generateContent([Content.text(prompt)]);
       final responseText = response.text?.trim() ?? '{}';
 
-      // Track token usage for statistics (non-blocking)
-      final estimatedTokens = AIHelpers.estimateTokens(prompt);
-      final responseTokens = AIHelpers.estimateTokens(responseText);
-      await _tokenManager.updateTokenCount(estimatedTokens + responseTokens);
+      // Update token usage after API call
+      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, responseText);
 
       // Parse JSON response
       try {
