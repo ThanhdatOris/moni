@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../services/ai_services/ai_services.dart';
 import '../../assistant/services/real_data_service.dart';
 import 'assistant_action_button.dart';

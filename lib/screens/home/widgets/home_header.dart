@@ -5,7 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../services/services.dart';
+import 'package:moni/services/services.dart';
 import '../../../utils/formatting/currency_formatter.dart';
 
 /// Bank card style header with financial overview

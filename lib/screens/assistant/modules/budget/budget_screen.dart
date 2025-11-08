@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:moni/constants/app_colors.dart';
 
-import '../../../../constants/app_colors.dart';
 import '../../../../services/ai_services/ai_services.dart';
 import '../../../assistant/services/real_data_service.dart' as real_data;
 import 'widgets/budget_breakdown_chart.dart';
@@ -326,9 +326,10 @@ class _BudgetScreenState extends State<BudgetScreen>
 
     try {
       // Direct AI call without wrapper layers
-      final prompt = 'Tạo gợi ý ngân sách chi tiết mới. Bao gồm: phân bổ theo danh mục, '
-            'mục tiêu tiết kiệm, và lời khuyên thực tế cho việc quản lý tài chính.';
-      
+      final prompt =
+          'Tạo gợi ý ngân sách chi tiết mới. Bao gồm: phân bổ theo danh mục, '
+          'mục tiêu tiết kiệm, và lời khuyên thực tế cho việc quản lý tài chính.';
+
       final response = await _aiService.generateText(prompt);
 
       if (mounted) {

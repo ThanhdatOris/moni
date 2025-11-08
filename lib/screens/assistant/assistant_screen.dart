@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../widgets/custom_page_header.dart';
 import 'modules/budget/budget_screen.dart';
 import 'modules/chatbot/chatbot_screen.dart';

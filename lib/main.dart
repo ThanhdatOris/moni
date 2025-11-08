@@ -4,11 +4,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import 'constants/app_strings.dart';
 import 'core/di/injection_container.dart' as di;
 import 'screens/splash_wrapper.dart';
-import 'services/services.dart';
+import 'package:moni/services/services.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 
 /// Error state component for assistant modules
 /// Shows error message with retry option

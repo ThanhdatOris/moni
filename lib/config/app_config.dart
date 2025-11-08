@@ -1,4 +1,4 @@
-import '../services/services.dart';
+import 'package:moni/services/services.dart';
 
 /// Configuration công khai của ứng dụng Moni
 class AppConfig {

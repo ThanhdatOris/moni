@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../widgets/assistant_action_button.dart';
 
 /// Report template card with preview functionality

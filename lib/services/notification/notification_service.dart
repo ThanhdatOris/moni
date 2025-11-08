@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
-import '../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 
 /// Enum định nghĩa loại thông báo
 enum NotificationType {

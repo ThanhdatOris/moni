@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../core/di/injection_container.dart';
-import '../../../services/services.dart';
+import 'package:moni/services/services.dart';
 
 /// Widget hiển thị banner khuyến khích anonymous user đăng ký
 class AnonymousUserBanner extends StatefulWidget {

@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 
-import '../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
-import '../../services/services.dart';
+import 'package:moni/services/services.dart';
 import '../../utils/formatting/currency_formatter.dart';
 import '../../widgets/advanced_validation_widgets.dart';
 import '../../widgets/duplicate_warning_dialog.dart';

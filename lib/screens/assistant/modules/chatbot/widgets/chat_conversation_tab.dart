@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../../../services/ai_services/ai_services.dart';
-import '../../../models/chat_message_model.dart';
+import '../../../../../models/asisstant/chat_message_model.dart';
 import '../../../services/ui_optimization_service.dart';
 import '../services/conversation_service.dart';
 import 'chat_message_widget.dart';

@@ -1,9 +1,9 @@
 // Export all models
 
+// Assistant models
+export 'asisstant/assistant_models.dart';
 // Core analytics models (moved to core)
-export '../core/models/analytics/analytics_models.dart';
-// AI models
-export 'ai_budget_model.dart';
+export 'analytics/analytics_models.dart';
 // Core models
 export 'budget_alert_model.dart';
 export 'budget_model.dart';

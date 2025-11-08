@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../widgets/assistant_action_button.dart';
 import '../../../widgets/assistant_base_card.dart';
 

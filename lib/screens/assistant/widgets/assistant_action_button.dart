@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 
 /// Action button component for assistant modules
 /// Provides consistent button styling across assistant features

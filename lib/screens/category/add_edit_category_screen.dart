@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
-import '../../services/services.dart';
+import 'package:moni/services/services.dart';
 import '../../utils/helpers/category_icon_helper.dart';
 import 'widgets/category_color_selector.dart';
 import 'widgets/category_icon_picker_dialog.dart';

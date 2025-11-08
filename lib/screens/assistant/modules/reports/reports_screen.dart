@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/services/services.dart';
 
-import '../../../../constants/app_colors.dart';
 import '../../../../models/transaction_model.dart';
-import '../../../../services/services.dart';
 import 'widgets/report_chart_preview.dart';
 import 'widgets/report_export_options.dart';
 import 'widgets/report_preview_container.dart';
@@ -393,8 +393,8 @@ class _ReportsScreenState extends State<ReportsScreen>
     try {
       // Direct AI call without wrapper layers
       final prompt = 'Tạo ${template.name} với dữ liệu thực tế của người dùng. '
-            'Bao gồm phân tích chi tiết, biểu đồ và gợi ý cải thiện.';
-      
+          'Bao gồm phân tích chi tiết, biểu đồ và gợi ý cải thiện.';
+
       final response = await _aiService.generateText(prompt);
 
       if (mounted) {
