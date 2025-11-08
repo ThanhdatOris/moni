@@ -21,10 +21,12 @@ class FirebaseService {
         return;
       }
 
-      // Kiểm tra Firebase app đã tồn tại
+      // Kiểm tra Firebase app đã tồn tại (check trước khi init)
       if (Firebase.apps.isNotEmpty) {
         _isInitialized = true;
         _logger.i('🔥 Firebase: Sử dụng instance có sẵn');
+        // Vẫn cần init App Check
+        await AppCheckService.initialize();
         return;
       }
 
@@ -35,8 +37,6 @@ class FirebaseService {
 
       if (!EnvironmentService.isInitialized) {
         _logger.w('⚠️ Environment Service không khởi tạo được, sử dụng fallback');
-      } else if (EnvironmentService.loggingEnabled && EnvironmentService.debugMode) {
-        EnvironmentService.logConfiguration();
       }
 
       // Kiểm tra Firebase configuration
@@ -46,25 +46,28 @@ class FirebaseService {
             'Firebase configuration chưa được thiết lập. Vui lòng tạo file .env với thông tin Firebase đúng.');
       }
 
-      // Khởi tạo Firebase Core
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+      // Khởi tạo Firebase Core với xử lý duplicate-app
+      try {
+        await Firebase.initializeApp(
+          options: DefaultFirebaseOptions.currentPlatform,
+        );
+        _logger.i('🔥 Khởi tạo Firebase Core thành công');
+      } catch (e) {
+        // Xử lý duplicate app error riêng biệt
+        if (e.toString().contains('duplicate-app')) {
+          _logger.i('🔥 Firebase: App đã tồn tại, sử dụng instance hiện có');
+        } else {
+          rethrow; // Throw lại nếu là lỗi khác
+        }
+      }
 
       // Khởi tạo Firebase App Check
       await AppCheckService.initialize();
 
       _isInitialized = true;
-      _logger.i('🔥 Khởi tạo Firebase thành công');
+      _logger.i('✅ Firebase Service initialized successfully');
     } catch (e) {
       _logger.e('❌ Lỗi khởi tạo Firebase: $e');
-
-      // Xử lý duplicate app error
-      if (e.toString().contains('duplicate-app')) {
-        _isInitialized = true;
-        _logger.i('🔥 Firebase: App đã tồn tại, tiếp tục sử dụng');
-        return;
-      }
 
       // Xử lý configuration error
       if (e.toString().contains('configuration') ||

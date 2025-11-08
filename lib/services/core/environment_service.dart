@@ -51,6 +51,9 @@ class EnvironmentService {
   
   static String get firebaseAppId => 
       dotenv.env['FIREBASE_APP_ID'] ?? '';
+  
+  static String get firebaseAppCheckDebugToken => 
+      dotenv.env['FIREBASE_APPCHECK_DEBUG_TOKEN'] ?? '';
 
   // ===================
   // GEMINI AI CONFIG
