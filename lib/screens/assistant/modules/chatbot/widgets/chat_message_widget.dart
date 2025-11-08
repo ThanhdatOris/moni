@@ -5,7 +5,7 @@ import 'package:moni/constants/app_colors.dart';
 import 'package:moni/services/services.dart';
 import '../../../../../../utils/helpers/category_icon_helper.dart';
 import '../../../../history/transaction_detail_screen.dart';
-import '../../../../../models/asisstant/chat_message_model.dart';
+import '../../../../../models/assistant/chat_message_model.dart';
 
 /// Widget hiển thị một tin nhắn trong cuộc hội thoại
 class ChatMessageWidget extends StatelessWidget {

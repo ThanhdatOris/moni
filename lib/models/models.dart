@@ -1,7 +1,7 @@
 // Export all models
 
 // Assistant models
-export 'asisstant/assistant_models.dart';
+export 'assistant/assistant_models.dart';
 // Core analytics models (moved to core)
 export 'analytics/analytics_models.dart';
 // Core models

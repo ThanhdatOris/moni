@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../../../models/asisstant/chat_message_model.dart';
+import '../../../../../models/assistant/chat_message_model.dart';
 import '../../../services/real_data_service.dart';
 
 /// Enhanced conversation service with ChangeNotifier for real-time updates
