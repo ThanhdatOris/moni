@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
+
 import '../../../models/category_model.dart';
-import '../../../models/transaction_model.dart';
 import '../../../utils/formatting/currency_formatter.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 import 'transaction_amount_input.dart';
@@ -244,7 +245,7 @@ class _TransactionScanResultState extends State<TransactionScanResult> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<CategoryModel>(
-            value: _selectedCategory,
+            initialValue: _selectedCategory,
             decoration: InputDecoration(
               hintText: 'Chọn danh mục',
               border: OutlineInputBorder(

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
+import 'package:moni/constants/enums.dart';
 
 /// Budget Model - Đơn giản và hiệu quả
 class BudgetModel extends Equatable {
@@ -164,13 +165,6 @@ class BudgetModel extends Equatable {
   }
 }
 
-/// Budget status enum
-enum BudgetStatus {
-  good,
-  warning,
-  overBudget,
-}
-
 /// Budget alert model
 class BudgetAlert {
   final String id;
@@ -212,10 +206,3 @@ class BudgetAlert {
     );
   }
 }
-
-/// Budget alert type enum
-enum BudgetAlertType {
-  nearLimit,
-  overBudget,
-  reset,
-} 

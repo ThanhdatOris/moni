@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
 
-import '../../../../../constants/app_colors.dart';
 import '../../../../../utils/index.dart';
 import '../../../widgets/assistant_action_button.dart';
 import '../../../widgets/assistant_base_card.dart';
@@ -240,7 +241,7 @@ class BudgetProgressIndicator extends StatelessWidget {
   }
 
   Widget _buildCategoryProgress(CategoryBudgetProgress category) {
-    final progressPercent = category.budget > 0 ? category.spent / category.budget : 0;
+    final progressPercent = category.budget > 0 ? category.spent.toDouble() / category.budget : 0.0;
     final isOverBudget = category.spent > category.budget;
 
     return Container(
@@ -295,7 +296,7 @@ class BudgetProgressIndicator extends StatelessWidget {
             ),
             child: FractionallySizedBox(
               alignment: Alignment.centerLeft,
-              widthFactor: (progressPercent as double).clamp(0.0, 1.0),
+              widthFactor: progressPercent.clamp(0.0, 1.0),
               child: Container(
                 decoration: BoxDecoration(
                   color: isOverBudget ? AppColors.error : Colors.white,

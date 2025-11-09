@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../utils/formatting/currency_formatter.dart';
 
 class TransactionAmountInput extends StatefulWidget {

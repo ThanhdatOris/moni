@@ -3,28 +3,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../screens/assistant/services/global_agent_service.dart';
 import '../../screens/assistant/services/real_data_service.dart';
-import '../../services/advanced_validation_service.dart';
-// Legacy Services - Simple architecture
-import '../../services/ai_processor_service.dart';
-import '../../services/anonymous_conversion_service.dart';
-import '../../services/auth_service.dart';
-import '../../services/budget_alert_service.dart';
-import '../../services/category_service.dart';
-import '../../services/chart_data_service.dart';
-import '../../services/chat_log_service.dart';
-import '../../services/conversation_service.dart';
-import '../../services/duplicate_detection_service.dart';
-import '../../services/environment_service.dart';
-import '../../services/firebase_service.dart';
-import '../../services/ocr_service.dart';
-import '../../services/offline_service.dart';
-import '../../services/offline_sync_service.dart';
-import '../../services/report_service.dart';
-import '../../services/transaction_service.dart';
-import '../../services/transaction_validation_service.dart';
-
+import 'package:moni/services/services.dart';
 final getIt = GetIt.instance;
 
 /// Simple Dependency Injection for Legacy Architecture
@@ -99,14 +79,10 @@ Future<void> init() async {
   // NEW AI SERVICES
   // ==========================================================================
 
-  // Global Agent Service (Assistant Module Coordinator)
-  getIt.registerLazySingleton<GlobalAgentService>(() => GlobalAgentService());
-
   // Real Data Service for Assistant modules
   getIt.registerLazySingleton<RealDataService>(() => RealDataService());
 
   // Initialize AI services after registration
-  await getIt<GlobalAgentService>().initialize();
   await getIt<RealDataService>().initialize();
 
   // Validation Services
@@ -148,8 +124,7 @@ AIProcessorService get aiProcessorService => getIt<AIProcessorService>();
 ChatLogService get chatLogService => getIt<ChatLogService>();
 ConversationService get conversationService => getIt<ConversationService>();
 
-// AI Services
-GlobalAgentService get globalAgentService => getIt<GlobalAgentService>();
+// Validation Services
 AdvancedValidationService get advancedValidationService =>
     getIt<AdvancedValidationService>();
 DuplicateDetectionService get duplicateDetectionService =>

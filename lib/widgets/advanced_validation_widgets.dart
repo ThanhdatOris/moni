@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-
-import '../constants/app_colors.dart';
-import '../services/advanced_validation_service.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
+import 'package:moni/services/services.dart';
 
 /// Dialog hiển thị advanced validation warnings
 class BudgetAdvancedValidationDialog extends StatelessWidget {
@@ -302,13 +302,6 @@ class BudgetAdvancedValidationDialog extends StatelessWidget {
 
     return result ?? AdvancedValidationResult.cancel;
   }
-}
-
-/// Kết quả advanced validation dialog
-enum AdvancedValidationResult {
-  proceed,
-  cancel,
-  setupRecurring,
 }
 
 /// Widget hiển thị pattern insights

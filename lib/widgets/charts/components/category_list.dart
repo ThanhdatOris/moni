@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:moni/constants/app_colors.dart';
 
-import '../../../constants/app_colors.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 import '../models/chart_data_model.dart';
 
@@ -64,41 +64,19 @@ class _CategoryListState extends State<CategoryList>
 
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              AppColors.grey100,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Modern header
-            _buildModernHeader(),
-            const SizedBox(height: 12),
-            // Tab selector cho hierarchy mode
-            _buildTabSelector(),
-            const SizedBox(height: 16),
-            // Grid categories
-            _buildCategoriesGrid(displayData),
-            // Show more section
-            if (widget.data.length > 6) _buildShowMoreSection(),
-          ],
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Modern header
+          // _buildModernHeader(),
+          // const SizedBox(height: 12),
+          // Tab selector cho hierarchy mode
+          _buildTabSelector(),
+          // Grid categories
+          _buildCategoriesGrid(displayData),
+          // Show more section
+          if (widget.data.length > 6) _buildShowMoreSection(),
+        ],
       ),
     );
   }
@@ -107,210 +85,121 @@ class _CategoryListState extends State<CategoryList>
   Widget _buildEmptyState() {
     return FadeTransition(
       opacity: _fadeAnimation,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              AppColors.grey100,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildModernHeader(),
-            const SizedBox(height: 12),
-            _buildTabSelector(),
-            const SizedBox(height: 24),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.grey200,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.pie_chart_outline,
-                      color: AppColors.grey600,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Không có dữ liệu danh mục',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    widget.isAllFilter
-                        ? 'Không có dữ liệu trong khoảng thời gian đã chọn'
-                        : 'Thêm giao dịch để xem phân tích theo danh mục',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.grey600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build modern header với statistics
-  Widget _buildModernHeader() {
-    final totalAmount =
-        widget.data.fold<double>(0, (sum, item) => sum + item.amount);
-    final topCategory = widget.data.isNotEmpty ? widget.data.first : null;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primary,
-                          AppColors.primary.withValues(alpha: 0.7)
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.category,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Danh mục hàng đầu',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    Icons.trending_up,
-                    size: 16,
-                    color: AppColors.grey600,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${widget.data.length} danh mục • ${_formatCurrency(totalAmount)}₫',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.grey600,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        if (topCategory != null && !widget.isAllFilter)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-            decoration: BoxDecoration(
-              color: _parseColor(topCategory.color).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: _parseColor(topCategory.color).withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // _buildModernHeader(),
+          // const SizedBox(height: 12),
+          _buildTabSelector(),
+          const SizedBox(height: 24),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.star,
-                  size: 14,
-                  color: _parseColor(topCategory.color),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.grey200,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.pie_chart_outline,
+                    color: AppColors.grey600,
+                    size: 28,
+                  ),
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(height: 12),
+                const Text(
+                  'Không có dữ liệu danh mục',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 6),
                 Text(
-                  '${topCategory.percentage.toStringAsFixed(1)}%',
+                  widget.isAllFilter
+                      ? 'Không có dữ liệu trong khoảng thời gian đã chọn'
+                      : 'Thêm giao dịch để xem phân tích theo danh mục',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: _parseColor(topCategory.color),
+                    color: AppColors.grey600,
                   ),
                 ),
               ],
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 
-  /// Build tab selector for hierarchy mode
+  /// Build tab selector for hierarchy mode with sliding indicator
   Widget _buildTabSelector() {
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: AppColors.grey100,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.grey200),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.grey100),
       ),
-      child: Row(
+      child: Stack(
         children: [
-          Expanded(
-            child: _buildTabButton(
-              title: 'Danh mục cha',
-              icon: Icons.folder_outlined,
-              isActive: widget.showParentCategories,
-              onTap: () {
-                if (!widget.showParentCategories) {
-                  widget.onHierarchyModeChanged?.call(true);
-                }
-              },
+          // Sliding indicator
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            alignment: widget.showParentCategories
+                ? Alignment.centerLeft
+                : Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              child: Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          Expanded(
-            child: _buildTabButton(
-              title: 'Danh mục con',
-              icon: Icons.account_tree_outlined,
-              isActive: !widget.showParentCategories,
-              onTap: () {
-                if (widget.showParentCategories) {
-                  widget.onHierarchyModeChanged?.call(false);
-                }
-              },
-            ),
+          // Tab buttons
+          Row(
+            children: [
+              Expanded(
+                child: _buildTabButton(
+                  title: 'Danh mục cha',
+                  icon: Icons.folder_outlined,
+                  isActive: widget.showParentCategories,
+                  onTap: () {
+                    if (!widget.showParentCategories) {
+                      widget.onHierarchyModeChanged?.call(true);
+                    }
+                  },
+                ),
+              ),
+              Expanded(
+                child: _buildTabButton(
+                  title: 'Danh mục con',
+                  icon: Icons.account_tree_outlined,
+                  isActive: !widget.showParentCategories,
+                  onTap: () {
+                    if (widget.showParentCategories) {
+                      widget.onHierarchyModeChanged?.call(false);
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -326,35 +215,22 @@ class _CategoryListState extends State<CategoryList>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 16,
+              size: 14,
               color: isActive ? AppColors.primary : AppColors.grey600,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Text(
               title,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                 color: isActive ? AppColors.primary : AppColors.grey600,
               ),
@@ -367,14 +243,16 @@ class _CategoryListState extends State<CategoryList>
 
   /// Build modern grid layout
   Widget _buildCategoriesGrid(List<ChartDataModel> displayData) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Responsive columns: 2 for compact, 3 for normal, 4 for tablet
-        final crossAxisCount =
-            widget.isCompact ? 2 : (constraints.maxWidth > 600 ? 3 : 2);
-        final childAspectRatio = widget.isCompact ? 1.2 : 1.3;
+    return Container(
+      margin: const EdgeInsets.only(top: 0),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Responsive columns: 2 for compact, 3 for normal, 4 for tablet
+          final crossAxisCount =
+              widget.isCompact ? 2 : (constraints.maxWidth > 600 ? 3 : 2);
+          final childAspectRatio = widget.isCompact ? 1.6 : 1.7;
 
-        return GridView.builder(
+          return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -388,7 +266,8 @@ class _CategoryListState extends State<CategoryList>
             return _buildModernCategoryCard(displayData[index], index);
           },
         );
-      },
+        },
+      ),
     );
   }
 
@@ -442,7 +321,7 @@ class _CategoryListState extends State<CategoryList>
               ),
               // Content
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -452,10 +331,10 @@ class _CategoryListState extends State<CategoryList>
                       children: [
                         // Icon
                         Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
                             color: color.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: item.categoryModel != null
                               ? CategoryIconHelper.buildIcon(
@@ -466,17 +345,17 @@ class _CategoryListState extends State<CategoryList>
                               : Icon(
                                   _getFallbackIconData(item.icon),
                                   color: color,
-                                  size: 18,
+                                  size: 16,
                                 ),
                         ),
                         // Percentage badge (chỉ hiển thị khi không phải filter "all")
                         if (!widget.isAllFilter)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                                horizontal: 5, vertical: 2),
                             decoration: BoxDecoration(
                               color: color,
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               '${item.percentage.toStringAsFixed(1)}%',
@@ -489,7 +368,7 @@ class _CategoryListState extends State<CategoryList>
                           ),
                       ],
                     ),
-                    const Spacer(),
+                    const SizedBox(height: 4),
                     // Category name
                     Text(
                       item.category,
@@ -501,7 +380,7 @@ class _CategoryListState extends State<CategoryList>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 1),
                     // Amount
                     Text(
                       '${_formatCurrency(item.amount)}₫',

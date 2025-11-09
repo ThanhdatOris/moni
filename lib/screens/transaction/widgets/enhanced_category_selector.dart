@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
+import 'package:moni/services/services.dart';
 
-import '../../../constants/app_colors.dart';
 import '../../../models/category_model.dart';
-import '../../../models/transaction_model.dart';
-import '../../category/category_management_screen.dart';
-import '../../../services/category_usage_tracker.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
+import '../../category/category_management_screen.dart';
 
 /// Enhanced category selector với grid layout và smart suggestions
 class EnhancedCategorySelector extends StatefulWidget {
@@ -455,6 +455,7 @@ class _EnhancedCategorySelectorState extends State<EnhancedCategorySelector> {
 
   Widget _buildSelectedCategory() {
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.1),

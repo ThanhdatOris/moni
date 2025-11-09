@@ -1,29 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-import 'transaction_model.dart';
-
-/// Enum định nghĩa các loại icon cho danh mục
-enum CategoryIconType {
-  material('material'),
-  emoji('emoji'),
-  custom('custom');
-
-  const CategoryIconType(this.value);
-  final String value;
-
-  static CategoryIconType fromString(String value) {
-    switch (value) {
-      case 'material':
-        return CategoryIconType.material;
-      case 'emoji':
-        return CategoryIconType.emoji;
-      case 'custom':
-        return CategoryIconType.custom;
-      default:
-        return CategoryIconType.material;
-    }
-  }
-}
+import 'package:moni/constants/enums.dart';
 
 /// Model đại diện cho danh mục giao dịch
 class CategoryModel {

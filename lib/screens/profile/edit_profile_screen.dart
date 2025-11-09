@@ -2,10 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../core/di/injection_container.dart';
-import '../../models/user_model.dart';
-import '../../services/auth_service.dart';
+import 'package:moni/services/services.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -21,7 +20,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _authService = AuthService();
   
   bool _isLoading = false;
-  UserModel? _userModel;
 
   @override
   void initState() {
@@ -35,7 +33,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     
     if (userData != null) {
       setState(() {
-        _userModel = userData;
         _nameController.text = userData.name;
         _emailController.text = userData.email;
       });
@@ -178,61 +175,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     children: [
               const SizedBox(height: 20),
               
-              // Avatar section
+              // Avatar section - Default avatar only (no upload feature)
               Center(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.primary, width: 3),
-                      ),
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundColor: AppColors.primary,
-                        child: _userModel?.photoUrl != null && _userModel!.photoUrl!.isNotEmpty
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(50),
-                                child: Image.network(
-                                  _userModel!.photoUrl!,
-                                  fit: BoxFit.cover,
-                                  width: 100,
-                                  height: 100,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return _buildDefaultAvatar();
-                                  },
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return _buildDefaultAvatar();
-                                  },
-                                ),
-                              )
-                            : _buildDefaultAvatar(),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: IconButton(
-                          icon: const Icon(Icons.camera_alt, color: Colors.white),
-                          onPressed: () {
-                            // TODO: Implement avatar change
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Tính năng đổi avatar sẽ được cập nhật sớm!'),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.primary, width: 3),
+                  ),
+                  child: CircleAvatar(
+                    radius: 50,
+                    backgroundColor: AppColors.primary,
+                    child: _buildDefaultAvatar(),
+                  ),
                 ),
               ),
               

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
 
-import '../../../../../constants/app_colors.dart';
 import '../../../widgets/assistant_action_button.dart';
 
 /// Report template card with preview functionality
@@ -259,13 +260,4 @@ class ReportTemplate {
     required this.previewImage,
     required this.parameters,
   });
-}
-
-/// Report categories
-enum ReportCategory {
-  financial,
-  spending,
-  budget,
-  investment,
-  custom,
 }

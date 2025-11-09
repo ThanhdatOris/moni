@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 
@@ -62,7 +62,7 @@ class CategoryParentSelector extends StatelessWidget {
               Switch(
                 value: showParentSelector,
                 onChanged: onToggleParentSelector,
-                activeColor: selectedColor,
+                activeTrackColor: selectedColor,
               ),
             ],
           ),
@@ -94,7 +94,7 @@ class CategoryParentSelector extends StatelessWidget {
     }
 
     return DropdownButtonFormField<CategoryModel>(
-      value: selectedParent,
+      initialValue: selectedParent,
       decoration: InputDecoration(
         hintText: 'Chọn danh mục cha...',
         prefixIcon: Icon(Icons.folder_outlined, color: AppColors.grey600),

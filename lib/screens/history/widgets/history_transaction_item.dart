@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
+
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
-import '../../../services/category_service.dart';
+import 'package:moni/services/services.dart';
 import '../../../utils/formatting/currency_formatter.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 

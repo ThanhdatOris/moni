@@ -1,44 +1,35 @@
 // =============================================================================
 // SERVICES EXPORT FILE
 // =============================================================================
-
-// Core Services
-export 'auth_service.dart';
-export 'firebase_service.dart';
-export 'environment_service.dart';
-export 'logging_service.dart';
-export 'error_handler.dart';
-
-// Business Services
-export 'transaction_service.dart';
-export 'category_service.dart';
-export 'report_service.dart';
-export 'budget_alert_service.dart';
-export 'chat_log_service.dart';
-export 'ai_processor_service.dart';
-
-// Offline Services
-export 'offline_service.dart';
-export 'offline_sync_service.dart';
-export 'anonymous_conversion_service.dart';
-
-// Other Services
-export 'notification_service.dart';
-export 'app_check_service.dart';
+// This file exports all services through module-level barrel files.
+// Each module (core, auth, data, etc.) has its own export file for better organization.
 
 // =============================================================================
 // COMMON ERROR HANDLING HELPERS
 // =============================================================================
 
-import 'error_handler.dart';
+import 'core/error_handler.dart';
+import 'package:moni/constants/enums.dart';
+
+// AI-Powered Services
+export 'ai_services/ai_services.dart';
+// Analytics & Reporting Services
+export 'analytics/analytics_services.dart';
+// Authentication & Security Services
+export 'auth/auth_services.dart';
+// Core Infrastructure Services
+export 'core/core_services.dart';
+// Data Management Services
+export 'data/data_services.dart';
+// Notification Services
+export 'notification/notification_services.dart';
+// Offline & Sync Services
+export 'offline/offline_services.dart';
+// Validation & Quality Services
+export 'validation/validation_services.dart';
 
 /// Shortcut để sử dụng ErrorHandler (không thể dùng const vì instance là runtime value)
 ErrorHandler get errorHandler => ErrorHandler.instance;
-
-/// Quick helper để debug errors
-void logError(dynamic error, [String? context]) {
-  debugError(error, context: context);
-}
 
 /// Quick helper để tạo authentication error
 AppError createAuthError(String message) {

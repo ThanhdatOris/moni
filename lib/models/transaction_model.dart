@@ -1,30 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-/// Enum cho loại giao dịch
-enum TransactionType {
-  income,
-  expense;
-
-  String get value {
-    switch (this) {
-      case TransactionType.income:
-        return 'INCOME';
-      case TransactionType.expense:
-        return 'EXPENSE';
-    }
-  }
-
-  static TransactionType fromString(String value) {
-    switch (value.toUpperCase()) {
-      case 'INCOME':
-        return TransactionType.income;
-      case 'EXPENSE':
-        return TransactionType.expense;
-      default:
-        throw ArgumentError('Loại giao dịch không hợp lệ: $value');
-    }
-  }
-}
+import 'package:moni/constants/enums.dart';
 
 /// Model đại diện cho giao dịch tài chính
 class TransactionModel {

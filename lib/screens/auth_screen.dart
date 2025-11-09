@@ -4,9 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../constants/app_colors.dart';
-import '../services/auth_service.dart';
-import '../services/error_handler.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/services/services.dart';
 import '../widgets/google_signin_setup_dialog.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -742,7 +741,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
                                           // Cache context trước async operations
                                           final scaffoldMessenger = ScaffoldMessenger.of(context);
-                                          final contextForError = context;
 
                                           try {
                                             final authService = AuthService();
@@ -761,22 +759,14 @@ class _AuthScreenState extends State<AuthScreen> {
                                             }
                                           } catch (e) {
                                             if (mounted) {
-                                              // Sử dụng error handler để hiển thị lỗi
-                                              if (e is AppError) {
-                                                ErrorHandler.instance
-                                                    .handleErrorWithUI(
-                                                  contextForError,
-                                                  e,
-                                                  contextInfo:
-                                                      'Đăng nhập khách',
-                                                );
-                                              } else {
-                                                scaffoldMessenger.showSnackBar(
-                                                  SnackBar(
-                                                      content: Text(
-                                                          'Lỗi đăng nhập khách: $e')),
-                                                );
-                                              }
+                                              // Hiển thị lỗi với scaffoldMessenger đã cache
+                                              scaffoldMessenger.showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      'Lỗi đăng nhập khách: $e'),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
                                             }
                                           }
 

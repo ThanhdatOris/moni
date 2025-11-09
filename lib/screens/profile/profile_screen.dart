@@ -1,14 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/services/services.dart';
 
-import '../../constants/app_colors.dart';
 import '../../core/di/injection_container.dart';
 import '../../models/user_model.dart';
-import '../../services/auth_service.dart';
 import '../../widgets/custom_page_header.dart';
 import 'widgets/about_section.dart';
 import 'widgets/appearance_section.dart';
-import 'widgets/backup_section.dart';
 import 'widgets/help_section.dart';
 import 'widgets/logout_section.dart';
 import 'widgets/notification_section.dart';
@@ -232,6 +231,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  bool _isGoogleAuth() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    
+    // Check if user signed in with Google
+    for (var provider in user.providerData) {
+      if (provider.providerId == 'google.com') {
+        return true;
+      }
+    }
+    return false;
+  }
+
   List<Map<String, dynamic>> get _settingSections => [
     {
       'icon': Icons.person_outline,
@@ -243,7 +255,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'icon': Icons.security_outlined,
       'title': 'Bảo mật',
       'subtitle': 'Mật khẩu, sinh trắc học',
-      'widget': const SecuritySection(),
+      'widget': SecuritySection(isGoogleAuth: _isGoogleAuth()),
     },
     {
       'icon': Icons.notifications_outlined,
@@ -251,12 +263,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'subtitle': 'Cài đặt nhắc nhở và thông báo',
       'widget': const NotificationSection(),
     },
-    {
-      'icon': Icons.backup_outlined,
-      'title': 'Sao lưu & Đồng bộ',
-      'subtitle': 'Đồng bộ dữ liệu trên các thiết bị',
-      'widget': const BackupSection(),
-    },
+    // {
+    //   'icon': Icons.backup_outlined,
+    //   'title': 'Sao lưu & Đồng bộ',
+    //   'subtitle': 'Đồng bộ dữ liệu trên các thiết bị',
+    //   'widget': const BackupSection(),
+    // },
     {
       'icon': Icons.palette_outlined,
       'title': 'Giao diện',

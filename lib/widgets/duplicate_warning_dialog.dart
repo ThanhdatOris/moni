@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../constants/app_colors.dart';
-import '../services/duplicate_detection_service.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
+import 'package:moni/services/services.dart';
 import '../utils/formatting/currency_formatter.dart';
 
 /// Widget hiển thị cảnh báo giao dịch trùng lặp

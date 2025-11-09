@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
+import 'package:moni/constants/enums.dart';
+import 'package:moni/services/services.dart';
+
 import '../../../models/category_model.dart';
-import '../../../models/transaction_model.dart';
-import '../../../services/category_service.dart';
 import 'ai_filled_banner.dart';
 import 'category_debug_section.dart';
 import 'enhanced_category_selector.dart';

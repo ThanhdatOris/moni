@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
 
-import '../../../constants/app_colors.dart';
 import '../../../models/transaction_model.dart';
 import '../../../utils/formatting/currency_formatter.dart';
 
@@ -20,10 +21,10 @@ class HistoryDateHeader extends StatelessWidget {
     final headerText = _getDateGroupHeader(dateKey);
     final totalIncome = transactions
         .where((t) => t.type == TransactionType.income)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (total, t) => total + t.amount);
     final totalExpense = transactions
         .where((t) => t.type == TransactionType.expense)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (total, t) => total + t.amount);
     final netAmount = totalIncome - totalExpense;
 
     return Container(

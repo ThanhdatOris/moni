@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
 import '../../../models/category_model.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 import '../../category/category_management_screen.dart';
@@ -238,7 +238,7 @@ class TransactionCategorySelector extends StatelessWidget {
     return Column(
       children: [
         DropdownButtonFormField<CategoryModel>(
-          value: selectedCategory,
+          initialValue: selectedCategory,
           decoration: InputDecoration(
             hintText: 'Chọn danh mục',
             hintStyle: TextStyle(

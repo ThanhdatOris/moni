@@ -2,24 +2,26 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../constants/app_colors.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
 import '../../models/category_model.dart';
-import '../../models/transaction_model.dart';
-import '../../services/category_service.dart';
+import '../../services/providers/providers.dart';
+import 'package:moni/services/services.dart';
 import '../../utils/helpers/category_icon_helper.dart';
 import 'add_edit_category_screen.dart';
 
-class CategoryManagementScreen extends StatefulWidget {
+class CategoryManagementScreen extends ConsumerStatefulWidget {
   const CategoryManagementScreen({super.key});
 
   @override
-  State<CategoryManagementScreen> createState() =>
+  ConsumerState<CategoryManagementScreen> createState() =>
       _CategoryManagementScreenState();
 }
 
-class _CategoryManagementScreenState extends State<CategoryManagementScreen>
+class _CategoryManagementScreenState extends ConsumerState<CategoryManagementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final GetIt _getIt = GetIt.instance;
@@ -27,16 +29,12 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
 
   // State
   TransactionType _selectedType = TransactionType.expense;
-  List<CategoryModel> _categories = [];
-  List<CategoryModel> _filteredCategories = [];
-  bool _isLoading = false;
   String _searchQuery = '';
 
   // Controllers
   final _searchController = TextEditingController();
 
   // Subscriptions
-  StreamSubscription<List<CategoryModel>>? _categoriesSubscription;
   StreamSubscription<User?>? _authSubscription;
 
   @override
@@ -47,86 +45,36 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
 
     // Listen to auth changes
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
-      if (mounted) {
-        if (user == null) {
-          Navigator.of(context).pop();
-        } else {
-          _loadCategories();
-        }
+      if (mounted && user == null) {
+        Navigator.of(context).pop();
       }
     });
-
-    _loadCategories();
   }
 
   @override
   void dispose() {
-    _categoriesSubscription?.cancel();
     _authSubscription?.cancel();
     _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadCategories() async {
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      await _categoriesSubscription?.cancel();
-
-      _categoriesSubscription =
-          _categoryService.getCategories(type: _selectedType).listen(
-        (categories) {
-          if (mounted) {
-            setState(() {
-              _categories = categories;
-              _filterCategories();
-              _isLoading = false;
-            });
-          }
-        },
-        onError: (error) {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-            _showErrorSnackBar('Lỗi tải danh mục: $error');
-          }
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        _showErrorSnackBar('Lỗi tải danh mục: $e');
-      }
+  List<CategoryModel> _filterCategories(List<CategoryModel> categories) {
+    if (_searchQuery.isEmpty) {
+      return categories;
+    } else {
+      return categories
+          .where((category) => category.name
+              .toLowerCase()
+              .contains(_searchQuery.toLowerCase()))
+          .toList();
     }
-  }
-
-  void _filterCategories() {
-    setState(() {
-      if (_searchQuery.isEmpty) {
-        _filteredCategories = _categories;
-      } else {
-        _filteredCategories = _categories
-            .where((category) => category.name
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()))
-            .toList();
-      }
-    });
   }
 
   void _onSearchChanged(String query) {
     setState(() {
       _searchQuery = query;
     });
-    _filterCategories();
   }
 
   void _onTypeChanged(TransactionType type) {
@@ -141,8 +89,6 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
     if (_tabController.index != tabIndex) {
       _tabController.animateTo(tabIndex);
     }
-    
-    _loadCategories();
   }
 
   @override
@@ -342,56 +288,31 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
   }
 
   Widget _buildCategoryList(TransactionType type) {
-    // Load categories for the requested type
-    if (type != _selectedType) {
-      // Load categories for this type in background
-      return FutureBuilder<List<CategoryModel>>(
-        future: _categoryService.getCategories(type: type).first,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return _buildLoadingState();
-          }
-          
-          if (snapshot.hasError) {
-            return _buildErrorState('Lỗi: ${snapshot.error}');
-          }
-          
-          final categories = snapshot.data ?? [];
-          if (categories.isEmpty) {
-            return _buildEmptyState(type);
-          }
-          
-          return _buildCategoryListContent(categories, type);
-        },
-      );
-    }
-
-    // Use loaded data for current selected type
-    if (_isLoading) {
+    // Watch categories provider
+    final categoriesAsync = ref.watch(allCategoriesProvider);
+    final categories = ref.watch(categoriesByTypeProvider(type));
+    final filteredCategories = _filterCategories(categories);
+    
+    if (categoriesAsync.isLoading) {
       return _buildLoadingState();
     }
-
-    if (_filteredCategories.isEmpty) {
-      return _buildEmptyState(_selectedType);
+    
+    if (categoriesAsync.hasError) {
+      return _buildErrorState('Lỗi: ${categoriesAsync.error}');
     }
 
-    return _buildCategoryListContent(_filteredCategories, _selectedType);
+    if (filteredCategories.isEmpty) {
+      return _buildEmptyState(type);
+    }
+
+    return _buildCategoryListContent(filteredCategories, type);
   }
 
   Widget _buildCategoryListContent(List<CategoryModel> categories, TransactionType type) {
-    // Apply search filter if we're on the current selected type
-    List<CategoryModel> filteredCategories = categories;
-    if (type == _selectedType && _searchQuery.isNotEmpty) {
-      filteredCategories = categories
-          .where((category) => category.name
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()))
-          .toList();
-    }
-    
+    // Categories đã được filter trong _buildCategoryList
     // Group categories: parents first, then children
-    final parentCategories = filteredCategories.where((c) => c.parentId == null).toList();
-    final childCategories = filteredCategories.where((c) => c.parentId != null).toList();
+    final parentCategories = categories.where((c) => c.parentId == null || c.parentId!.isEmpty).toList();
+    final childCategories = categories.where((c) => c.parentId != null && c.parentId!.isNotEmpty).toList();
     
     final organizedCategories = <CategoryModel>[];
     
@@ -639,7 +560,10 @@ class _CategoryManagementScreenState extends State<CategoryManagementScreen>
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () => _loadCategories(),
+            onPressed: () {
+              // Invalidate cache to retry
+              ref.invalidate(allCategoriesProvider);
+            },
             child: const Text('Thử lại'),
           ),
         ],

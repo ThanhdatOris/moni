@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
 
-import '../../../../../constants/app_colors.dart';
 import '../../../widgets/assistant_action_button.dart';
 import '../../../widgets/assistant_base_card.dart';
 
@@ -252,7 +253,6 @@ class _ReportExportOptionsState extends State<ReportExportOptions> {
                   Switch(
                     value: item.value,
                     onChanged: item.onChanged,
-                    activeColor: Colors.white,
                     activeTrackColor: Colors.white.withValues(alpha: 0.3),
                     inactiveThumbColor: Colors.white.withValues(alpha: 0.6),
                     inactiveTrackColor: Colors.white.withValues(alpha: 0.2),
@@ -478,13 +478,4 @@ class ExportSettings {
       password: password ?? this.password,
     );
   }
-}
-
-/// Export types
-enum ExportType {
-  pdf,
-  excel,
-  word,
-  csv,
-  image,
 }

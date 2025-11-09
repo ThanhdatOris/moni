@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
 
-import '../../../../../constants/app_colors.dart';
 import '../../../../../widgets/charts/components/donut_chart.dart';
 import '../../../../../widgets/charts/models/chart_data_model.dart';
 import '../../../widgets/assistant_chart_container.dart';
@@ -47,7 +48,10 @@ class ReportChartPreview extends StatelessWidget {
       case ChartType.line:
         return _buildLineChart();
       case ChartType.combined:
+      case ChartType.combination:
         return _buildCombinedChart();
+      default:
+        return _buildDonutChart(); // Default fallback
     }
   }
 
@@ -90,7 +94,7 @@ class ReportChartPreview extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Text(
-                      '${item.value.toStringAsFixed(0)}',
+                      item.value.toStringAsFixed(0),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 10,
@@ -259,6 +263,7 @@ class ChartPreviewData {
 
     switch (type) {
       case ChartType.donut:
+      case ChartType.pie:
         return ChartPreviewData(
           title: 'Phân bổ chi tiêu',
           subtitle: 'Theo danh mục',
@@ -299,6 +304,7 @@ class ChartPreviewData {
         );
 
       case ChartType.combined:
+      case ChartType.combination:
         return ChartPreviewData(
           title: 'Thu chi và tăng trưởng',
           subtitle: 'So sánh theo tháng',
@@ -309,6 +315,15 @@ class ChartPreviewData {
             ChartDataPoint(label: 'T9', value: 12, color: '#FF5722'),
             ChartDataPoint(label: 'T10', value: 15, color: '#FF5722'),
           ],
+          total: 18000000,
+        );
+      
+      default:
+        // Default case for other chart types
+        return ChartPreviewData(
+          title: 'Chi tiêu',
+          subtitle: 'Tổng quan',
+          data: sampleData,
           total: 18000000,
         );
     }
@@ -328,12 +343,4 @@ class ChartDataPoint {
     required this.color,
     this.percentage,
   });
-}
-
-/// Chart types
-enum ChartType {
-  donut,
-  bar,
-  line,
-  combined,
 }

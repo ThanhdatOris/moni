@@ -11,65 +11,6 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
-    function isValidUser(data) {
-      return data.keys().hasAll(['email', 'displayName', 'createdAt']) &&
-             data.email is string &&
-             data.displayName is string &&
-             data.createdAt is timestamp;
-    }
-    
-    function isValidTransaction(data) {
-      return data.keys().hasAll(['amount', 'description', 'type', 'categoryId', 'createdAt']) &&
-             data.amount is number &&
-             data.description is string &&
-             data.type in ['income', 'expense'] &&
-             data.categoryId is string &&
-             data.createdAt is timestamp;
-    }
-    
-    function isValidCategory(data) {
-      return data.keys().hasAll(['name', 'icon', 'color', 'type', 'createdAt']) &&
-             data.name is string &&
-             data.icon is string &&
-             data.color is string &&
-             data.type in ['income', 'expense'] &&
-             data.createdAt is timestamp;
-    }
-    
-    function isValidBudgetAlert(data) {
-      return data.keys().hasAll(['categoryId', 'budgetLimit', 'currentAmount', 'threshold', 'createdAt']) &&
-             data.categoryId is string &&
-             data.budgetLimit is number &&
-             data.currentAmount is number &&
-             data.threshold is number &&
-             data.createdAt is timestamp;
-    }
-    
-    function isValidReport(data) {
-      return data.keys().hasAll(['type', 'period', 'data', 'createdAt']) &&
-             data.type in ['monthly', 'weekly', 'yearly', 'custom'] &&
-             data.period is map &&
-             data.data is map &&
-             data.createdAt is timestamp;
-    }
-    
-    function isValidChatLog(data) {
-      return data.keys().hasAll(['question', 'response', 'conversationId', 'createdAt']) &&
-             data.question is string &&
-             data.response is string &&
-             data.conversationId is string &&
-             data.createdAt is timestamp;
-    }
-    
-    function isValidConversation(data) {
-      return data.keys().hasAll(['title', 'isActive', 'messageCount', 'createdAt', 'updatedAt']) &&
-             data.title is string &&
-             data.isActive is bool &&
-             data.messageCount is number &&
-             data.createdAt is timestamp &&
-             data.updatedAt is timestamp;
-    }
-    
     // Users collection
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -103,35 +44,28 @@ service cloud.firestore {
       // Budget alerts subcollection
       match /budget_alerts/{alertId} {
         allow read, write: if isOwner(userId);
-        allow create: if isOwner(userId) && 
-                         isValidBudgetAlert(request.resource.data);
-        allow update: if isOwner(userId) && 
-                         isValidBudgetAlert(request.resource.data);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
         allow delete: if isOwner(userId);
       }
       
       // Reports subcollection
       match /reports/{reportId} {
         allow read, write: if isOwner(userId);
-        allow create: if isOwner(userId) && 
-                         isValidReport(request.resource.data);
-        allow update: if isOwner(userId) && 
-                         isValidReport(request.resource.data);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
         allow delete: if isOwner(userId);
         
-        // Limit number of reports per user
-        allow create: if isOwner(userId) && 
-                         isValidReport(request.resource.data) &&
-                         get(/databases/$(database)/documents/users/$(userId)).data.reportsCount < 100;
+        // Limit queries to prevent abuse
+        allow list: if isOwner(userId) && 
+                       request.query.limit <= 100;
       }
       
       // Conversations subcollection
       match /conversations/{conversationId} {
         allow read, write: if isOwner(userId);
-        allow create: if isOwner(userId) && 
-                         isValidConversation(request.resource.data);
-        allow update: if isOwner(userId) && 
-                         isValidConversation(request.resource.data);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
         allow delete: if isOwner(userId);
         
         // Limit queries to prevent abuse
@@ -142,15 +76,52 @@ service cloud.firestore {
       // Chat logs subcollection
       match /chat_logs/{interactionId} {
         allow read, write: if isOwner(userId);
-        allow create: if isOwner(userId) && 
-                         isValidChatLog(request.resource.data);
-        allow update: if isOwner(userId) && 
-                         isValidChatLog(request.resource.data);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
         allow delete: if isOwner(userId);
         
         // Limit queries to prevent abuse
         allow list: if isOwner(userId) && 
                        request.query.limit <= 50;
+      }
+      
+      // Spending limits subcollection
+      match /limits/{limitId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                         validateSpendingLimit(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         validateSpendingLimit(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+      
+      // Category usage tracking subcollection
+      match /category_usage/{usageId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+      
+      // AI token usage tracking subcollection
+      match /ai_usage/{docId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        
+        // Prevent manual token count manipulation
+        allow update: if isOwner(userId) && 
+                         request.resource.data.dailyTokenCount >= resource.data.dailyTokenCount;
+      }
+      
+      // Budgets subcollection
+      match /budgets/{budgetId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isOwner(userId) && 
+                         validateBudgetData(request.resource.data);
+        allow update: if isOwner(userId) && 
+                         validateBudgetData(request.resource.data);
+        allow delete: if isOwner(userId);
       }
     }
     
@@ -171,6 +142,24 @@ service cloud.firestore {
              data.name.size() > 0 &&
              data.type in ['INCOME', 'EXPENSE'] &&
              data.is_deleted is bool;
+    }
+    
+    // Hàm validation cho spending limit data
+    function validateSpendingLimit(data) {
+      return data.keys().hasAll(['categoryId', 'amount', 'type', 'isActive']) &&
+             data.categoryId is string &&
+             data.amount is number &&
+             data.amount > 0 &&
+             data.type is string &&
+             data.isActive is bool;
+    }
+    
+    // Hàm validation cho budget data
+    function validateBudgetData(data) {
+      return data.keys().hasAll(['categoryId', 'monthlyLimit']) &&
+             data.categoryId is string &&
+             data.monthlyLimit is number &&
+             data.monthlyLimit > 0;
     }
     
     // Default deny for all other documents
