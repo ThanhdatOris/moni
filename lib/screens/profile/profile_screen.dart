@@ -1,14 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import 'package:moni/constants/app_colors.dart';
+import 'package:moni/services/services.dart';
+
 import '../../core/di/injection_container.dart';
 import '../../models/user_model.dart';
-import 'package:moni/services/services.dart';
 import '../../widgets/custom_page_header.dart';
 import 'widgets/about_section.dart';
 import 'widgets/appearance_section.dart';
-import 'widgets/backup_section.dart';
 import 'widgets/help_section.dart';
 import 'widgets/logout_section.dart';
 import 'widgets/notification_section.dart';

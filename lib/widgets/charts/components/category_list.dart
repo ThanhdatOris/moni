@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'package:moni/constants/app_colors.dart';
+
 import '../../../utils/helpers/category_icon_helper.dart';
 import '../models/chart_data_model.dart';
 
@@ -88,11 +88,10 @@ class _CategoryListState extends State<CategoryList>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Modern header
-            _buildModernHeader(),
-            const SizedBox(height: 12),
+            // _buildModernHeader(),
+            // const SizedBox(height: 12),
             // Tab selector cho hierarchy mode
             _buildTabSelector(),
-            const SizedBox(height: 16),
             // Grid categories
             _buildCategoriesGrid(displayData),
             // Show more section
@@ -130,8 +129,8 @@ class _CategoryListState extends State<CategoryList>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildModernHeader(),
-            const SizedBox(height: 12),
+            // _buildModernHeader(),
+            // const SizedBox(height: 12),
             _buildTabSelector(),
             const SizedBox(height: 24),
             Center(
@@ -277,7 +276,7 @@ class _CategoryListState extends State<CategoryList>
     );
   }
 
-  /// Build tab selector for hierarchy mode
+  /// Build tab selector for hierarchy mode with sliding indicator
   Widget _buildTabSelector() {
     return Container(
       padding: const EdgeInsets.all(4),
@@ -286,31 +285,61 @@ class _CategoryListState extends State<CategoryList>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.grey200),
       ),
-      child: Row(
+      child: Stack(
         children: [
-          Expanded(
-            child: _buildTabButton(
-              title: 'Danh mục cha',
-              icon: Icons.folder_outlined,
-              isActive: widget.showParentCategories,
-              onTap: () {
-                if (!widget.showParentCategories) {
-                  widget.onHierarchyModeChanged?.call(true);
-                }
-              },
+          // Sliding indicator
+          AnimatedAlign(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            alignment: widget.showParentCategories
+                ? Alignment.centerLeft
+                : Alignment.centerRight,
+            child: FractionallySizedBox(
+              widthFactor: 0.5,
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
-          Expanded(
-            child: _buildTabButton(
-              title: 'Danh mục con',
-              icon: Icons.account_tree_outlined,
-              isActive: !widget.showParentCategories,
-              onTap: () {
-                if (widget.showParentCategories) {
-                  widget.onHierarchyModeChanged?.call(false);
-                }
-              },
-            ),
+          // Tab buttons
+          Row(
+            children: [
+              Expanded(
+                child: _buildTabButton(
+                  title: 'Danh mục cha',
+                  icon: Icons.folder_outlined,
+                  isActive: widget.showParentCategories,
+                  onTap: () {
+                    if (!widget.showParentCategories) {
+                      widget.onHierarchyModeChanged?.call(true);
+                    }
+                  },
+                ),
+              ),
+              Expanded(
+                child: _buildTabButton(
+                  title: 'Danh mục con',
+                  icon: Icons.account_tree_outlined,
+                  isActive: !widget.showParentCategories,
+                  onTap: () {
+                    if (widget.showParentCategories) {
+                      widget.onHierarchyModeChanged?.call(false);
+                    }
+                  },
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -326,22 +355,9 @@ class _CategoryListState extends State<CategoryList>
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+      child: Container(
+        height: 44,
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
-        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -367,14 +383,16 @@ class _CategoryListState extends State<CategoryList>
 
   /// Build modern grid layout
   Widget _buildCategoriesGrid(List<ChartDataModel> displayData) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Responsive columns: 2 for compact, 3 for normal, 4 for tablet
-        final crossAxisCount =
-            widget.isCompact ? 2 : (constraints.maxWidth > 600 ? 3 : 2);
-        final childAspectRatio = widget.isCompact ? 1.2 : 1.3;
+    return Container(
+      margin: const EdgeInsets.only(top: 0),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Responsive columns: 2 for compact, 3 for normal, 4 for tablet
+          final crossAxisCount =
+              widget.isCompact ? 2 : (constraints.maxWidth > 600 ? 3 : 2);
+          final childAspectRatio = widget.isCompact ? 1.2 : 1.3;
 
-        return GridView.builder(
+          return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
@@ -388,7 +406,8 @@ class _CategoryListState extends State<CategoryList>
             return _buildModernCategoryCard(displayData[index], index);
           },
         );
-      },
+        },
+      ),
     );
   }
 
