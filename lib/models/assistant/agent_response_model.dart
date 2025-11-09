@@ -1,18 +1,4 @@
-/// Response types for the Global Agent API
-enum AgentResponseType {
-  text,
-  analytics,
-  budget,
-  report,
-  error,
-}
-
-/// Response status for the Global Agent API
-enum AgentResponseStatus {
-  success,
-  error,
-  pending,
-}
+import 'package:moni/constants/enums.dart';
 
 /// Response model for Global Agent API
 class AgentResponse {

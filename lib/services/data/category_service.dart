@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
+import 'package:moni/constants/enums.dart';
 
 import '../../models/category_model.dart';
-import '../../models/transaction_model.dart';
 import 'category_cache_service.dart';
 import '../core/environment_service.dart';
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
 
 /// Action button component for assistant modules
 /// Provides consistent button styling across assistant features
@@ -221,5 +221,3 @@ class AssistantQuickActionChip extends StatelessWidget {
     );
   }
 }
-
-enum ButtonType { primary, secondary, outline }

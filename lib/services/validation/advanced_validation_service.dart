@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:moni/constants/enums.dart';
+
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 
@@ -404,28 +406,4 @@ class RecurringTransactionSuggestion {
     required this.similarTransactions,
     required this.suggestedFrequency,
   });
-}
-
-/// Tần suất recurring
-enum RecurringFrequency {
-  daily,
-  weekly,
-  monthly,
-  yearly,
-}
-
-/// Extension cho RecurringFrequency
-extension RecurringFrequencyExtension on RecurringFrequency {
-  String get displayName {
-    switch (this) {
-      case RecurringFrequency.daily:
-        return 'Hàng ngày';
-      case RecurringFrequency.weekly:
-        return 'Hàng tuần';
-      case RecurringFrequency.monthly:
-        return 'Hàng tháng';
-      case RecurringFrequency.yearly:
-        return 'Hàng năm';
-    }
-  }
 }

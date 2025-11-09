@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
+import 'package:moni/constants/enums.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/transaction_model.dart';
@@ -537,13 +538,6 @@ class SpendingLimit {
   }
 }
 
-/// Loại giới hạn
-enum LimitType {
-  daily,
-  weekly,
-  monthly,
-}
-
 /// Kết quả kiểm tra giới hạn
 class LimitCheckResult {
   final bool hasWarnings;
@@ -574,14 +568,6 @@ class LimitWarning {
     required this.severity,
     required this.message,
   });
-}
-
-/// Mức độ cảnh báo
-enum WarningSeverity {
-  low,
-  medium,
-  high,
-  critical,
 }
 
 /// Record chi tiêu

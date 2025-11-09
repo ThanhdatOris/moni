@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:moni/constants/enums.dart';
+
 import '../../models/transaction_model.dart';
 
 /// Service phát hiện giao dịch trùng lặp
@@ -334,22 +336,6 @@ class DuplicateMatch {
     required this.score,
     required this.reasons,
   });
-}
-
-/// Mức độ rủi ro trùng lặp
-enum DuplicateRiskLevel {
-  none,
-  low,
-  medium,
-  high,
-}
-
-/// Loại hành động xử lý trùng lặp
-enum DuplicateActionType {
-  proceed,
-  warn,
-  block,
-  review,
 }
 
 /// Hành động xử lý trùng lặp

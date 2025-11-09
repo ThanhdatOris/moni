@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
+import 'package:moni/constants/enums.dart';
 
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';

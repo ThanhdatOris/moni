@@ -9,6 +9,7 @@
 // =============================================================================
 
 import 'core/error_handler.dart';
+import 'package:moni/constants/enums.dart';
 
 // AI-Powered Services
 export 'ai_services/ai_services.dart';

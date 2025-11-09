@@ -2,8 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-
 import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
+
 import '../../../services/ai_services/ai_services.dart';
 import '../../assistant/services/real_data_service.dart';
 import 'assistant_action_button.dart';
@@ -67,7 +68,7 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
       // 🎯 OPTIMIZATION: Check cache first
       final cacheKey = _getCacheKey(widget.moduleId);
       final cached = _insightCache[cacheKey];
-      
+
       if (cached != null && !cached.isExpired) {
         // Use cached insight
         setState(() {
@@ -280,7 +281,7 @@ ${jsonEncode(contextPayload)}
             AssistantActionButton(
               text: 'Chi tiết',
               icon: Icons.arrow_forward,
-              type: ButtonType.secondary,
+              type: ButtonType.outline,
               backgroundColor: Colors.white,
               textColor: AppColors.textPrimary,
               onPressed: widget.onViewDetails,
@@ -349,7 +350,7 @@ ${jsonEncode(contextPayload)}
 
   Widget _buildMarkdownLine(String line) {
     final trimmed = line.trim();
-    
+
     // Empty line
     if (trimmed.isEmpty) {
       return const SizedBox(height: 8);
@@ -370,7 +371,7 @@ ${jsonEncode(contextPayload)}
         ),
       );
     }
-    
+
     if (trimmed.startsWith('## ')) {
       return Padding(
         padding: const EdgeInsets.only(top: 16, bottom: 10),
@@ -385,7 +386,7 @@ ${jsonEncode(contextPayload)}
         ),
       );
     }
-    
+
     if (trimmed.startsWith('# ')) {
       return Padding(
         padding: const EdgeInsets.only(top: 20, bottom: 12),
@@ -403,15 +404,16 @@ ${jsonEncode(contextPayload)}
 
     // Bullet line: - item hoặc • item
     if (trimmed.startsWith('- ') || trimmed.startsWith('• ')) {
-      final bulletText = trimmed.startsWith('- ') 
-          ? trimmed.substring(2) 
+      final bulletText = trimmed.startsWith('- ')
+          ? trimmed.substring(2)
           : trimmed.substring(2);
       return Padding(
         padding: const EdgeInsets.only(left: 4),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('• ', style: TextStyle(color: Colors.white, fontSize: 16)),
+            const Text('• ',
+                style: TextStyle(color: Colors.white, fontSize: 16)),
             Expanded(
               child: _buildInlineMarkdown(bulletText),
             ),

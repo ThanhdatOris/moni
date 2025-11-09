@@ -101,11 +101,11 @@ class _ChatSettingsTabState extends State<ChatSettingsTab>
       children: [
         _buildInfoTile(
           title: 'Phiên bản AI',
-          value: 'GPT-4 Enhanced',
+          value: 'Gemini 2.0 Flash',
         ),
         _buildInfoTile(
           title: 'Cập nhật cuối',
-          value: '02/08/2025',
+          value: '09/11/2025',
         ),
         _buildActionTile(
           title: 'Hỗ trợ',
