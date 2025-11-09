@@ -456,6 +456,7 @@ class _EnhancedCategorySelectorState extends State<EnhancedCategorySelector> {
 
   Widget _buildSelectedCategory() {
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.1),

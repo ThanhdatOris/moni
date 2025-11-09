@@ -251,12 +251,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'subtitle': 'Cài đặt nhắc nhở và thông báo',
       'widget': const NotificationSection(),
     },
-    {
-      'icon': Icons.backup_outlined,
-      'title': 'Sao lưu & Đồng bộ',
-      'subtitle': 'Đồng bộ dữ liệu trên các thiết bị',
-      'widget': const BackupSection(),
-    },
+    // {
+    //   'icon': Icons.backup_outlined,
+    //   'title': 'Sao lưu & Đồng bộ',
+    //   'subtitle': 'Đồng bộ dữ liệu trên các thiết bị',
+    //   'widget': const BackupSection(),
+    // },
     {
       'icon': Icons.palette_outlined,
       'title': 'Giao diện',
