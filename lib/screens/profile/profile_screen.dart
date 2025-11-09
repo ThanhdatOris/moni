@@ -232,6 +232,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  bool _isGoogleAuth() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    
+    // Check if user signed in with Google
+    for (var provider in user.providerData) {
+      if (provider.providerId == 'google.com') {
+        return true;
+      }
+    }
+    return false;
+  }
+
   List<Map<String, dynamic>> get _settingSections => [
     {
       'icon': Icons.person_outline,
@@ -243,7 +256,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'icon': Icons.security_outlined,
       'title': 'Bảo mật',
       'subtitle': 'Mật khẩu, sinh trắc học',
-      'widget': const SecuritySection(),
+      'widget': SecuritySection(isGoogleAuth: _isGoogleAuth()),
     },
     {
       'icon': Icons.notifications_outlined,
