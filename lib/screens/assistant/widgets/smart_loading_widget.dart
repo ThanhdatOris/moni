@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
 
 /// Smart loading widget that adapts to different content types
 class SmartLoadingWidget extends StatefulWidget {
@@ -483,13 +483,4 @@ class _SmartLoadingWidgetState extends State<SmartLoadingWidget>
         return Icons.refresh;
     }
   }
-}
-
-/// Loading types for different content scenarios
-enum LoadingType {
-  chart,
-  list,
-  form,
-  aiResponse,
-  generic,
 }

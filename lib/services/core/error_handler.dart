@@ -1,18 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:moni/constants/enums.dart';
 
 import 'logging_service.dart';
-
-/// Enum định nghĩa loại lỗi
-enum ErrorType {
-  network,
-  authentication,
-  validation,
-  permission,
-  firestore,
-  unknown,
-}
 
 /// Model chứa thông tin lỗi
 class AppError {

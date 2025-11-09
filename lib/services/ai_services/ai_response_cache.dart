@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:logger/logger.dart';
+import 'package:moni/constants/enums.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// 🎯 OPTIMIZATION: Smart caching system for AI responses
@@ -246,13 +247,6 @@ class AIResponseCache {
       cache.remove(key);
     }
   }
-}
-
-/// Cache priority levels
-enum CachePriority {
-  high,   // Categories, frequent queries
-  medium, // Insights, analysis
-  low,    // Chat history
 }
 
 /// Cached response model

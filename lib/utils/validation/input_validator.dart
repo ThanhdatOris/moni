@@ -1,4 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:moni/constants/enums.dart';
+
+/// Extension for PasswordStrength color (requires Flutter)
+extension PasswordStrengthColorExtension on PasswordStrength {
+  Color get color {
+    switch (this) {
+      case PasswordStrength.none:
+        return Colors.grey;
+      case PasswordStrength.weak:
+        return Colors.red;
+      case PasswordStrength.medium:
+        return Colors.orange;
+      case PasswordStrength.strong:
+        return Colors.yellow;
+      case PasswordStrength.veryStrong:
+        return Colors.green;
+    }
+  }
+}
 
 /// Centralized input validation utilities
 class InputValidator {
@@ -206,47 +225,5 @@ class InputValidator {
     );
 
     return emojiRegex.hasMatch(text);
-  }
-}
-
-/// Password strength levels
-enum PasswordStrength {
-  none,
-  weak,
-  medium,
-  strong,
-  veryStrong,
-}
-
-/// Extension for PasswordStrength
-extension PasswordStrengthExtension on PasswordStrength {
-  String get displayName {
-    switch (this) {
-      case PasswordStrength.none:
-        return 'Chưa nhập';
-      case PasswordStrength.weak:
-        return 'Yếu';
-      case PasswordStrength.medium:
-        return 'Trung bình';
-      case PasswordStrength.strong:
-        return 'Mạnh';
-      case PasswordStrength.veryStrong:
-        return 'Rất mạnh';
-    }
-  }
-
-  Color get color {
-    switch (this) {
-      case PasswordStrength.none:
-        return Colors.grey;
-      case PasswordStrength.weak:
-        return Colors.red;
-      case PasswordStrength.medium:
-        return Colors.orange;
-      case PasswordStrength.strong:
-        return Colors.yellow;
-      case PasswordStrength.veryStrong:
-        return Colors.green;
-    }
   }
 }

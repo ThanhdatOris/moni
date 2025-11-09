@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:moni/constants/enums.dart';
 
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';

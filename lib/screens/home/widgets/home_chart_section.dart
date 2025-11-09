@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:moni/constants/app_colors.dart';
-import '../../../models/transaction_model.dart';
+import 'package:moni/constants/enums.dart';
+
 import 'package:moni/services/services.dart';
 import '../../../widgets/charts/components/category_list.dart';
 import '../../../widgets/charts/components/combined_chart.dart';

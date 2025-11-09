@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
 import 'package:moni/services/services.dart';
 import '../utils/formatting/currency_formatter.dart';
 

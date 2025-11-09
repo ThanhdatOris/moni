@@ -1,15 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
-
 import 'package:moni/constants/app_colors.dart';
-
-/// Enum định nghĩa loại thông báo
-enum NotificationType {
-  success,
-  info,
-  warning,
-  error,
-}
+import 'package:moni/constants/enums.dart';
 
 /// Service quản lý thông báo UI
 class NotificationService {

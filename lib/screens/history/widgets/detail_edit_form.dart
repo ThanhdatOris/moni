@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
+
 import '../../../models/category_model.dart';
-import '../../../models/transaction_model.dart';
 import '../../transaction/widgets/transaction_amount_input.dart';
 import '../../transaction/widgets/transaction_category_selector.dart';
 import '../../transaction/widgets/transaction_date_selector.dart';

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:logger/logger.dart';
+import 'package:moni/constants/enums.dart';
 
 import '../core/environment_service.dart';
 import 'ai_helpers.dart';

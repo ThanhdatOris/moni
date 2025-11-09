@@ -1,4 +1,393 @@
-/// Chart system enumerations
+// =============================================================================
+// CENTRALIZED ENUMERATIONS FOR MONI APP
+// =============================================================================
+// This file contains all enum definitions used across the application.
+// Organized by category for better maintainability.
+// =============================================================================
+
+// =============================================================================
+// MODEL ENUMS
+// =============================================================================
+
+/// Enum cho loại giao dịch
+enum TransactionType {
+  income,
+  expense;
+
+  String get value {
+    switch (this) {
+      case TransactionType.income:
+        return 'INCOME';
+      case TransactionType.expense:
+        return 'EXPENSE';
+    }
+  }
+
+  static TransactionType fromString(String value) {
+    switch (value.toUpperCase()) {
+      case 'INCOME':
+        return TransactionType.income;
+      case 'EXPENSE':
+        return TransactionType.expense;
+      default:
+        throw ArgumentError('Loại giao dịch không hợp lệ: $value');
+    }
+  }
+}
+
+/// Enum cho loại báo cáo
+enum ReportType {
+  byTime,
+  byCategory;
+
+  String get value {
+    switch (this) {
+      case ReportType.byTime:
+        return 'BY_TIME';
+      case ReportType.byCategory:
+        return 'BY_CATEGORY';
+    }
+  }
+
+  static ReportType fromString(String value) {
+    switch (value.toUpperCase()) {
+      case 'BY_TIME':
+        return ReportType.byTime;
+      case 'BY_CATEGORY':
+        return ReportType.byCategory;
+      default:
+        throw ArgumentError('Loại báo cáo không hợp lệ: $value');
+    }
+  }
+}
+
+/// Enum cho khoảng thời gian báo cáo
+enum TimePeriod {
+  monthly,
+  quarterly,
+  yearly;
+
+  String get value {
+    switch (this) {
+      case TimePeriod.monthly:
+        return 'MONTHLY';
+      case TimePeriod.quarterly:
+        return 'QUARTERLY';
+      case TimePeriod.yearly:
+        return 'YEARLY';
+    }
+  }
+
+  static TimePeriod fromString(String value) {
+    switch (value.toUpperCase()) {
+      case 'MONTHLY':
+        return TimePeriod.monthly;
+      case 'QUARTERLY':
+        return TimePeriod.quarterly;
+      case 'YEARLY':
+        return TimePeriod.yearly;
+      default:
+        throw ArgumentError('Khoảng thời gian báo cáo không hợp lệ: $value');
+    }
+  }
+}
+
+/// Enum định nghĩa các loại icon cho danh mục
+enum CategoryIconType {
+  material('material'),
+  emoji('emoji'),
+  custom('custom');
+
+  const CategoryIconType(this.value);
+  final String value;
+
+  static CategoryIconType fromString(String value) {
+    switch (value) {
+      case 'material':
+        return CategoryIconType.material;
+      case 'emoji':
+        return CategoryIconType.emoji;
+      case 'custom':
+        return CategoryIconType.custom;
+      default:
+        return CategoryIconType.material;
+    }
+  }
+}
+
+/// Budget status enum
+enum BudgetStatus {
+  good,
+  warning,
+  overBudget,
+}
+
+/// Budget alert type enum
+enum BudgetAlertType {
+  nearLimit,
+  overBudget,
+  reset,
+}
+
+/// Response types for the Global Agent API
+enum AgentResponseType {
+  text,
+  analytics,
+  budget,
+  report,
+  error,
+}
+
+/// Response status for the Global Agent API
+enum AgentResponseStatus {
+  success,
+  error,
+  pending,
+}
+
+/// Request types for the Global Agent API
+enum AgentRequestType {
+  chat,
+  analytics,
+  budget,
+  report,
+}
+
+// =============================================================================
+// SERVICE ENUMS
+// =============================================================================
+
+/// Enum định nghĩa loại lỗi
+enum ErrorType {
+  network,
+  authentication,
+  validation,
+  permission,
+  firestore,
+  unknown,
+}
+
+/// Enum định nghĩa mức độ log
+enum LogLevel {
+  debug,
+  info,
+  warning,
+  error,
+  fatal,
+}
+
+/// Enum định nghĩa loại thông báo
+enum NotificationType {
+  success,
+  info,
+  warning,
+  error,
+}
+
+/// Tần suất recurring
+enum RecurringFrequency {
+  daily,
+  weekly,
+  monthly,
+  yearly,
+}
+
+/// Extension cho RecurringFrequency
+extension RecurringFrequencyExtension on RecurringFrequency {
+  String get displayName {
+    switch (this) {
+      case RecurringFrequency.daily:
+        return 'Hàng ngày';
+      case RecurringFrequency.weekly:
+        return 'Hàng tuần';
+      case RecurringFrequency.monthly:
+        return 'Hàng tháng';
+      case RecurringFrequency.yearly:
+        return 'Hàng năm';
+    }
+  }
+}
+
+/// Mức độ rủi ro trùng lặp
+enum DuplicateRiskLevel {
+  none,
+  low,
+  medium,
+  high,
+}
+
+/// Loại hành động xử lý trùng lặp
+enum DuplicateActionType {
+  proceed,
+  warn,
+  block,
+  review,
+}
+
+/// Loại giới hạn
+enum LimitType {
+  daily,
+  weekly,
+  monthly,
+}
+
+/// Mức độ cảnh báo
+enum WarningSeverity {
+  low,
+  medium,
+  high,
+  critical,
+}
+
+/// Cache priority levels
+enum CachePriority {
+  high,   // Categories, frequent queries
+  medium, // Insights, analysis
+  low,    // Chat history
+}
+
+/// Password strength levels
+enum PasswordStrength {
+  none,
+  weak,
+  medium,
+  strong,
+  veryStrong,
+}
+
+/// Extension for PasswordStrength
+extension PasswordStrengthExtension on PasswordStrength {
+  String get displayName {
+    switch (this) {
+      case PasswordStrength.none:
+        return 'Chưa nhập';
+      case PasswordStrength.weak:
+        return 'Yếu';
+      case PasswordStrength.medium:
+        return 'Trung bình';
+      case PasswordStrength.strong:
+        return 'Mạnh';
+      case PasswordStrength.veryStrong:
+        return 'Rất mạnh';
+    }
+  }
+
+  /// Note: Color getter is in input_validator.dart to avoid Flutter dependency here
+}
+
+// =============================================================================
+// UI/WIDGET ENUMS
+// =============================================================================
+
+/// Loading types for different content scenarios
+enum LoadingType {
+  chart,
+  list,
+  form,
+  aiResponse,
+  generic,
+}
+
+/// Button types for assistant actions
+enum ButtonType {
+  primary,
+  secondary,
+  outline,
+}
+
+/// Report categories
+enum ReportCategory {
+  financial,
+  spending,
+  budget,
+  investment,
+  custom,
+}
+
+/// Export types
+enum ExportType {
+  pdf,
+  excel,
+  word,
+  csv,
+  image,
+}
+
+/// Chart types (consolidated from multiple files)
+enum ChartType {
+  bar,
+  line,
+  pie,
+  donut,
+  area,
+  scatter,
+  candlestick,
+  radar,
+  combination,
+  combined;
+
+  String get displayName {
+    switch (this) {
+      case ChartType.bar:
+        return 'Biểu đồ cột';
+      case ChartType.line:
+        return 'Biểu đồ đường';
+      case ChartType.pie:
+        return 'Biểu đồ tròn';
+      case ChartType.donut:
+        return 'Biểu đồ vòng';
+      case ChartType.area:
+        return 'Biểu đồ vùng';
+      case ChartType.scatter:
+        return 'Biểu đồ phân tán';
+      case ChartType.candlestick:
+        return 'Biểu đồ nến';
+      case ChartType.radar:
+        return 'Biểu đồ radar';
+      case ChartType.combination:
+      case ChartType.combined:
+        return 'Biểu đồ kết hợp';
+    }
+  }
+}
+
+/// Report section types
+enum ReportSectionType {
+  chart,
+  table,
+  summary,
+  analysis,
+}
+
+/// Budget period enumeration
+enum BudgetPeriod {
+  weekly('Tuần'),
+  monthly('Tháng'),
+  yearly('Năm');
+
+  const BudgetPeriod(this.displayName);
+  final String displayName;
+}
+
+/// Budget tip categories
+enum BudgetTipCategory {
+  saving,
+  spending,
+  investment,
+  general,
+}
+
+/// Kết quả advanced validation dialog
+enum AdvancedValidationResult {
+  proceed,
+  cancel,
+  setupRecurring,
+}
+
+// =============================================================================
+// CHART SYSTEM ENUMS
+// =============================================================================
+
 /// Chart time period enumeration
 enum ChartTimePeriod {
   daily,
@@ -22,39 +411,6 @@ enum ChartTimePeriod {
         return 'Hàng năm';
       case ChartTimePeriod.custom:
         return 'Tùy chỉnh';
-    }
-  }
-}
-
-/// Chart type enumeration
-enum ChartType {
-  bar,
-  line,
-  pie,
-  area,
-  scatter,
-  candlestick,
-  radar,
-  combination;
-
-  String get displayName {
-    switch (this) {
-      case ChartType.bar:
-        return 'Biểu đồ cột';
-      case ChartType.line:
-        return 'Biểu đồ đường';
-      case ChartType.pie:
-        return 'Biểu đồ tròn';
-      case ChartType.area:
-        return 'Biểu đồ vùng';
-      case ChartType.scatter:
-        return 'Biểu đồ phân tán';
-      case ChartType.candlestick:
-        return 'Biểu đồ nến';
-      case ChartType.radar:
-        return 'Biểu đồ radar';
-      case ChartType.combination:
-        return 'Biểu đồ kết hợp';
     }
   }
 }

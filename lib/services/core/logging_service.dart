@@ -7,14 +7,7 @@ import 'package:logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
-/// Enum định nghĩa mức độ log
-enum LogLevel {
-  debug,
-  info,
-  warning,
-  error,
-  fatal,
-}
+import 'package:moni/constants/enums.dart';
 
 /// Model chứa thông tin context cho log
 class LogContext {

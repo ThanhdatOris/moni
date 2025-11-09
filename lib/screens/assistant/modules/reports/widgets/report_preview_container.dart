@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-
 import 'package:moni/constants/app_colors.dart';
-import '../../../../../utils/formatting/currency_formatter.dart';
-import '../../../widgets/assistant_action_button.dart';
-import '../../../widgets/assistant_base_card.dart';
+import 'package:moni/constants/enums.dart';
+import 'package:moni/screens/assistant/widgets/assistant_action_button.dart';
+import 'package:moni/screens/assistant/widgets/assistant_base_card.dart';
+import 'package:moni/utils/formatting/currency_formatter.dart';
+
 import 'report_chart_preview.dart';
 
 /// Report preview container with sample data visualization
@@ -496,12 +497,4 @@ class ReportSection {
     required this.description,
     required this.type,
   });
-}
-
-/// Report section types
-enum ReportSectionType {
-  chart,
-  table,
-  summary,
-  analysis,
 }

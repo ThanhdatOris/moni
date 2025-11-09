@@ -1,10 +1,4 @@
-/// Request types for the Global Agent API
-enum AgentRequestType {
-  chat,
-  analytics,
-  budget,
-  report,
-}
+import 'package:moni/constants/enums.dart';
 
 /// Request model for Global Agent API
 class AgentRequest {

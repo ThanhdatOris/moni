@@ -4,12 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
-
 import 'package:moni/constants/app_colors.dart';
+import 'package:moni/constants/enums.dart';
+import 'package:moni/services/services.dart';
+
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/providers/providers.dart';
-import 'package:moni/services/services.dart';
 import '../../utils/formatting/currency_formatter.dart';
 import 'widgets/detail_app_bar.dart';
 import 'widgets/detail_details_tab.dart';
