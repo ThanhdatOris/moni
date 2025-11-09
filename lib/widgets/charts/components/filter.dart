@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-
 import 'package:moni/constants/app_colors.dart';
 
 class ChartFilter extends StatefulWidget {
@@ -29,34 +28,14 @@ class _ChartFilterState extends State<ChartFilter> {
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 600;
 
-        return Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white,
-                AppColors.grey100,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Date Filter Section
-              _buildDateFilter(isCompact),
+        return Column(
+          children: [
+            // Transaction Type Filter Section
+            _buildTransactionTypeFilter(isCompact),
 
-              // Transaction Type Filter Section
-              _buildTransactionTypeFilter(isCompact),
-            ],
-          ),
+            // Date Filter Section
+            _buildDateFilter(isCompact),
+          ],
         );
       },
     );
@@ -65,7 +44,7 @@ class _ChartFilterState extends State<ChartFilter> {
   /// Build date filter section
   Widget _buildDateFilter(bool isCompact) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -74,10 +53,6 @@ class _ChartFilterState extends State<ChartFilter> {
           ],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-        ),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
         ),
       ),
       child: Row(
@@ -89,7 +64,7 @@ class _ChartFilterState extends State<ChartFilter> {
             child: const Icon(
               Icons.chevron_left,
               color: Colors.white,
-              size: 20,
+              size: 18,
             ),
           ),
 
@@ -103,13 +78,13 @@ class _ChartFilterState extends State<ChartFilter> {
                   '${_getMonthName(widget.selectedDate.month)} - ${widget.selectedDate.year}',
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Container(
-                  padding: const EdgeInsets.all(3),
+                  padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
@@ -117,7 +92,7 @@ class _ChartFilterState extends State<ChartFilter> {
                   child: const Icon(
                     Icons.calendar_today,
                     color: Colors.white,
-                    size: 14,
+                    size: 12,
                   ),
                 ),
               ],
@@ -130,7 +105,7 @@ class _ChartFilterState extends State<ChartFilter> {
             child: const Icon(
               Icons.chevron_right,
               color: Colors.white,
-              size: 20,
+              size: 18,
             ),
           ),
         ],
@@ -141,59 +116,52 @@ class _ChartFilterState extends State<ChartFilter> {
   /// Build transaction type filter section
   Widget _buildTransactionTypeFilter(bool isCompact) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [          
-          // Filter options
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: AppColors.grey100,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.grey200,
-                width: 1,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: AppColors.grey100,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            // Tất cả
+            Expanded(
+              child: _buildModernFilterButton(
+                'Tất cả',
+                Icons.analytics_outlined,
+                AppColors.primary,
+                widget.selectedTransactionType == 'all',
+                () => widget.onTransactionTypeChanged('all'),
               ),
             ),
-            child: Row(
-              children: [
-                // Tất cả
-                Expanded(
-                  child: _buildModernFilterButton(
-                    'Tất cả',
-                    Icons.analytics_outlined,
-                    AppColors.primary,
-                    widget.selectedTransactionType == 'all',
-                    () => widget.onTransactionTypeChanged('all'),
-                  ),
-                ),
 
-                // Chi tiêu
-                Expanded(
-                  child: _buildModernFilterButton(
-                    'Chi tiêu',
-                    Icons.trending_down,
-                    Colors.red,
-                    widget.selectedTransactionType == 'expense',
-                    () => widget.onTransactionTypeChanged('expense'),
-                  ),
-                ),
-
-                // Thu nhập
-                Expanded(
-                  child: _buildModernFilterButton(
-                    'Thu nhập',
-                    Icons.trending_up,
-                    Colors.green,
-                    widget.selectedTransactionType == 'income',
-                    () => widget.onTransactionTypeChanged('income'),
-                  ),
-                ),
-              ],
+            // Chi tiêu
+            Expanded(
+              child: _buildModernFilterButton(
+                'Chi tiêu',
+                Icons.trending_down,
+                Colors.red,
+                widget.selectedTransactionType == 'expense',
+                () => widget.onTransactionTypeChanged('expense'),
+              ),
             ),
-          ),
-        ],
+
+            // Thu nhập
+            Expanded(
+              child: _buildModernFilterButton(
+                'Thu nhập',
+                Icons.trending_up,
+                Colors.green,
+                widget.selectedTransactionType == 'income',
+                () => widget.onTransactionTypeChanged('income'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -209,8 +177,8 @@ class _ChartFilterState extends State<ChartFilter> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.all(2),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        margin: const EdgeInsets.all(1.5),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
         decoration: BoxDecoration(
           gradient: isActive
               ? LinearGradient(
@@ -223,13 +191,13 @@ class _ChartFilterState extends State<ChartFilter> {
                 )
               : null,
           color: isActive ? null : Colors.white,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           boxShadow: isActive
               ? [
                   BoxShadow(
                     color: color.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ]
               : null,
@@ -240,13 +208,13 @@ class _ChartFilterState extends State<ChartFilter> {
             Icon(
               icon,
               color: isActive ? Colors.white : color,
-              size: 18,
+              size: 16,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               title,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: isActive ? Colors.white : color,
               ),
