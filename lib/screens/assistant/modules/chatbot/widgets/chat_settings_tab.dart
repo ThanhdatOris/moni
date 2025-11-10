@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 import '../services/conversation_service.dart';
 
 /// Chat settings tab for chatbot configuration

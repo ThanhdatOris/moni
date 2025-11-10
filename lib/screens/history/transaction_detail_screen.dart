@@ -4,8 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
-import 'package:moni/constants/app_colors.dart';
-import 'package:moni/constants/enums.dart';
+import 'package:moni/config/app_config.dart';
 import 'package:moni/services/services.dart';
 
 import '../../models/category_model.dart';

@@ -1,6 +1,5 @@
 class AppStrings {
   // App
-  static const String appName = 'Moni';
   static const String appSubtitle = 'Quản lý tài chính thông minh';
 
   // Bottom Navigation

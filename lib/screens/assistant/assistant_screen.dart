@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 
 import '../../widgets/custom_page_header.dart';
 import 'modules/budget/budget_screen.dart';

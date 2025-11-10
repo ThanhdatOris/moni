@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:moni/constants/app_colors.dart';
-import 'package:moni/constants/enums.dart';
+import 'package:moni/config/app_config.dart';
 
 import '../../../../../widgets/charts/components/donut_chart.dart';
 import '../../../../../widgets/charts/models/chart_data_model.dart';

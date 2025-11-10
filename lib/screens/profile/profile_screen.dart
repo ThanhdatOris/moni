@@ -1,9 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 import 'package:moni/services/services.dart';
+import 'package:moni/core/injection_container.dart';
 
-import '../../core/injection_container.dart';
 import '../../models/user_model.dart';
 import '../../widgets/custom_page_header.dart';
 import 'widgets/about_section.dart';

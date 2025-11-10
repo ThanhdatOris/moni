@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 
 import '../../../../../../utils/helpers/category_icon_helper.dart';
 import '../../../../../models/assistant/chat_message_model.dart';

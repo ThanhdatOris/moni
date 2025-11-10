@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:moni/constants/app_colors.dart';
-import '../../../../../utils/formatting/currency_formatter.dart';
+import 'package:moni/utils/index.dart';
 import '../../../../../widgets/charts/components/donut_chart.dart';
 import '../../../../../widgets/charts/models/chart_data_model.dart';
 import '../../../widgets/assistant_chart_container.dart';

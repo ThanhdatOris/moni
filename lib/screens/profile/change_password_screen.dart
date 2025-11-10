@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 import 'package:moni/services/services.dart';
 import '../../widgets/custom_page_header.dart';
 

@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 import '../../core/injection_container.dart';
 import 'package:moni/services/services.dart';
 

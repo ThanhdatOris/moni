@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 
 class HistoryEmptyState extends StatelessWidget {
   final DateTime? selectedDay;

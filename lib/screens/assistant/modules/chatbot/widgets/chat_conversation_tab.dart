@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 import '../../../../../services/ai_services/ai_services.dart';
 import '../../../../../models/assistant/chat_message_model.dart';
 import '../../../services/ui_optimization_service.dart';

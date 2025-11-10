@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
+
 import '../../../models/category_model.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 

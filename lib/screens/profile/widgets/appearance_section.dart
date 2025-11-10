@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../../../constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 
 class AppearanceSection extends StatefulWidget {
   const AppearanceSection({super.key});

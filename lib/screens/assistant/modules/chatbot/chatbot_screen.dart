@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 import '../../services/ui_optimization_service.dart';
 import '../../widgets/assistant_error_card.dart';
 import '../../widgets/assistant_loading_card.dart';

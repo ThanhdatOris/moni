@@ -6,8 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
 
-import 'package:moni/constants/app_colors.dart';
-import 'package:moni/constants/enums.dart';
+import 'package:moni/config/app_config.dart';
 
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';

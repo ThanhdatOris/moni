@@ -5,8 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'package:moni/constants/app_colors.dart';
-import 'constants/app_strings.dart';
+import 'package:moni/config/app_config.dart';
 import 'core/injection_container.dart' as di;
 import 'screens/splash_wrapper.dart';
 import 'package:moni/services/services.dart';
@@ -66,7 +65,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: AppStrings.appName,
+      title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
       
       // Localization configuration

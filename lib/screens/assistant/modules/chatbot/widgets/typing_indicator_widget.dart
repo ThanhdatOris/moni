@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 
 /// Widget hiển thị trạng thái đang gõ của AI
 class TypingIndicatorWidget extends StatelessWidget {

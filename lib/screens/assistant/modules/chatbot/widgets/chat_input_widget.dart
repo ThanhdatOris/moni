@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 
 /// Widget input để nhập tin nhắn chat
 class ChatInputWidget extends StatefulWidget {

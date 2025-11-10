@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 
 /// Loading state component for assistant modules
 /// Shows shimmer effect and loading indicators

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'package:moni/constants/app_colors.dart';
+import 'package:moni/config/app_config.dart';
 
 /// Base card component for assistant modules
 /// Provides consistent styling and behavior across all assistant cards
