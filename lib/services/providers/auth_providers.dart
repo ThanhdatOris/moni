@@ -1,7 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/di/injection_container.dart' as di;
+import '../../core/injection_container.dart' as di;
 import '../auth/auth_service.dart';
 
 /// Auth Service Provider

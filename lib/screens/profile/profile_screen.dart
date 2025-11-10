@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:moni/constants/app_colors.dart';
 import 'package:moni/services/services.dart';
 
-import '../../core/di/injection_container.dart';
+import '../../core/injection_container.dart';
 import '../../models/user_model.dart';
 import '../../widgets/custom_page_header.dart';
 import 'widgets/about_section.dart';

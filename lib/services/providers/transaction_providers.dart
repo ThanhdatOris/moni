@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moni/constants/enums.dart';
 
-import '../../core/di/injection_container.dart' as di;
+import '../../core/injection_container.dart' as di;
 import '../../models/transaction_model.dart';
 import '../../utils/formatting/date_formatter.dart';
 import '../data/transaction_service.dart';

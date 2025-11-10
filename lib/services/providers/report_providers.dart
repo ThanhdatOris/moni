@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moni/constants/enums.dart';
 
-import '../../core/di/injection_container.dart' as di;
+import '../../core/injection_container.dart' as di;
 import '../../models/report_model.dart';
 import '../analytics/report_service.dart';
 

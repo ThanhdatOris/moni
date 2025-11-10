@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/di/injection_container.dart' as di;
+import '../../core/injection_container.dart' as di;
 import '../../models/conversation_model.dart';
 import '../analytics/conversation_service.dart';
 

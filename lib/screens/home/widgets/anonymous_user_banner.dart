@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:moni/constants/app_colors.dart';
-import '../../../core/di/injection_container.dart';
+import '../../../core/injection_container.dart';
 import 'package:moni/services/services.dart';
 
 /// Widget hiển thị banner khuyến khích anonymous user đăng ký

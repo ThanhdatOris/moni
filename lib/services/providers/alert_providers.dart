@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/di/injection_container.dart' as di;
+import '../../core/injection_container.dart' as di;
 import '../../models/budget_alert_model.dart';
 import '../analytics/budget_alert_service.dart';
 
