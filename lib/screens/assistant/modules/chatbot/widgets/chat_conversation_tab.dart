@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-
 import 'package:moni/config/app_config.dart';
-import '../../../../../services/ai_services/ai_services.dart';
+
 import '../../../../../models/assistant/chat_message_model.dart';
+import '../../../../../services/ai_services/ai_services.dart';
 import '../../../services/ui_optimization_service.dart';
 import '../services/conversation_service.dart';
 import 'chat_message_widget.dart';
@@ -248,7 +248,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
   Widget _buildTypingIndicator() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(top: 16, bottom: 12),
       child: Row(
         children: [
           CircleAvatar(
@@ -318,58 +318,64 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     ];
 
     return Container(
-      // Dùng padding thay vì margin để khoảng cách 6px là nền trắng
-      padding: const EdgeInsets.fromLTRB(0, 6, 0, 8),
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
           top: BorderSide(color: Colors.grey[200]!, width: 1),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            'Câu hỏi gợi ý:',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            alignment: WrapAlignment.center,
-            children: quickActions
-                .map(
-                  (action) => GestureDetector(
-                    onTap: () => _sendMessage(action),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.2)),
-                      ),
-                      child: Text(
-                        action,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
+      child: ShaderMask(
+        shaderCallback: (Rect bounds) {
+          return LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Colors.white,
+              Colors.white.withValues(alpha: 0),
+              Colors.white.withValues(alpha: 0),
+              Colors.white,
+            ],
+            stops: const [0.0, 0.05, 0.95, 1.0],
+          ).createShader(bounds);
+        },
+        blendMode: BlendMode.dstOut,
+        child: SizedBox(
+          height: 50,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            itemCount: quickActions.length,
+            itemBuilder: (context, index) {
+            final action = quickActions[index];
+            return Padding(
+              padding: EdgeInsets.only(right: index < quickActions.length - 1 ? 8 : 0),
+              child: GestureDetector(
+                onTap: () => _sendMessage(action),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      action,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                )
-                .toList(),
+                ),
+              ),
+            );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
