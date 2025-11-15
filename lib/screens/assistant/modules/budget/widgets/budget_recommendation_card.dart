@@ -10,7 +10,6 @@ class BudgetRecommendationCard extends StatelessWidget {
   final List<BudgetTip> tips;
   final bool isLoading;
   final VoidCallback? onRegenerateRecommendation;
-  final VoidCallback? onApplyBudget;
 
   const BudgetRecommendationCard({
     super.key,
@@ -18,7 +17,6 @@ class BudgetRecommendationCard extends StatelessWidget {
     this.tips = const [],
     this.isLoading = false,
     this.onRegenerateRecommendation,
-    this.onApplyBudget,
   });
 
   @override
@@ -92,31 +90,14 @@ class BudgetRecommendationCard extends StatelessWidget {
           const SizedBox(height: 16),
         ],
 
-        // Action buttons
-        Row(
-          children: [
-            Expanded(
-              child: AssistantActionButton(
-                text: 'Tạo lại gợi ý',
-                icon: Icons.refresh,
-                type: ButtonType.outline,
-                backgroundColor: Colors.white,
-                textColor: Colors.white,
-                onPressed: onRegenerateRecommendation,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: AssistantActionButton(
-                text: 'Áp dụng ngân sách',
-                icon: Icons.check,
-                type: ButtonType.secondary,
-                backgroundColor: Colors.white.withValues(alpha: 0.2),
-                textColor: Colors.white,
-                onPressed: onApplyBudget,
-              ),
-            ),
-          ],
+        // Action button
+        AssistantActionButton(
+          text: 'Tạo lại gợi ý',
+          icon: Icons.refresh,
+          type: ButtonType.outline,
+          backgroundColor: Colors.white,
+          textColor: Colors.white,
+          onPressed: onRegenerateRecommendation,
         ),
       ],
     );

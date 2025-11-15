@@ -116,6 +116,22 @@ class BudgetProgressIndicator extends StatelessWidget {
       ),
       child: Column(
         children: [
+          // Tổng quan: Đã tiêu / Tổng ngân sách
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${CurrencyFormatter.formatAmountWithCurrency(totalSpent)} / ${CurrencyFormatter.formatAmountWithCurrency(totalBudget)}',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.95),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
           // Progress bar
           Row(
             children: [

@@ -40,6 +40,14 @@ Future<void> init() async {
   getIt.registerLazySingleton<TransactionService>(() => TransactionService(
         offlineService: getIt<OfflineService>(),
       ));
+  
+  // Budget service - set transaction service and category service after registration
+  getIt.registerLazySingleton<BudgetService>(() {
+    final budgetService = BudgetService();
+    budgetService.setTransactionService(getIt<TransactionService>());
+    budgetService.setCategoryService(getIt<CategoryService>());
+    return budgetService;
+  });
 
   // Chart Data Service
   getIt.registerLazySingleton<ChartDataService>(() => ChartDataService(

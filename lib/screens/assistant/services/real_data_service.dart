@@ -1,10 +1,13 @@
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
-import 'package:moni/services/services.dart';
 import 'package:moni/config/app_config.dart';
+import 'package:moni/constants/budget_constants.dart';
+import 'package:moni/services/services.dart';
 
+import '../../../models/budget_model.dart';
 import '../../../models/category_model.dart';
 import '../../../models/transaction_model.dart';
+import '../../../services/data/spending_calculator.dart';
 import '../../../widgets/charts/models/chart_data_model.dart';
 
 /// Service adapter để kết nối Assistant modules với dữ liệu thực
@@ -16,6 +19,8 @@ class RealDataService {
   final Logger _logger = Logger();
   late final TransactionService _transactionService;
   late final CategoryService _categoryService;
+  late final BudgetService _budgetService;
+  final SpendingCalculator _spendingCalculator = SpendingCalculator.instance;
 
   bool _isInitialized = false;
 
@@ -26,11 +31,23 @@ class RealDataService {
     try {
       _transactionService = GetIt.instance<TransactionService>();
       _categoryService = CategoryService();
+      // Sử dụng GetIt để đảm bảo BudgetService đã được inject với TransactionService
+      _budgetService = GetIt.instance<BudgetService>();
       _isInitialized = true;
       _logger.i('RealDataService initialized successfully');
     } catch (e) {
       _logger.e('Error initializing RealDataService: $e');
-      rethrow;
+      // Fallback: nếu GetIt fail thì tạo trực tiếp
+      try {
+        _budgetService = BudgetService();
+        _budgetService.setTransactionService(
+          GetIt.instance<TransactionService>(),
+        );
+      } catch (fallbackError) {
+        _logger.e('Error in fallback initialization: $fallbackError');
+        rethrow;
+      }
+      _isInitialized = true;
     }
   }
 
@@ -47,8 +64,10 @@ class RealDataService {
       final end = endDate ?? now;
 
       // Lấy transactions trong khoảng thời gian
-      final transactions =
-          await _transactionService.getTransactionsByDateRange(start, end);
+      final transactions = await _transactionService.getTransactionsByDateRange(
+        start,
+        end,
+      );
 
       // Tính toán dữ liệu analytics
       final totalIncome = transactions
@@ -64,11 +83,12 @@ class RealDataService {
 
       // Phân tích theo category
       final categorySpending = <String, double>{};
-      for (final transaction
-          in transactions.where((t) => t.type == TransactionType.expense)) {
+      for (final transaction in transactions.where(
+        (t) => t.type == TransactionType.expense,
+      )) {
         categorySpending[transaction.categoryId] =
             (categorySpending[transaction.categoryId] ?? 0) +
-                transaction.amount;
+            transaction.amount;
       }
 
       // Lấy thông tin categories
@@ -91,25 +111,29 @@ class RealDataService {
           ),
         );
 
-        final percentage =
-            totalExpense > 0 ? (entry.value / totalExpense) * 100 : 0.0;
+        final percentage = totalExpense > 0
+            ? (entry.value / totalExpense) * 100
+            : 0.0;
 
-        categoryData.add(ChartDataModel(
-          category: category.name,
-          amount: entry.value,
-          percentage: percentage,
-          icon: category.icon,
-          color:
-              '#${category.color.toRadixString(16).padLeft(8, '0').substring(2)}',
-          type: 'expense',
-        ));
+        categoryData.add(
+          ChartDataModel(
+            category: category.name,
+            amount: entry.value,
+            percentage: percentage,
+            icon: category.icon,
+            color:
+                '#${category.color.toRadixString(16).padLeft(8, '0').substring(2)}',
+            type: 'expense',
+          ),
+        );
       }
 
       // Sắp xếp theo amount giảm dần
       categoryData.sort((a, b) => b.amount.compareTo(a.amount));
 
       _logger.d(
-          'Analytics data calculated: Income: $totalIncome, Expense: $totalExpense');
+        'Analytics data calculated: Income: $totalIncome, Expense: $totalExpense',
+      );
 
       return AnalyticsData(
         totalIncome: totalIncome,
@@ -128,9 +152,19 @@ class RealDataService {
   }
 
   /// Lấy dữ liệu budget thực
+  /// Nếu đã có budget trong database → load từ database
+  /// Nếu chưa có → estimate từ historical data
   Future<BudgetData> getBudgetData() async {
     try {
-      if (!_isInitialized) await initialize();
+      // Đảm bảo service đã được initialize
+      if (!_isInitialized) {
+        await initialize();
+      }
+
+      // Double check: nếu vẫn chưa initialized thì throw error
+      if (!_isInitialized) {
+        throw Exception('RealDataService failed to initialize');
+      }
 
       final now = DateTime.now();
       final monthStart = DateTime(now.year, now.month, 1);
@@ -138,40 +172,165 @@ class RealDataService {
 
       // Lấy transactions tháng hiện tại
       final transactions = await _transactionService.getTransactionsByDateRange(
-          monthStart, monthEnd);
-      final categories = await _categoryService
+        monthStart,
+        monthEnd,
+      );
+
+      // Lấy budgets từ database (nếu có)
+      // Sử dụng try-catch để handle nếu BudgetService chưa sẵn sàng
+      List<BudgetModel> budgets = [];
+      try {
+        budgets = await _budgetService.getBudgets().first;
+      } catch (e) {
+        _logger.w('Could not load budgets from database, using empty list: $e');
+        budgets = [];
+      }
+
+      // QUAN TRỌNG: Chỉ lấy parent categories (không có parentId)
+      // Budget chỉ được tạo cho parent categories và tự động gộp spending của children
+      final allCategories = await _categoryService
           .getCategories(type: TransactionType.expense)
           .first;
 
+      // Filter chỉ lấy parent categories
+      final categories = allCategories
+          .where((c) => c.parentId == null || c.parentId!.isEmpty)
+          .toList();
+
       final categoryProgress = <CategoryBudgetProgress>[];
 
-      for (final category in categories.take(10)) {
-        // Top 10 categories
-        final spent = transactions
-            .where((t) =>
-                t.categoryId == category.categoryId &&
-                t.type == TransactionType.expense)
-            .fold(0.0, (total, t) => total + t.amount);
+      // Tạo map để lookup budget nhanh
+      final budgetMap = <String, double>{};
+      // QUAN TRỌNG: Tính totalBudget từ TẤT CẢ budgets trong Firebase
+      // Không phụ thuộc vào categories được hiển thị
+      double totalBudgetFromFirebase = 0.0;
 
-        // Estimate budget based on historical data or use default
-        final estimatedBudget =
-            await _estimateCategoryBudget(category.categoryId) ?? spent * 1.2;
-
-        categoryProgress.add(CategoryBudgetProgress(
-          categoryId: category.categoryId,
-          name: category.name,
-          color:
-              '#${category.color.toRadixString(16).padLeft(8, '0').substring(2)}',
-          budget: estimatedBudget,
-          spent: spent,
-          icon: category.icon,
-          percentage: estimatedBudget > 0 ? (spent / estimatedBudget) * 100 : 0,
-        ));
+      for (final budget in budgets) {
+        // Chỉ lấy budgets của tháng hiện tại
+        if (budget.startDate.year == now.year &&
+            budget.startDate.month == now.month &&
+            budget.isActive) {
+          budgetMap[budget.categoryId] = budget.monthlyLimit;
+          totalBudgetFromFirebase += budget.monthlyLimit; // Tổng từ Firebase
+        }
       }
 
-      final totalBudget =
-          categoryProgress.fold(0.0, (total, c) => total + c.budget);
-      final totalSpent = categoryProgress.fold(0.0, (total, c) => total + c.spent);
+      // QUAN TRỌNG: Luôn hiển thị TẤT CẢ parent categories có budget trong Firebase
+      // Không filter hoặc giới hạn số lượng
+
+      // Bước 1: Lấy TẤT CẢ parent categories có budget trong Firebase
+      final categoriesWithBudget = <CategoryModel>[];
+      for (final category in categories) {
+        if (budgetMap.containsKey(category.categoryId)) {
+          categoriesWithBudget.add(category);
+        }
+      }
+
+      // Bước 2: Lấy parent categories có spending nhưng chưa có budget (để estimate)
+      // QUAN TRỌNG: Tính spending cho parent category (gộp cả children)
+      final categoriesWithSpending = <CategoryModel>[];
+      final parentCategoryIdsWithoutBudget = categories
+          .where((c) => !budgetMap.containsKey(c.categoryId))
+          .map((c) => c.categoryId)
+          .toList();
+
+      if (parentCategoryIdsWithoutBudget.isNotEmpty) {
+        // Tính spending cho parent categories (gộp cả children)
+        final spendingsMap = _spendingCalculator
+            .calculateMultipleParentCategorySpending(
+              transactions: transactions,
+              parentCategoryIds: parentCategoryIdsWithoutBudget,
+              allCategories: allCategories,
+              startDate: monthStart,
+              endDate: monthEnd,
+            );
+
+        for (final category in categories) {
+          if (budgetMap.containsKey(category.categoryId)) {
+            continue; // Đã có budget, skip
+          }
+
+          final spent = spendingsMap[category.categoryId] ?? 0.0;
+          if (spent > 0) {
+            categoriesWithSpending.add(category);
+          }
+        }
+      }
+
+      // Bước 3: Combine và sort
+      // Ưu tiên: categories có budget trước, sau đó categories có spending
+      final allCategoriesToShow = <CategoryModel>[];
+      allCategoriesToShow.addAll(categoriesWithBudget);
+      allCategoriesToShow.addAll(categoriesWithSpending);
+
+      // Sort: categories có budget trước, sau đó theo spending
+      // Tính spending một lần cho tất cả parent categories để tối ưu (gộp cả children)
+      final allParentCategoryIds = allCategoriesToShow
+          .map((c) => c.categoryId)
+          .toList();
+      final allSpendingsMap = _spendingCalculator
+          .calculateMultipleParentCategorySpending(
+            transactions: transactions,
+            parentCategoryIds: allParentCategoryIds,
+            allCategories: allCategories,
+            startDate: monthStart,
+            endDate: monthEnd,
+          );
+
+      allCategoriesToShow.sort((a, b) {
+        final aHasBudget = budgetMap.containsKey(a.categoryId);
+        final bHasBudget = budgetMap.containsKey(b.categoryId);
+        if (aHasBudget && !bHasBudget) return -1;
+        if (!aHasBudget && bHasBudget) return 1;
+
+        final aSpent = allSpendingsMap[a.categoryId] ?? 0.0;
+        final bSpent = allSpendingsMap[b.categoryId] ?? 0.0;
+        return bSpent.compareTo(aSpent);
+      });
+
+      // Build category progress từ budgets thực tế hoặc estimate
+      // KHÔNG GIỚI HẠN số lượng - hiển thị TẤT CẢ categories có budget
+      // Sử dụng spending đã tính ở trên để tránh duplicate calculation
+      for (final category in allCategoriesToShow) {
+        final spent = allSpendingsMap[category.categoryId] ?? 0.0;
+
+        // Ưu tiên budget từ database, nếu không có thì estimate
+        double budget;
+        if (budgetMap.containsKey(category.categoryId)) {
+          // Có budget thực tế → dùng budget từ database
+          budget = budgetMap[category.categoryId]!;
+        } else {
+          // Không có budget → estimate từ historical data
+          budget =
+              await _estimateCategoryBudget(category.categoryId) ??
+              (spent > 0 ? spent * BudgetConstants.budgetEstimateFactor : 0);
+        }
+
+        categoryProgress.add(
+          CategoryBudgetProgress(
+            categoryId: category.categoryId,
+            name: category.name,
+            color:
+                '#${category.color.toRadixString(16).padLeft(8, '0').substring(2)}',
+            budget: budget,
+            spent: spent,
+            icon: category.icon,
+            percentage: budget > 0 ? (spent / budget) * 100 : 0,
+          ),
+        );
+      }
+
+      // QUAN TRỌNG: totalBudget phải tính từ TẤT CẢ budgets trong Firebase
+      // Không tính từ categoryProgress vì có thể thiếu budgets nếu category không tồn tại
+      final totalBudget = totalBudgetFromFirebase;
+
+      // totalSpent: tính từ TẤT CẢ transactions tháng này (không chỉ categories được hiển thị)
+      // Sử dụng SpendingCalculator để đảm bảo tính nhất quán
+      final totalSpent = _spendingCalculator.calculateTotalSpending(
+        transactions: transactions,
+        startDate: monthStart,
+        endDate: monthEnd,
+      );
 
       return BudgetData(
         totalBudget: totalBudget,
@@ -207,8 +366,9 @@ class RealDataService {
 
       // Phân tích patterns
       final dailySpending = <String, double>{};
-      for (final transaction in recentTransactions
-          .where((t) => t.type == TransactionType.expense)) {
+      for (final transaction in recentTransactions.where(
+        (t) => t.type == TransactionType.expense,
+      )) {
         final dateKey = _formatDate(transaction.date);
         dailySpending[dateKey] =
             (dailySpending[dateKey] ?? 0) + transaction.amount;
@@ -226,11 +386,13 @@ class RealDataService {
         'avg_daily_spending': avgDailySpending,
         'top_categories': analyticsData.categoryData
             .take(5)
-            .map((c) => {
-                  'name': c.category,
-                  'amount': c.amount,
-                  'percentage': c.percentage,
-                })
+            .map(
+              (c) => {
+                'name': c.category,
+                'amount': c.amount,
+                'percentage': c.percentage,
+              },
+            )
             .toList(),
         'financial_health_score': _calculateHealthScore(analyticsData),
       };
@@ -242,7 +404,8 @@ class RealDataService {
 
   /// Calculate trend data từ transactions
   Future<List<ChartDataModel>> _calculateTrendData(
-      List<TransactionModel> transactions) async {
+    List<TransactionModel> transactions,
+  ) async {
     try {
       final trendData = <ChartDataModel>[];
       final dailyIncome = <String, double>{};
@@ -275,23 +438,27 @@ class RealDataService {
         final incomeAmount = dailyIncome[date] ?? 0;
         final expenseAmount = dailyExpense[date] ?? 0;
 
-        trendData.add(ChartDataModel(
-          category: date,
-          amount: incomeAmount,
-          percentage: 0,
-          icon: '📅',
-          color: '#4CAF50', // green for income
-          type: 'income',
-        ));
+        trendData.add(
+          ChartDataModel(
+            category: date,
+            amount: incomeAmount,
+            percentage: 0,
+            icon: '📅',
+            color: '#4CAF50', // green for income
+            type: 'income',
+          ),
+        );
 
-        trendData.add(ChartDataModel(
-          category: date,
-          amount: expenseAmount,
-          percentage: 0,
-          icon: '📅',
-          color: '#F44336', // red for expense
-          type: 'expense',
-        ));
+        trendData.add(
+          ChartDataModel(
+            category: date,
+            amount: expenseAmount,
+            percentage: 0,
+            icon: '📅',
+            color: '#F44336', // red for expense
+            type: 'expense',
+          ),
+        );
       }
 
       return trendData;
@@ -311,14 +478,18 @@ class RealDataService {
       );
 
       final categoryTransactions = transactions
-          .where((t) =>
-              t.categoryId == categoryId && t.type == TransactionType.expense)
+          .where(
+            (t) =>
+                t.categoryId == categoryId && t.type == TransactionType.expense,
+          )
           .toList();
 
       if (categoryTransactions.isEmpty) return null;
 
-      final totalSpent =
-          categoryTransactions.fold(0.0, (total, t) => total + t.amount);
+      final totalSpent = categoryTransactions.fold(
+        0.0,
+        (total, t) => total + t.amount,
+      );
       final avgMonthlySpending = totalSpent / 3; // 3 months average
 
       return avgMonthlySpending * 1.1; // Add 10% buffer
@@ -330,20 +501,26 @@ class RealDataService {
 
   /// Generate insights từ analytics data
   List<String> _generateInsights(
-      double income, double expense, List<ChartDataModel> categoryData) {
+    double income,
+    double expense,
+    List<ChartDataModel> categoryData,
+  ) {
     final insights = <String>[];
 
     final savingsRate = income > 0 ? ((income - expense) / income) * 100 : 0;
 
     if (savingsRate > 20) {
       insights.add(
-          'Tuyệt vời! Bạn đang tiết kiệm ${savingsRate.toStringAsFixed(1)}% thu nhập.');
+        'Tuyệt vời! Bạn đang tiết kiệm ${savingsRate.toStringAsFixed(1)}% thu nhập.',
+      );
     } else if (savingsRate > 10) {
       insights.add(
-          'Tốt! Tỷ lệ tiết kiệm ${savingsRate.toStringAsFixed(1)}% là hợp lý.');
+        'Tốt! Tỷ lệ tiết kiệm ${savingsRate.toStringAsFixed(1)}% là hợp lý.',
+      );
     } else if (savingsRate > 0) {
       insights.add(
-          'Nên cải thiện! Tỷ lệ tiết kiệm chỉ ${savingsRate.toStringAsFixed(1)}%.');
+        'Nên cải thiện! Tỷ lệ tiết kiệm chỉ ${savingsRate.toStringAsFixed(1)}%.',
+      );
     } else {
       insights.add('Cảnh báo! Chi tiêu vượt quá thu nhập.');
     }
@@ -352,7 +529,8 @@ class RealDataService {
       final topCategory = categoryData.first;
       if (topCategory.percentage > 30) {
         insights.add(
-            '${topCategory.category} chiếm ${topCategory.percentage.toStringAsFixed(1)}% chi tiêu - cần cân nhắc giảm bớt.');
+          '${topCategory.category} chiếm ${topCategory.percentage.toStringAsFixed(1)}% chi tiêu - cần cân nhắc giảm bớt.',
+        );
       }
     }
 
@@ -361,16 +539,19 @@ class RealDataService {
 
   /// Generate budget recommendations
   List<String> _generateBudgetRecommendations(
-      List<CategoryBudgetProgress> categoryProgress) {
+    List<CategoryBudgetProgress> categoryProgress,
+  ) {
     final recommendations = <String>[];
 
     for (final category in categoryProgress) {
       if (category.percentage > 100) {
         recommendations.add(
-            '${category.name}: Đã vượt ngân sách ${(category.percentage - 100).toStringAsFixed(1)}%');
+          '${category.name}: Đã vượt ngân sách ${(category.percentage - 100).toStringAsFixed(1)}%',
+        );
       } else if (category.percentage > 80) {
         recommendations.add(
-            '${category.name}: Sắp hết ngân sách (${category.percentage.toStringAsFixed(1)}%)');
+          '${category.name}: Sắp hết ngân sách (${category.percentage.toStringAsFixed(1)}%)',
+        );
       }
     }
 
@@ -435,7 +616,7 @@ class RealDataService {
       categoryProgress: [],
       budgetPeriod: 'Tháng này',
       recommendations: [
-        'Chưa có dữ liệu để tạo ngân sách. Hãy thêm giao dịch đầu tiên!'
+        'Chưa có dữ liệu để tạo ngân sách. Hãy thêm giao dịch đầu tiên!',
       ],
     );
   }

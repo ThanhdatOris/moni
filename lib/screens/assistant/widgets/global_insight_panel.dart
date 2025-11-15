@@ -17,7 +17,6 @@ class GlobalInsightPanel extends StatefulWidget {
   final String title;
   final String defaultQuery; // câu hỏi mặc định để tạo insight
   final Map<String, dynamic>? additionalContext;
-  final VoidCallback? onViewDetails; // hook cho từng trang nếu cần
 
   const GlobalInsightPanel({
     super.key,
@@ -26,7 +25,6 @@ class GlobalInsightPanel extends StatefulWidget {
     this.defaultQuery =
         'Tổng hợp các insight quan trọng giúp tôi quản lý tài chính tốt hơn.',
     this.additionalContext,
-    this.onViewDetails,
   });
 
   @override
@@ -267,25 +265,10 @@ ${jsonEncode(contextPayload)}
           ),
           const SizedBox(height: 12),
         ],
-        Row(
-          children: [
-            Expanded(
-              child: AssistantActionButton(
-                text: 'Tạo lại Insight',
-                icon: Icons.auto_fix_high,
-                onPressed: _runInsight,
-              ),
-            ),
-            const SizedBox(width: 12),
-            AssistantActionButton(
-              text: 'Chi tiết',
-              icon: Icons.arrow_forward,
-              type: ButtonType.outline,
-              backgroundColor: Colors.white,
-              textColor: AppColors.textPrimary,
-              onPressed: widget.onViewDetails,
-            ),
-          ],
+        AssistantActionButton(
+          text: 'Tạo lại Insight',
+          icon: Icons.auto_fix_high,
+          onPressed: _runInsight,
         ),
       ],
     );

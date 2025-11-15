@@ -236,7 +236,14 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
               final isSelected = _selectedPeriod == period;
               return Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() => _selectedPeriod = period),
+                  onTap: () {
+                    // Nếu đang ở step khác step 0, cần confirmation
+                    if (_currentStep > 0 && _selectedPeriod != period) {
+                      _showPeriodChangeConfirmation(period);
+                    } else {
+                      setState(() => _selectedPeriod = period);
+                    }
+                  },
                   child: Container(
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -642,6 +649,33 @@ class _BudgetInputFormState extends State<BudgetInputForm> {
     if (_riskTolerance < 0.33) return 'Ưu tiên an toàn, tiết kiệm nhiều hơn';
     if (_riskTolerance < 0.67) return 'Cân bằng giữa chi tiêu và tiết kiệm';
     return 'Chấp nhận rủi ro để đầu tư và phát triển';
+  }
+
+  void _showPeriodChangeConfirmation(BudgetPeriod newPeriod) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Thay đổi chu kỳ ngân sách'),
+        content: Text(
+          'Bạn đang thay đổi từ ${_selectedPeriod.displayName} sang ${newPeriod.displayName}.\n\n'
+          'Lưu ý: Ngân sách sẽ được tính theo tháng, chu kỳ này chỉ để tính toán thu nhập.\n\n'
+          'Bạn có muốn tiếp tục?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() => _selectedPeriod = newPeriod);
+            },
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
