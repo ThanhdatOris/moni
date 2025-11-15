@@ -30,7 +30,138 @@ class AIChatHandler {
   })  : _model = model,
         _tokenManager = tokenManager;
 
-  /// Process chat input and return AI response
+  /// Process chat input with streaming response
+  /// Returns a stream of text chunks as they arrive
+  Stream<String> processChatInputStream(String input) async* {
+    try {
+      // Improved debug log
+      if (EnvironmentService.debugMode) {
+        final estimatedTokens = AIHelpers.estimateTokens(input);
+        _logger.d(
+            '💬 Processing chat input (streaming) (${input.length} chars, ~$estimatedTokens tokens)');
+      }
+
+      final prompt = '''
+You are Moni AI, a smart financial assistant with advanced category management. Analyze user input and:
+
+1. If user inputs transaction info, IMMEDIATELY call addTransaction function with intelligent categorization:
+
+IMPORTANT: For amount parsing, preserve the original format including k/tr suffixes:
+- "18k" should be passed as "18k" not 18
+- "1tr" should be passed as "1tr" not 1
+- "500000" can be passed as 500000
+
+CATEGORY SYSTEM:
+- Each category now has smart emoji icons (🍽️ for food, 🚗 for transport, etc.)
+- Categories support parent-child hierarchy
+- Auto-create categories with appropriate emojis based on context
+- Vietnamese and English names supported
+
+INCOME examples:
+- "trợ cấp 1tr" → amount: "1tr", category: "Thu nhập", type: "income"  
+- "lương 10tr" → amount: "10tr", category: "Lương", type: "income"
+- "bán hàng 500k" → amount: "500k", category: "Bán hàng", type: "income"
+- "freelance 800k" → amount: "800k", category: "Freelance", type: "income"
+
+EXPENSE examples:
+- "ăn cơm 50k" → amount: "50k", category: "Ăn uống", type: "expense"
+- "xăng xe 200k" → amount: "200k", category: "Xăng xe", type: "expense"  
+- "mua áo 300k" → amount: "300k", category: "Mua sắm", type: "expense"
+- "xem phim 120k" → amount: "120k", category: "Giải trí", type: "expense"
+- "thuốc cảm 80k" → amount: "80k", category: "Y tế", type: "expense"
+- "học phí 2tr" → amount: "2tr", category: "Học tập", type: "expense"
+
+SMART CATEGORIZATION:
+- Food/Dining: "Ăn uống" (🍽️) - cơm, phở, ăn, uống, food, eat, restaurant
+- Transport: "Di chuyển" (🚗) - xe, xăng, grab, transport, taxi, bus
+- Shopping: "Mua sắm" (🛒) - mua, shopping, áo, giày, đồ
+- Entertainment: "Giải trí" (🎬) - phim, game, giải trí, movie, entertainment
+- Health: "Y tế" (🏥) - thuốc, bác sĩ, hospital, health, doctor
+- Education: "Học tập" (🏫) - học, school, course, education
+- Bills: "Hóa đơn" (🧾) - điện, nước, internet, phone, utilities
+- Work Income: "Lương" (💼) - lương, salary, work
+- Investment: "Đầu tư" (📈) - đầu tư, stock, investment
+- Bonus: "Thưởng" (🎁) - thưởng, bonus, gift
+
+2. If asking about transactions/finances, provide helpful insights
+3. If asking about categories, explain the new emoji system and management features
+4. Always respond in Vietnamese, friendly and helpful
+
+Current system features:
+- ✨ Emoji-based category icons
+- 🗂️ Hierarchical category organization  
+- 🎨 Smart auto-categorization
+- 📱 Easy category management interface
+- 🔄 Real-time category updates
+
+Guidelines:
+- Be conversational and helpful
+- Use emojis appropriately in responses
+- Explain financial concepts simply
+- Encourage good financial habits
+
+User input: "$input"
+''';
+
+      // Check if user is asking about categories or financial help
+      final inputLower = input.toLowerCase();
+      if (inputLower.contains('danh mục') ||
+          inputLower.contains('category') ||
+          inputLower.contains('emoji') ||
+          inputLower.contains('icon')) {
+        yield _handleCategoryHelp();
+        return;
+      }
+
+      if (inputLower.contains('help') ||
+          inputLower.contains('hướng dẫn') ||
+          inputLower.contains('làm sao') ||
+          inputLower.contains('cách')) {
+        yield _handleGeneralHelp();
+        return;
+      }
+
+      // Check usage before API call
+      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
+
+      // Use streaming for better UX
+      String fullResponse = '';
+      await for (final chunk in _model.generateContentStream([Content.text(prompt)])) {
+        final text = chunk.text;
+        if (text != null && text.isNotEmpty) {
+          fullResponse += text;
+          yield text; // Yield each chunk as it arrives
+        }
+
+        // Check for function calls (function calls come at the end)
+        if (chunk.functionCalls.isNotEmpty) {
+          // Function calls detected - stop streaming and handle
+          for (final functionCall in chunk.functionCalls) {
+            if (functionCall.name == 'addTransaction') {
+              final result = await _handleAddTransaction(functionCall.args);
+              yield result;
+              // Update token usage
+              await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, result);
+              return;
+            }
+          }
+        }
+      }
+
+      // Update token usage after streaming completes
+      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, fullResponse);
+
+      if (EnvironmentService.debugMode) {
+        _logger.d('✅ Chat processed successfully (streaming) (${fullResponse.length} chars)');
+      }
+    } catch (e) {
+      final errorType = AIHelpers.getErrorType(e);
+      _logger.e('❌ Error in chat processing (streaming): $e');
+      yield AIHelpers.getUserFriendlyErrorMessage(errorType);
+    }
+  }
+
+  /// Process chat input and return AI response (non-streaming, for backward compatibility)
   Future<String> processChatInput(String input) async {
     try {
       // Improved debug log

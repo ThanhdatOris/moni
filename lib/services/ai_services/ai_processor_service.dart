@@ -200,9 +200,19 @@ class AIProcessorService {
   // PUBLIC API - Chat Processing
   // ============================================================================
 
+  /// Get the primary GenerativeModel (for use with Flutter AI Toolkit)
+  /// Model includes function declarations for transaction management
+  GenerativeModel get model => _model;
+
   /// Process chat input and return AI response
   Future<String> processChatInput(String input) async {
     return await _chatHandler.processChatInput(input);
+  }
+
+  /// Process chat input with streaming response
+  /// Returns a stream of text chunks as they arrive (for better UX)
+  Stream<String> processChatInputStream(String input) async* {
+    yield* _chatHandler.processChatInputStream(input);
   }
 
   /// Generate welcome message

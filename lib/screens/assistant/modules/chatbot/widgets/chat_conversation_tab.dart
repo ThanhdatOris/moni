@@ -30,6 +30,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
   List<ChatMessage> _messages = [];
   bool _isTyping = false;
   bool _showQuickActions = true;
+  int _streamingMessageIndex = -1; // Index của message đang stream
 
   @override
   void initState() {
@@ -99,35 +100,75 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     _scrollToBottom();
 
     try {
-      // Direct AI call without wrapper layers
-      final response = await _aiService.processChatInput(text.trim());
-
-      // Extract transactionId from EDIT_BUTTON marker in text
-      String? transactionId;
-      String messageText = response;
-
-      final editButtonRegex = RegExp(r'\[EDIT_BUTTON:([^\]]+)\]');
-      final match = editButtonRegex.firstMatch(messageText);
-      if (match != null) {
-        transactionId = match.group(1);
-        // Remove the marker from display text but keep [EDIT_BUTTON] for widget detection
-        messageText = messageText.replaceAll(editButtonRegex, '[EDIT_BUTTON]');
-      }
-
+      // Create placeholder message for streaming
       final aiMessage = ChatMessage(
-        text: messageText,
+        text: '',
         isUser: false,
         timestamp: DateTime.now(),
-        transactionId: transactionId,
       );
 
       setState(() {
+        _streamingMessageIndex = _messages.length;
         _messages.add(aiMessage);
         _isTyping = false;
       });
 
-      // Save AI response
-      await _conversationService.addMessage(aiMessage);
+      // Use streaming for better UX - sử dụng method từ AIProcessorService
+      // Method này tự động xử lý function calls và token management
+      String fullResponse = '';
+      
+      await for (final chunk in _aiService.processChatInputStream(text.trim())) {
+        fullResponse += chunk;
+        
+        // Update streaming message in real-time
+        if (mounted && _streamingMessageIndex >= 0 && _streamingMessageIndex < _messages.length) {
+          setState(() {
+            _messages[_streamingMessageIndex] = ChatMessage(
+              text: fullResponse,
+              isUser: false,
+              timestamp: _messages[_streamingMessageIndex].timestamp,
+            );
+          });
+          _scrollToBottom();
+        }
+      }
+
+      // Extract transactionId from final response (if any)
+      String? transactionId;
+      String messageText = fullResponse;
+      final editButtonRegex = RegExp(r'\[EDIT_BUTTON:([^\]]+)\]');
+      final match = editButtonRegex.firstMatch(messageText);
+      if (match != null) {
+        transactionId = match.group(1);
+        messageText = messageText.replaceAll(editButtonRegex, '[EDIT_BUTTON]');
+      }
+
+      // Finalize message
+      if (mounted && _streamingMessageIndex >= 0 && _streamingMessageIndex < _messages.length) {
+        setState(() {
+          _messages[_streamingMessageIndex] = ChatMessage(
+            text: messageText,
+            isUser: false,
+            timestamp: _messages[_streamingMessageIndex].timestamp,
+            transactionId: transactionId,
+          );
+          _streamingMessageIndex = -1;
+        });
+      }
+
+      // Save AI response to ConversationService
+      if (_streamingMessageIndex >= 0 && _streamingMessageIndex < _messages.length) {
+        await _conversationService.addMessage(_messages[_streamingMessageIndex]);
+      } else if (fullResponse.isNotEmpty) {
+        // Fallback: create message if index is invalid
+        final finalMessage = ChatMessage(
+          text: messageText,
+          isUser: false,
+          timestamp: DateTime.now(),
+          transactionId: transactionId,
+        );
+        await _conversationService.addMessage(finalMessage);
+      }
     } catch (e) {
       final errorMessage = ChatMessage(
         text: 'Xin lỗi, có lỗi xảy ra khi xử lý tin nhắn. Vui lòng thử lại.',
