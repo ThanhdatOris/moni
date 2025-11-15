@@ -24,6 +24,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
   final AIProcessorService _aiService = GetIt.instance<AIProcessorService>();
   final ConversationService _conversationService = ConversationService();
   final UIOptimizationService _uiOptimization = UIOptimizationService();
+  final GenUIService _genUIService = GenUIService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -31,6 +32,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
   bool _isTyping = false;
   bool _showQuickActions = true;
   int _streamingMessageIndex = -1; // Index của message đang stream
+  List<String> _dynamicQuickActions = []; // GenUI-generated quick actions
 
   @override
   void initState() {
@@ -51,6 +53,9 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
   Future<void> _initializeConversation() async {
     await _conversationService.initialize();
+
+    // Generate initial quick actions với GenUI
+    _updateDynamicQuickActions();
 
     if (_conversationService.currentConversationId == null) {
       await _conversationService.startNewConversation();
@@ -144,21 +149,23 @@ class _ChatConversationTabState extends State<ChatConversationTab>
       }
 
       // Finalize message
-      if (mounted && _streamingMessageIndex >= 0 && _streamingMessageIndex < _messages.length) {
+      final finalMessageIndex = _streamingMessageIndex;
+      if (mounted && finalMessageIndex >= 0 && finalMessageIndex < _messages.length) {
         setState(() {
-          _messages[_streamingMessageIndex] = ChatMessage(
+          _messages[finalMessageIndex] = ChatMessage(
             text: messageText,
             isUser: false,
-            timestamp: _messages[_streamingMessageIndex].timestamp,
+            timestamp: _messages[finalMessageIndex].timestamp,
             transactionId: transactionId,
           );
           _streamingMessageIndex = -1;
         });
-      }
 
-      // Save AI response to ConversationService
-      if (_streamingMessageIndex >= 0 && _streamingMessageIndex < _messages.length) {
-        await _conversationService.addMessage(_messages[_streamingMessageIndex]);
+        // Save AI response to ConversationService
+        await _conversationService.addMessage(_messages[finalMessageIndex]);
+        
+        // Update dynamic quick actions với GenUI sau khi có response mới
+        _updateDynamicQuickActions();
       } else if (fullResponse.isNotEmpty) {
         // Fallback: create message if index is invalid
         final finalMessage = ChatMessage(
@@ -168,6 +175,9 @@ class _ChatConversationTabState extends State<ChatConversationTab>
           transactionId: transactionId,
         );
         await _conversationService.addMessage(finalMessage);
+        
+        // Update dynamic quick actions với GenUI
+        _updateDynamicQuickActions();
       }
     } catch (e) {
       final errorMessage = ChatMessage(
@@ -350,13 +360,40 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     );
   }
 
+  /// Update dynamic quick actions với GenUI
+  Future<void> _updateDynamicQuickActions() async {
+    try {
+      final actions = await _genUIService.generateQuickActions(_messages);
+      if (mounted) {
+        setState(() {
+          _dynamicQuickActions = actions;
+        });
+      }
+    } catch (e) {
+      // Fallback về default actions nếu có lỗi
+      if (mounted) {
+        setState(() {
+          _dynamicQuickActions = [
+            'Phân tích chi tiêu tháng này',
+            'Kế hoạch tiết kiệm',
+            'Đầu tư 10 triệu',
+            'Tips quản lý tài chính',
+          ];
+        });
+      }
+    }
+  }
+
   Widget _buildQuickActions() {
-    final quickActions = [
-      'Phân tích chi tiêu tháng này',
-      'Kế hoạch tiết kiệm',
-      'Đầu tư 10 triệu',
-      'Tips quản lý tài chính',
-    ];
+    // Sử dụng GenUI-generated actions nếu có, nếu không dùng default
+    final quickActions = _dynamicQuickActions.isNotEmpty
+        ? _dynamicQuickActions
+        : [
+            'Phân tích chi tiêu tháng này',
+            'Kế hoạch tiết kiệm',
+            'Đầu tư 10 triệu',
+            'Tips quản lý tài chính',
+          ];
 
     return Container(
       decoration: BoxDecoration(
