@@ -46,7 +46,7 @@ class SpendingCalculator {
   }
 
   /// Tính tổng chi tiêu cho nhiều categories cùng lúc (tối ưu performance)
-  /// Trả về Map<categoryId, spending>
+  /// Trả về Map\<categoryId, spending>
   Map<String, double> calculateMultipleCategorySpending({
     required List<TransactionModel> transactions,
     required List<String> categoryIds,
@@ -162,7 +162,7 @@ class SpendingCalculator {
 
   /// Tính tổng chi tiêu cho nhiều parent categories cùng lúc (tối ưu performance)
   /// Gộp spending của các child categories vào parent
-  /// Trả về Map<parentCategoryId, totalSpending>
+  /// Trả về Map\<parentCategoryId, totalSpending>
   Map<String, double> calculateMultipleParentCategorySpending({
     required List<TransactionModel> transactions,
     required List<String> parentCategoryIds,

@@ -5,7 +5,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:moni/constants/budget_constants.dart';
 
 import '../../models/budget_model.dart';
-import '../../models/category_model.dart';
 import '../core/base_service.dart';
 import 'category_service.dart';
 import 'spending_calculator.dart';

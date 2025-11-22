@@ -8,8 +8,8 @@ import 'package:moni/services/data/category_service.dart';
 import 'package:moni/utils/formatting/currency_formatter.dart';
 import 'package:moni/utils/helpers/category_icon_helper.dart';
 
-import '../../../assistant/services/real_data_service.dart' as real_data;
 import '../../../../models/category_model.dart';
+import '../../../assistant/services/real_data_service.dart' as real_data;
 import 'widgets/budget_input_form.dart';
 import 'widgets/budget_progress_indicator.dart';
 import 'widgets/budget_recommendation_card.dart';
@@ -69,7 +69,7 @@ class _BudgetScreenState extends State<BudgetScreen>
     try {
       // Sync budgets với transactions trước khi load
       await _budgetService.syncBudgetsWithTransactions();
-      
+
       // Service already initialized via DI
       _budgetData = await _realDataService.getBudgetData();
 
@@ -97,31 +97,33 @@ class _BudgetScreenState extends State<BudgetScreen>
       // Budget chỉ được tạo cho parent categories và tự động gộp spending của children
       final allCategoriesStream = _categoryService.getCategories();
       final allCategories = await allCategoriesStream.first;
-      
+
       // Filter chỉ lấy parent categories
       final categories = allCategories
           .where((c) => c.parentId == null || c.parentId!.isEmpty)
           .toList();
-      
+
       // Sử dụng BudgetAllocationService để tính toán phân bổ
       final allocationResult = _allocationService.calculateBudgetAllocation(
         income: budgetData.income,
         period: budgetData.period,
         priorityCategories: budgetData.priorityCategories,
         savingsGoal: budgetData.savingsGoal,
-        allCategories: allCategories, // Truyền allCategories để service có thể validate
+        allCategories:
+            allCategories, // Truyền allCategories để service có thể validate
       );
-      
+
       // Tạo budgets cho từng parent category
       int successCount = 0;
       final errors = <String>[];
-      
+
       for (final category in categories) {
-        final budgetAmount = allocationResult.categoryBudgets[category.categoryId] ?? 0.0;
-        
+        final budgetAmount =
+            allocationResult.categoryBudgets[category.categoryId] ?? 0.0;
+
         // Chỉ tạo budget nếu amount > 0
         if (budgetAmount <= 0) continue;
-        
+
         try {
           await _budgetService.createBudget(
             categoryId: category.categoryId,
@@ -144,10 +146,10 @@ class _BudgetScreenState extends State<BudgetScreen>
               backgroundColor: AppColors.success,
             ),
           );
-          
+
           // Reload budget data và sync với transactions
           await _loadBudgetData();
-          
+
           // Switch to track tab để user thấy ngay kết quả
           _tabController.animateTo(1);
         } else {
@@ -202,16 +204,17 @@ class _BudgetScreenState extends State<BudgetScreen>
   /// Convert real data CategoryBudgetProgress to widget CategoryBudgetProgress
   List<CategoryBudgetProgress> _convertCategoryProgress() {
     return _categoryProgress
-        .map((realData) => CategoryBudgetProgress(
-              name: realData.name,
-              color: realData.color,
-              budget: realData.budget,
-              spent: realData.spent,
-              icon: realData.icon,
-            ))
+        .map(
+          (realData) => CategoryBudgetProgress(
+            name: realData.name,
+            color: realData.color,
+            budget: realData.budget,
+            spent: realData.spent,
+            icon: realData.icon,
+          ),
+        )
         .toList();
   }
-
 
   @override
   void dispose() {
@@ -248,11 +251,13 @@ class _BudgetScreenState extends State<BudgetScreen>
             indicator: BoxDecoration(
               borderRadius: BorderRadius.circular(11), // Giảm từ 12 xuống 11
               color: Colors
-                  .green.shade600, // Solid xanh lá cây thay vì gradient primary
+                  .green
+                  .shade600, // Solid xanh lá cây thay vì gradient primary
               boxShadow: [
                 BoxShadow(
-                  color: Colors.green.shade600
-                      .withValues(alpha: 0.3), // Đổi màu shadow
+                  color: Colors.green.shade600.withValues(
+                    alpha: 0.3,
+                  ), // Đổi màu shadow
                   blurRadius: 4, // Giảm từ 6 xuống 4
                   offset: const Offset(0, 1), // Giảm từ 2 xuống 1
                 ),
@@ -261,10 +266,13 @@ class _BudgetScreenState extends State<BudgetScreen>
             labelColor: Colors.white,
             unselectedLabelColor: AppColors.textSecondary,
             labelStyle: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
-            unselectedLabelStyle:
-                const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ), // Giảm từ 12 xuống 10
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w400,
+            ),
             dividerColor: Colors.transparent,
             overlayColor: WidgetStateProperty.all(Colors.transparent),
             splashFactory: NoSplash.splashFactory,
@@ -378,7 +386,8 @@ class _BudgetScreenState extends State<BudgetScreen>
         child: Column(
           children: [
             BudgetRecommendationCard(
-              recommendation: _aiRecommendationText ??
+              recommendation:
+                  _aiRecommendationText ??
                   (_budgetData?.recommendations ?? const []).join('\n• '),
               tips: _budgetTips,
               isLoading: _isLoading,
@@ -405,9 +414,9 @@ class _BudgetScreenState extends State<BudgetScreen>
 
       if (mounted) {
         if (response.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Đã tạo gợi ý mới!')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Đã tạo gợi ý mới!')));
           setState(() {
             _aiRecommendationText = response;
           });
@@ -419,9 +428,9 @@ class _BudgetScreenState extends State<BudgetScreen>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
       }
     } finally {
       if (mounted) {
@@ -437,7 +446,7 @@ class _BudgetScreenState extends State<BudgetScreen>
 
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Điều chỉnh tổng ngân sách'),
           content: TextField(
@@ -450,33 +459,33 @@ class _BudgetScreenState extends State<BudgetScreen>
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy'),
             ),
             ElevatedButton(
               onPressed: () async {
                 final newTotal = double.tryParse(totalController.text) ?? 0;
                 if (newTotal <= 0 || _budgetData == null) {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                   return;
                 }
-                
-                Navigator.pop(context);
-                
+
+                Navigator.pop(dialogContext);
+
                 // Show loading
                 setState(() => _isLoading = true);
-                
+
                 try {
                   final oldTotal = _budgetData!.totalBudget;
                   final ratio = oldTotal > 0 ? newTotal / oldTotal : 1.0;
-                  
+
                   // Tính toán budgets mới cho từng category
                   final updatedBudgets = <String, double>{};
                   for (final category in _budgetData!.categoryProgress) {
                     final newBudget = category.budget * ratio;
                     updatedBudgets[category.categoryId] = newBudget;
                   }
-                  
+
                   // Lưu từng budget vào database
                   int successCount = 0;
                   for (final entry in updatedBudgets.entries) {
@@ -486,7 +495,7 @@ class _BudgetScreenState extends State<BudgetScreen>
                         (c) => c.categoryId == entry.key,
                         orElse: () => _budgetData!.categoryProgress.first,
                       );
-                      
+
                       // createBudget sẽ tự động update nếu đã có budget cho tháng này
                       await _budgetService.createBudget(
                         categoryId: entry.key,
@@ -495,17 +504,21 @@ class _BudgetScreenState extends State<BudgetScreen>
                       );
                       successCount++;
                     } catch (e) {
-                      debugPrint('Error updating budget for category ${entry.key}: $e');
+                      debugPrint(
+                        'Error updating budget for category ${entry.key}: $e',
+                      );
                     }
                   }
-                  
+
                   // Reload budget data từ database
                   await _loadBudgetData();
-                  
+
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Đã điều chỉnh $successCount ngân sách thành công!'),
+                      content: Text(
+                        'Đã điều chỉnh $successCount ngân sách thành công!',
+                      ),
                       backgroundColor: AppColors.success,
                     ),
                   );
@@ -573,18 +586,13 @@ class _BudgetScreenState extends State<BudgetScreen>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey[200]!),
-                ),
+                border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
               ),
               child: Row(
                 children: [
                   const Text(
                     'Chi tiết ngân sách',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
                   IconButton(
@@ -615,12 +623,24 @@ class _BudgetScreenState extends State<BudgetScreen>
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _buildDetailRow('Tổng ngân sách', _budgetData!.totalBudget),
-                          _buildDetailRow('Đã chi tiêu', _budgetData!.totalSpent),
-                          _buildDetailRow('Còn lại', _budgetData!.totalBudget - _budgetData!.totalSpent),
+                          _buildDetailRow(
+                            'Tổng ngân sách',
+                            _budgetData!.totalBudget,
+                          ),
+                          _buildDetailRow(
+                            'Đã chi tiêu',
+                            _budgetData!.totalSpent,
+                          ),
+                          _buildDetailRow(
+                            'Còn lại',
+                            _budgetData!.totalBudget - _budgetData!.totalSpent,
+                          ),
                           const SizedBox(height: 8),
                           LinearProgressIndicator(
-                            value: (_budgetData!.totalSpent / _budgetData!.totalBudget).clamp(0.0, 1.0),
+                            value:
+                                (_budgetData!.totalSpent /
+                                        _budgetData!.totalBudget)
+                                    .clamp(0.0, 1.0),
                             backgroundColor: Colors.grey[200],
                             valueColor: AlwaysStoppedAnimation<Color>(
                               _budgetData!.totalSpent > _budgetData!.totalBudget
@@ -646,7 +666,9 @@ class _BudgetScreenState extends State<BudgetScreen>
                   ..._categoryProgress.map((categoryProgress) {
                     // Tìm category đầy đủ từ categoryMap
                     final category = categoryMap[categoryProgress.categoryId];
-                    final categoryColor = Color(int.parse(categoryProgress.color.replaceAll('#', '0xFF')));
+                    final categoryColor = Color(
+                      int.parse(categoryProgress.color.replaceAll('#', '0xFF')),
+                    );
 
                     return Card(
                       margin: const EdgeInsets.only(bottom: 8),
@@ -680,7 +702,12 @@ class _BudgetScreenState extends State<BudgetScreen>
                           children: [
                             const SizedBox(height: 4),
                             LinearProgressIndicator(
-                              value: (categoryProgress.budget > 0 ? categoryProgress.spent / categoryProgress.budget : 0.0).clamp(0.0, 1.0),
+                              value:
+                                  (categoryProgress.budget > 0
+                                          ? categoryProgress.spent /
+                                                categoryProgress.budget
+                                          : 0.0)
+                                      .clamp(0.0, 1.0),
                               backgroundColor: Colors.grey[200],
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 categoryProgress.spent > categoryProgress.budget
@@ -706,7 +733,9 @@ class _BudgetScreenState extends State<BudgetScreen>
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: categoryProgress.spent > categoryProgress.budget
+                                color:
+                                    categoryProgress.spent >
+                                        categoryProgress.budget
                                     ? AppColors.error
                                     : AppColors.primary,
                               ),
@@ -742,16 +771,10 @@ class _BudgetScreenState extends State<BudgetScreen>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: TextStyle(color: Colors.grey[600]),
-          ),
+          Text(label, style: TextStyle(color: Colors.grey[600])),
           Text(
             CurrencyFormatter.formatAmountWithCurrency(amount),
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],
       ),
@@ -761,7 +784,7 @@ class _BudgetScreenState extends State<BudgetScreen>
   /// Hiển thị dialog để chỉnh sửa budget cho category
   /// Cho phép chọn: chỉ update category này hoặc giữ tổng budget không đổi
   Future<void> _showEditBudgetDialog(
-    BuildContext context,
+    BuildContext bottomSheetContext,
     real_data.CategoryBudgetProgress categoryProgress,
     String categoryName,
   ) async {
@@ -771,7 +794,7 @@ class _BudgetScreenState extends State<BudgetScreen>
     bool keepTotalBudget = false; // Mặc định: cho phép thay đổi tổng budget
 
     final result = await showDialog<Map<String, dynamic>>(
-      context: context,
+      context: bottomSheetContext,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text('Chỉnh sửa ngân sách: $categoryName'),
@@ -782,18 +805,12 @@ class _BudgetScreenState extends State<BudgetScreen>
               children: [
                 Text(
                   'Ngân sách hiện tại: ${CurrencyFormatter.formatAmountWithCurrency(categoryProgress.budget)}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Tổng ngân sách: ${CurrencyFormatter.formatAmountWithCurrency(_budgetData?.totalBudget ?? 0)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -810,10 +827,7 @@ class _BudgetScreenState extends State<BudgetScreen>
                 const SizedBox(height: 8),
                 Text(
                   'Đã chi tiêu: ${CurrencyFormatter.formatAmountWithCurrency(categoryProgress.spent)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 16),
                 // Option: Giữ tổng budget không đổi
@@ -842,7 +856,9 @@ class _BudgetScreenState extends State<BudgetScreen>
             ),
             ElevatedButton(
               onPressed: () {
-                final newBudget = double.tryParse(budgetController.text.replaceAll(',', ''));
+                final newBudget = double.tryParse(
+                  budgetController.text.replaceAll(',', ''),
+                );
                 if (newBudget == null || newBudget < 0) {
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
                     const SnackBar(
@@ -871,7 +887,7 @@ class _BudgetScreenState extends State<BudgetScreen>
     if (result != null && mounted) {
       final newBudget = result['budget'] as double;
       final keepTotal = result['keepTotal'] as bool;
-      
+
       if (newBudget < 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -891,16 +907,19 @@ class _BudgetScreenState extends State<BudgetScreen>
           // Tính sự thay đổi của category này
           final oldCategoryBudget = categoryProgress.budget;
           final budgetDiff = newBudget - oldCategoryBudget;
-          
+
           // Tính budget mới cho các category khác (giữ tổng không đổi)
           final otherCategories = _budgetData!.categoryProgress
               .where((c) => c.categoryId != categoryProgress.categoryId)
               .toList();
-          
+
           if (otherCategories.isNotEmpty) {
             // Phân bổ lại budget diff cho các category khác theo tỷ lệ
-            final totalOtherBudgets = otherCategories.fold(0.0, (sum, c) => sum + c.budget);
-            
+            final totalOtherBudgets = otherCategories.fold(
+              0.0,
+              (sum, c) => sum + c.budget,
+            );
+
             if (totalOtherBudgets > 0) {
               // Update category này trước
               await _budgetService.createBudget(
@@ -908,13 +927,15 @@ class _BudgetScreenState extends State<BudgetScreen>
                 categoryName: categoryName,
                 monthlyLimit: newBudget,
               );
-              
+
               // Update các category khác theo tỷ lệ
               for (final otherCategory in otherCategories) {
                 final ratio = otherCategory.budget / totalOtherBudgets;
-                final adjustment = -budgetDiff * ratio; // Trừ đi để giữ tổng không đổi
-                final newOtherBudget = (otherCategory.budget + adjustment).clamp(0.0, double.infinity);
-                
+                final adjustment =
+                    -budgetDiff * ratio; // Trừ đi để giữ tổng không đổi
+                final newOtherBudget = (otherCategory.budget + adjustment)
+                    .clamp(0.0, double.infinity);
+
                 await _budgetService.createBudget(
                   categoryId: otherCategory.categoryId,
                   categoryName: otherCategory.name,
@@ -950,13 +971,15 @@ class _BudgetScreenState extends State<BudgetScreen>
         await _loadBudgetData();
 
         // Đóng dialog chi tiết để user thấy data mới khi mở lại
-        Navigator.pop(context);
+        if (bottomSheetContext.mounted) {
+          Navigator.pop(bottomSheetContext);
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                keepTotal 
+                keepTotal
                     ? 'Đã cập nhật ngân sách (giữ tổng không đổi)'
                     : 'Đã cập nhật ngân sách cho $categoryName',
               ),
@@ -980,5 +1003,4 @@ class _BudgetScreenState extends State<BudgetScreen>
       }
     }
   }
-
 }
