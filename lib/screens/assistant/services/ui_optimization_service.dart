@@ -18,8 +18,8 @@ class UIOptimizationService extends ChangeNotifier {
   bool get isInAssistantChatMode => _isInAssistantChatMode;
   String get activeModule => _activeModule;
 
-  /// Xác định có nên ẩn menubar không - ẩn khi ở Assistant Chat mode
-  bool get shouldHideMenubar => _isInAssistantChatMode;
+  /// Xác định có nên ẩn menubar không - ẩn khi ở Assistant Chat mode VÀ đang focus chat
+  bool get shouldHideMenubar => _isInAssistantChatMode && _isChatFocused;
 
   /// Xác định có nên giảm spacing bottom không (khi menubar ẩn)
   bool get shouldReduceBottomSpacing => shouldHideMenubar;

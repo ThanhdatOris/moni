@@ -26,7 +26,9 @@ class _ChatConversationTabState extends State<ChatConversationTab>
   final UIOptimizationService _uiOptimization = UIOptimizationService();
   final GenUIService _genUIService = GenUIService();
   final TextEditingController _messageController = TextEditingController();
+
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
 
   List<ChatMessage> _messages = [];
   bool _isTyping = false;
@@ -49,6 +51,13 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
     // Listen for conversation changes
     _conversationService.addListener(_onConversationChanged);
+
+    // Listen for focus changes
+    _focusNode.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    _uiOptimization.setChatFocused(_focusNode.hasFocus);
   }
 
   Future<void> _initializeConversation() async {
@@ -80,6 +89,8 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     _conversationService.removeListener(_onConversationChanged);
     _messageController.dispose();
     _scrollController.dispose();
+    _focusNode.removeListener(_onFocusChange);
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -121,12 +132,16 @@ class _ChatConversationTabState extends State<ChatConversationTab>
       // Use streaming for better UX - sử dụng method từ AIProcessorService
       // Method này tự động xử lý function calls và token management
       String fullResponse = '';
-      
-      await for (final chunk in _aiService.processChatInputStream(text.trim())) {
+
+      await for (final chunk in _aiService.processChatInputStream(
+        text.trim(),
+      )) {
         fullResponse += chunk;
-        
+
         // Update streaming message in real-time
-        if (mounted && _streamingMessageIndex >= 0 && _streamingMessageIndex < _messages.length) {
+        if (mounted &&
+            _streamingMessageIndex >= 0 &&
+            _streamingMessageIndex < _messages.length) {
           setState(() {
             _messages[_streamingMessageIndex] = ChatMessage(
               text: fullResponse,
@@ -150,7 +165,9 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
       // Finalize message
       final finalMessageIndex = _streamingMessageIndex;
-      if (mounted && finalMessageIndex >= 0 && finalMessageIndex < _messages.length) {
+      if (mounted &&
+          finalMessageIndex >= 0 &&
+          finalMessageIndex < _messages.length) {
         setState(() {
           _messages[finalMessageIndex] = ChatMessage(
             text: messageText,
@@ -163,7 +180,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
         // Save AI response to ConversationService
         await _conversationService.addMessage(_messages[finalMessageIndex]);
-        
+
         // Update dynamic quick actions với GenUI sau khi có response mới
         _updateDynamicQuickActions();
       } else if (fullResponse.isNotEmpty) {
@@ -175,7 +192,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
           transactionId: transactionId,
         );
         await _conversationService.addMessage(finalMessage);
-        
+
         // Update dynamic quick actions với GenUI
         _updateDynamicQuickActions();
       }
@@ -214,29 +231,32 @@ class _ChatConversationTabState extends State<ChatConversationTab>
   Widget build(BuildContext context) {
     super.build(context);
 
-    return Container(
-      color: AppColors.background,
-      child: Column(
-        children: [
-          // Messages list với dynamic padding cho menubar
-          Expanded(
-            child: AnimatedBuilder(
-              animation: _uiOptimization,
-              builder: (context, child) {
-                // Không thêm bottom spacing nhân tạo ở đây để tránh khoảng xám giữa danh sách và gợi ý/input
-                return _messages.isEmpty
-                    ? _buildEmptyState()
-                    : _buildMessagesList();
-              },
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Container(
+        color: AppColors.background,
+        child: Column(
+          children: [
+            // Messages list với dynamic padding cho menubar
+            Expanded(
+              child: AnimatedBuilder(
+                animation: _uiOptimization,
+                builder: (context, child) {
+                  // Không thêm bottom spacing nhân tạo ở đây để tránh khoảng xám giữa danh sách và gợi ý/input
+                  return _messages.isEmpty
+                      ? _buildEmptyState()
+                      : _buildMessagesList();
+                },
+              ),
             ),
-          ),
 
-          // Quick actions (when visible)
-          if (_showQuickActions) _buildQuickActions(),
+            // Quick actions (when visible)
+            if (_showQuickActions) _buildQuickActions(),
 
-          // Input area
-          _buildInputArea(),
-        ],
+            // Input area
+            _buildInputArea(),
+          ],
+        ),
       ),
     );
   }
@@ -270,10 +290,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
           const SizedBox(height: 8),
           Text(
             'Hỏi tôi về tài chính, đầu tư, hay ngân sách',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -398,9 +415,7 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Colors.grey[200]!, width: 1),
-        ),
+        border: Border(top: BorderSide(color: Colors.grey[200]!, width: 1)),
       ),
       child: ShaderMask(
         shaderCallback: (Rect bounds) {
@@ -424,33 +439,38 @@ class _ChatConversationTabState extends State<ChatConversationTab>
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             itemCount: quickActions.length,
             itemBuilder: (context, index) {
-            final action = quickActions[index];
-            return Padding(
-              padding: EdgeInsets.only(right: index < quickActions.length - 1 ? 8 : 0),
-              child: GestureDetector(
-                onTap: () => _sendMessage(action),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.2),
+              final action = quickActions[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index < quickActions.length - 1 ? 8 : 0,
+                ),
+                child: GestureDetector(
+                  onTap: () => _sendMessage(action),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      action,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w500,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        action,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            );
+              );
             },
           ),
         ),
@@ -459,61 +479,80 @@ class _ChatConversationTabState extends State<ChatConversationTab>
   }
 
   Widget _buildInputArea() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        // Giảm/loại bỏ hiệu ứng đổ bóng hướng lên gây cảm giác "vệt xám" che nội dung phía trên
-        boxShadow: const [],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: TextField(
-                controller: _messageController,
-                decoration: InputDecoration(
-                  hintText: 'Nhập tin nhắn...',
-                  hintStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-                  border: InputBorder.none,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                ),
-                maxLines: null,
-                textCapitalization: TextCapitalization.sentences,
-                onSubmitted: _sendMessage,
-              ),
-            ),
+    return AnimatedBuilder(
+      animation: _uiOptimization,
+      builder: (context, child) {
+        return Container(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            12,
+            16,
+            // Sử dụng getBottomSpacing nhưng giới hạn tối thiểu là 12 (padding mặc định)
+            // Khi menubar hiện (120), padding sẽ là 120 (để tránh menubar)
+            // Khi menubar ẩn (20), padding sẽ là 20 (để cách keyboard/bottom một chút)
+            _uiOptimization.getBottomSpacing(),
           ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: () => _sendMessage(_messageController.text),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primary.withValues(alpha: 0.8)
-                  ],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.send_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            // Giảm/loại bỏ hiệu ứng đổ bóng hướng lên gây cảm giác "vệt xám" che nội dung phía trên
+            boxShadow: const [],
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: TextField(
+                    focusNode: _focusNode,
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Nhập tin nhắn...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 14,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                    ),
+                    maxLines: null,
+                    textCapitalization: TextCapitalization.sentences,
+                    onSubmitted: _sendMessage,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: () => _sendMessage(_messageController.text),
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primary,
+                        AppColors.primary.withValues(alpha: 0.8),
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.send_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
