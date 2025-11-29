@@ -57,9 +57,7 @@ class CategoryService {
         throw Exception('Người dùng chưa đăng nhập');
       }
 
-      final updatedCategory = category.copyWith(
-        updatedAt: DateTime.now(),
-      );
+      final updatedCategory = category.copyWith(updatedAt: DateTime.now());
 
       await _firestore
           .collection('users')
@@ -71,7 +69,8 @@ class CategoryService {
       // ✅ IMPROVED: Only log in debug mode with essential info
       if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
         _logger.d(
-            '📝 Category updated: ${category.name} (${category.categoryId})');
+          '📝 Category updated: ${category.name} (${category.categoryId})',
+        );
       }
     } catch (e) {
       _logger.e('❌ Lỗi cập nhật danh mục: $e');
@@ -128,9 +127,9 @@ class CategoryService {
           .collection('categories')
           .doc(categoryId)
           .update({
-        'parent_id': parentId,
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'parent_id': parentId,
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
       // ✅ IMPROVED: Only log in debug mode with essential info
       if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
@@ -199,9 +198,7 @@ class CategoryService {
   }
 
   /// Lấy danh sách danh mục của người dùng
-  Stream<List<CategoryModel>> getCategories({
-    TransactionType? type,
-  }) {
+  Stream<List<CategoryModel>> getCategories({TransactionType? type}) {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -228,6 +225,9 @@ class CategoryService {
       }
 
       return query.snapshots().map((snapshot) {
+        // ⏱️ PERFORMANCE: Measure query processing time
+        final startTime = DateTime.now();
+
         // ✅ IMPROVED: Reduce log spam với throttling
         if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
           final now = DateTime.now();
@@ -238,7 +238,8 @@ class CategoryService {
           if (lastLogTime == null ||
               now.difference(lastLogTime).inSeconds > 5) {
             _logger.d(
-                '📦 Categories query returned ${snapshot.docs.length} documents${type != null ? " (filtered by ${type.value})" : ""}');
+              '📦 Categories query returned ${snapshot.docs.length} documents${type != null ? " (filtered by ${type.value})" : ""}',
+            );
             _lastLogTimes[cacheKey] = now;
           }
         }
@@ -250,6 +251,14 @@ class CategoryService {
 
         // ✅ FIXED: Always sort on client side để tránh index requirements
         categories.sort((a, b) => a.name.compareTo(b.name));
+
+        // ⏱️ PERFORMANCE: Log processing time
+        final processingTime = DateTime.now().difference(startTime);
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
+          _logger.d(
+            '⏱️ Category query processed in ${processingTime.inMilliseconds}ms',
+          );
+        }
 
         return categories;
       });
@@ -281,7 +290,9 @@ class CategoryService {
       return query.snapshots().map((snapshot) {
         return snapshot.docs.map((doc) {
           return CategoryModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          );
         }).toList();
       });
     } catch (e) {
@@ -306,10 +317,10 @@ class CategoryService {
           .orderBy('name')
           .snapshots()
           .map((snapshot) {
-        return snapshot.docs.map((doc) {
-          return CategoryModel.fromMap(doc.data(), doc.id);
-        }).toList();
-      });
+            return snapshot.docs.map((doc) {
+              return CategoryModel.fromMap(doc.data(), doc.id);
+            }).toList();
+          });
     } catch (e) {
       _logger.e('❌ Error getting child categories: $e');
       return Stream.value([]);
@@ -333,7 +344,9 @@ class CategoryService {
 
       if (doc.exists && doc.data() != null) {
         return CategoryModel.fromMap(
-            doc.data() as Map<String, dynamic>, doc.id);
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
       }
       return null;
     } catch (e) {
@@ -364,7 +377,9 @@ class CategoryService {
       return query.snapshots().map((snapshot) {
         return snapshot.docs.map((doc) {
           return CategoryModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          );
         }).toList();
       });
     } catch (e) {
@@ -406,37 +421,37 @@ class CategoryService {
           'name': 'Ăn uống',
           'icon': '🍽️',
           'iconType': 'emoji',
-          'color': 0xFFFF6B35
+          'color': 0xFFFF6B35,
         },
         {
           'name': 'Di chuyển',
           'icon': '🚗',
           'iconType': 'emoji',
-          'color': 0xFF2196F3
+          'color': 0xFF2196F3,
         },
         {
           'name': 'Mua sắm',
           'icon': '🛒',
           'iconType': 'emoji',
-          'color': 0xFF9C27B0
+          'color': 0xFF9C27B0,
         },
         {
           'name': 'Giải trí',
           'icon': '🎬',
           'iconType': 'emoji',
-          'color': 0xFFFF9800
+          'color': 0xFFFF9800,
         },
         {
           'name': 'Hóa đơn',
           'icon': '🧾',
           'iconType': 'emoji',
-          'color': 0xFFF44336
+          'color': 0xFFF44336,
         },
         {
           'name': 'Y tế',
           'icon': '🏥',
           'iconType': 'emoji',
-          'color': 0xFF4CAF50
+          'color': 0xFF4CAF50,
         },
       ];
 
@@ -446,25 +461,25 @@ class CategoryService {
           'name': 'Lương',
           'icon': '💼',
           'iconType': 'emoji',
-          'color': 0xFF4CAF50
+          'color': 0xFF4CAF50,
         },
         {
           'name': 'Thưởng',
           'icon': '🎁',
           'iconType': 'emoji',
-          'color': 0xFFFFD700
+          'color': 0xFFFFD700,
         },
         {
           'name': 'Đầu tư',
           'icon': '📈',
           'iconType': 'emoji',
-          'color': 0xFF00BCD4
+          'color': 0xFF00BCD4,
         },
         {
           'name': 'Khác',
           'icon': '💰',
           'iconType': 'emoji',
-          'color': 0xFF607D8B
+          'color': 0xFF607D8B,
         },
       ];
 
@@ -483,7 +498,8 @@ class CategoryService {
           type: TransactionType.expense,
           icon: categoryData['icon'] as String,
           iconType: CategoryIconType.fromString(
-              categoryData['iconType'] as String? ?? 'material'),
+            categoryData['iconType'] as String? ?? 'material',
+          ),
           color: categoryData['color'] as int,
           isDefault: true,
           parentId: null,
@@ -510,7 +526,8 @@ class CategoryService {
           type: TransactionType.income,
           icon: categoryData['icon'] as String,
           iconType: CategoryIconType.fromString(
-              categoryData['iconType'] as String? ?? 'material'),
+            categoryData['iconType'] as String? ?? 'material',
+          ),
           color: categoryData['color'] as int,
           isDefault: true,
           parentId: null,
@@ -525,7 +542,8 @@ class CategoryService {
       await batch.commit();
       // ✅ IMPROVED: Single comprehensive success message
       _logger.i(
-          '📁 Default categories created successfully (${expenseCategories.length + incomeCategories.length} categories)');
+        '📁 Default categories created successfully (${expenseCategories.length + incomeCategories.length} categories)',
+      );
     } catch (e) {
       _logger.e('❌ Error creating default categories: $e');
       throw Exception('Không thể tạo danh mục mặc định: $e');

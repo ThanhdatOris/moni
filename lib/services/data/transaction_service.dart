@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
-
 import 'package:moni/constants/enums.dart';
 
 import '../../models/transaction_model.dart';
@@ -18,9 +17,8 @@ class TransactionService {
   // Chống spam log
   final Map<String, DateTime> _lastLogTimes = {};
 
-  TransactionService({
-    required OfflineService offlineService,
-  }) : _offlineService = offlineService;
+  TransactionService({required OfflineService offlineService})
+    : _offlineService = offlineService;
 
   /// Tạo giao dịch mới
   Future<String> createTransaction(TransactionModel transaction) async {
@@ -42,6 +40,9 @@ class TransactionService {
 
   /// Tạo giao dịch online
   Future<String> _createTransactionOnline(TransactionModel transaction) async {
+    // ⏱️ PERFORMANCE: Start timing
+    final startTime = DateTime.now();
+
     final user = _auth.currentUser;
     if (user == null) {
       throw Exception('Người dùng chưa đăng nhập');
@@ -60,7 +61,12 @@ class TransactionService {
         .collection('transactions')
         .add(transactionData.toMap());
 
-    _logger.i('Tạo giao dịch online thành công: ${docRef.id}');
+    // ⏱️ PERFORMANCE: Log creation time
+    final duration = DateTime.now().difference(startTime);
+    _logger.i(
+      '💡 Tạo giao dịch online thành công: ${docRef.id} (${duration.inMilliseconds}ms)',
+    );
+
     return docRef.id;
   }
 
@@ -129,9 +135,9 @@ class TransactionService {
           .collection('transactions')
           .doc(transactionId)
           .update({
-        'is_deleted': true,
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'is_deleted': true,
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
       _logger.i('Xóa giao dịch thành công: $transactionId');
     } catch (e) {
@@ -172,17 +178,22 @@ class TransactionService {
           .orderBy('date', descending: true);
 
       if (startDate != null) {
-        query = query.where('date',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        query = query.where(
+          'date',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        );
       }
       if (endDate != null) {
-        query = query.where('date',
-            isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        query = query.where(
+          'date',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        );
       }
 
       if (startAfterDocument != null) {
-        query = (query as Query<Map<String, dynamic>>)
-            .startAfterDocument(startAfterDocument);
+        query = (query as Query<Map<String, dynamic>>).startAfterDocument(
+          startAfterDocument,
+        );
       }
 
       if (limit != null) {
@@ -193,42 +204,58 @@ class TransactionService {
         query = query.limit(effectiveLimit);
       }
 
-      return query.snapshots().handleError((error) {
-        _logger.e('Lỗi stream giao dịch: $error');
-        // Nếu lỗi index, fallback về query đơn giản
-        if (error.toString().contains('failed-precondition') ||
-            error.toString().contains('index')) {
-          _logger.w('Sử dụng fallback query do lỗi index');
-          return _getFallbackTransactions(
-              type, categoryId, startDate, endDate, limit);
-        }
-        return Stream.value(<TransactionModel>[]);
-      }).map((snapshot) {
-        var transactions = snapshot.docs.map((doc) {
-          return TransactionModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
-        }).toList();
+      return query
+          .snapshots()
+          .handleError((error) {
+            _logger.e('Lỗi stream giao dịch: $error');
+            // Nếu lỗi index, fallback về query đơn giản
+            if (error.toString().contains('failed-precondition') ||
+                error.toString().contains('index')) {
+              _logger.w('Sử dụng fallback query do lỗi index');
+              return _getFallbackTransactions(
+                type,
+                categoryId,
+                startDate,
+                endDate,
+                limit,
+              );
+            }
+            return Stream.value(<TransactionModel>[]);
+          })
+          .map((snapshot) {
+            var transactions = snapshot.docs.map((doc) {
+              return TransactionModel.fromMap(
+                doc.data() as Map<String, dynamic>,
+                doc.id,
+              );
+            }).toList();
 
-        // Lọc client để đảm bảo không cần composite index
-        transactions = transactions
-            .where((t) => !t.isDeleted)
-            .where((t) => type == null ? true : t.type == type)
-            .where(
-                (t) => categoryId == null ? true : t.categoryId == categoryId)
-            .toList();
+            // Lọc client để đảm bảo không cần composite index
+            transactions = transactions
+                .where((t) => !t.isDeleted)
+                .where((t) => type == null ? true : t.type == type)
+                .where(
+                  (t) => categoryId == null ? true : t.categoryId == categoryId,
+                )
+                .toList();
 
-        // Thực thi limit sau khi lọc
-        if (limit != null && transactions.length > limit) {
-          transactions = transactions.take(limit).toList();
-        }
+            // Thực thi limit sau khi lọc
+            if (limit != null && transactions.length > limit) {
+              transactions = transactions.take(limit).toList();
+            }
 
-        return transactions;
-      });
+            return transactions;
+          });
     } catch (e) {
       _logger.e('Lỗi lấy danh sách giao dịch: $e');
       // Fallback khi có lỗi
       return _getFallbackTransactions(
-          type, categoryId, startDate, endDate, limit);
+        type,
+        categoryId,
+        startDate,
+        endDate,
+        limit,
+      );
     }
   }
 
@@ -256,7 +283,9 @@ class TransactionService {
       return query.snapshots().map((snapshot) {
         var transactions = snapshot.docs.map((doc) {
           return TransactionModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          );
         }).toList();
 
         // Filter và sắp xếp trong client
@@ -265,21 +294,25 @@ class TransactionService {
         }
 
         if (categoryId != null) {
-          transactions =
-              transactions.where((t) => t.categoryId == categoryId).toList();
+          transactions = transactions
+              .where((t) => t.categoryId == categoryId)
+              .toList();
         }
 
         if (startDate != null) {
           transactions = transactions
-              .where((t) =>
-                  t.date.isAfter(startDate.subtract(const Duration(days: 1))))
+              .where(
+                (t) =>
+                    t.date.isAfter(startDate.subtract(const Duration(days: 1))),
+              )
               .toList();
         }
 
         if (endDate != null) {
           transactions = transactions
               .where(
-                  (t) => t.date.isBefore(endDate.add(const Duration(days: 1))))
+                (t) => t.date.isBefore(endDate.add(const Duration(days: 1))),
+              )
               .toList();
         }
 
@@ -337,9 +370,9 @@ class TransactionService {
           .collection('transactions')
           .doc(transactionId)
           .update({
-        'category_id': categoryId,
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'category_id': categoryId,
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
       _logger.i('Gán danh mục thành công cho giao dịch: $transactionId');
     } catch (e) {
@@ -366,13 +399,17 @@ class TransactionService {
           .orderBy('date', descending: true);
 
       if (startDate != null) {
-        query = query.where('date',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        query = query.where(
+          'date',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        );
       }
 
       if (endDate != null) {
-        query = query.where('date',
-            isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        query = query.where(
+          'date',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        );
       }
 
       final snapshot = await query.get();
@@ -472,13 +509,17 @@ class TransactionService {
           .orderBy('date', descending: true);
 
       if (startDate != null) {
-        query = query.where('date',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        query = query.where(
+          'date',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        );
       }
 
       if (endDate != null) {
-        query = query.where('date',
-            isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        query = query.where(
+          'date',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        );
       }
 
       final snapshot = await query.get();
@@ -588,26 +629,31 @@ class TransactionService {
           .orderBy('date', descending: true)
           .limit(limit * 2);
 
-      return query.snapshots().handleError((error) {
-        _logger.e('Lỗi stream giao dịch gần đây: $error');
-        // Nếu lỗi index, fallback về method không order
-        if (error.toString().contains('failed-precondition') ||
-            error.toString().contains('index')) {
-          _logger.w('Sử dụng fallback query cho giao dịch gần đây');
-          return _getRecentTransactionsFallback(limit);
-        }
-        return Stream.value(<TransactionModel>[]);
-      }).map((snapshot) {
-        var list = snapshot.docs
-            .map((doc) {
-              return TransactionModel.fromMap(
-                  doc.data() as Map<String, dynamic>, doc.id);
-            })
-            .where((t) => !t.isDeleted)
-            .toList();
-        if (list.length > limit) list = list.take(limit).toList();
-        return list;
-      });
+      return query
+          .snapshots()
+          .handleError((error) {
+            _logger.e('Lỗi stream giao dịch gần đây: $error');
+            // Nếu lỗi index, fallback về method không order
+            if (error.toString().contains('failed-precondition') ||
+                error.toString().contains('index')) {
+              _logger.w('Sử dụng fallback query cho giao dịch gần đây');
+              return _getRecentTransactionsFallback(limit);
+            }
+            return Stream.value(<TransactionModel>[]);
+          })
+          .map((snapshot) {
+            var list = snapshot.docs
+                .map((doc) {
+                  return TransactionModel.fromMap(
+                    doc.data() as Map<String, dynamic>,
+                    doc.id,
+                  );
+                })
+                .where((t) => !t.isDeleted)
+                .toList();
+            if (list.length > limit) list = list.take(limit).toList();
+            return list;
+          });
     } catch (e) {
       _logger.e('Lỗi lấy giao dịch gần đây: $e');
       return _getRecentTransactionsFallback(limit);
@@ -632,7 +678,9 @@ class TransactionService {
       return query.snapshots().map((snapshot) {
         var transactions = snapshot.docs.map((doc) {
           return TransactionModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          );
         }).toList();
 
         // Sắp xếp theo ngày mới nhất và limit trong client
@@ -682,8 +730,11 @@ class TransactionService {
       // Chỉ log ở debug mode và có throttling để tránh trùng lặp
       if (EnvironmentService.debugMode) {
         // Gom theo ngày để tránh spam với các request gần nhau
-        final dayStart =
-            DateTime(startDate.year, startDate.month, startDate.day);
+        final dayStart = DateTime(
+          startDate.year,
+          startDate.month,
+          startDate.day,
+        );
         final dayEnd = DateTime(endDate.year, endDate.month, endDate.day);
         final String key =
             'getRange_${dayStart.toIso8601String()}_${dayEnd.toIso8601String()}';
@@ -691,7 +742,8 @@ class TransactionService {
         final last = _lastLogTimes[key];
         if (last == null || now.difference(last).inSeconds > 5) {
           _logger.d(
-              '💡 Lấy ${transactions.length} giao dịch từ ${startDate.toIso8601String()} đến ${endDate.toIso8601String()}');
+            '💡 Lấy ${transactions.length} giao dịch từ ${startDate.toIso8601String()} đến ${endDate.toIso8601String()}',
+          );
           _lastLogTimes[key] = now;
         }
       }

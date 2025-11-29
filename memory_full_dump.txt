@@ -1,0 +1,63 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 21968467 Realtime: 33746458
+
+** MEMINFO in pid 5804 [com.oris.moni] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    44128    44108        0       91    45736   101344    67343    28488
+  Dalvik Heap     6945     6864       20       73     8616    30869     6293    24576
+ Dalvik Other    12915     6340        0        0    19892                           
+        Stack     2752     2752        0        0     2756                           
+       Ashmem       31        0        0        0      788                           
+    Other dev       17        8        4        0      668                           
+     .so mmap     8420      392     1612       16    44648                           
+    .jar mmap     3465        0     1120        0    40392                           
+    .apk mmap    26778      640    22512        0    37484                           
+    .ttf mmap     5414        0     5156        0     6112                           
+    .dex mmap     2321       68     1800        0     4308                           
+    .oat mmap       37        0        0        0     1956                           
+    .art mmap     8206     7628      288       41    20036                           
+   Other mmap    48894        4    45472        0    53216                           
+   EGL mtrack    38159    38159        0        0    38159                           
+    GL mtrack    82072    82072        0        0    82072                           
+      Unknown   168976   167516     1256       34   173368                           
+        TOTAL   459785   356551    79240      255   580207   132213    73636    53064
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14780                          28652
+         Native Heap:    44108                          45736
+                Code:    33404                         148156
+               Stack:     2752                           2756
+            Graphics:   120231                         120231
+       Private Other:   220516
+              System:    23994
+             Unknown:                                  234676
+ 
+           TOTAL PSS:   459785            TOTAL RSS:   580207       TOTAL SWAP PSS:      255
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        7           Activities:        1
+              Assets:       64        AssetManagers:        0
+       Local Binders:       33        Proxy Binders:       72
+       Parcel memory:       18         Parcel count:       74
+    Death Recipients:        1             WebViews:        0
+ 
+ SQL
+         MEMORY_USED:      403
+  PAGECACHE_OVERFLOW:      289          MALLOC_SIZE:       46
+ 
+ DATABASES
+      pgsz     dbsz   Lookaside(b) cache hits cache misses cache size  Dbname
+PER CONNECTION STATS
+         4      364            110   393   168    25  /data/user/0/com.oris.moni/databases/firestore.%5BDEFAULT%5D.oris-sproject.%28default%29
+POOL STATS
+     cache hits  cache misses    cache size  Dbname
+            393           169           562  /data/user/0/com.oris.moni/databases/firestore.%5BDEFAULT%5D.oris-sproject.%28default%29
+ 
+ Asset Allocations
+    : 1607K
+    : 17K
