@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:moni/config/app_config.dart';
 import '../../services/ui_optimization_service.dart';
 import '../../widgets/assistant_error_card.dart';
 import '../../widgets/assistant_loading_card.dart';
+import '../../widgets/assistant_module_tab_bar.dart';
 import 'widgets/chat_conversation_tab.dart';
 import 'widgets/chat_history_tab.dart';
 import 'widgets/chat_settings_tab.dart';
@@ -62,7 +62,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     try {
       // Initialize chatbot services and load conversation history
       await Future.delayed(
-          const Duration(milliseconds: 500)); // Simulate initialization
+        const Duration(milliseconds: 500),
+      ); // Simulate initialization
 
       setState(() => _isLoading = false);
     } catch (e) {
@@ -79,92 +80,48 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     return Column(
       children: [
         // Tab bar only (no redundant header)
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 0),
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: AppColors.backgroundLight,
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(14),
-              bottomRight: Radius.circular(14),
+        AssistantModuleTabBar(
+          controller: _tabController,
+          indicatorColor: Colors.teal.shade600,
+          tabs: const [
+            Tab(
+              height: 32,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.chat_bubble_outline, size: 14),
+                  SizedBox(width: 4),
+                  Text('Chat'),
+                ],
+              ),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 1),
+            Tab(
+              height: 40,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.history, size: 14),
+                  SizedBox(width: 4),
+                  Text('Lịch sử'),
+                ],
               ),
-            ],
-          ),
-          child: TabBar(
-            controller: _tabController,
-            indicatorSize: TabBarIndicatorSize.tab,
-            indicator: BoxDecoration(
-              borderRadius: BorderRadius.circular(11), // Giảm từ 12 xuống 11
-              color:
-                  Colors.teal.shade600, // Solid teal thay vì gradient primary
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.teal.shade600
-                      .withValues(alpha: 0.3), // Đổi màu shadow
-                  blurRadius: 4, // Giảm từ 6 xuống 4
-                  offset: const Offset(0, 1), // Giảm từ 2 xuống 1
-                ),
-              ],
             ),
-            labelColor: Colors.white,
-            unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600), // Giảm từ 12 xuống 10
-            unselectedLabelStyle:
-                const TextStyle(fontSize: 10, fontWeight: FontWeight.w400),
-            dividerColor: Colors.transparent,
-            overlayColor: WidgetStateProperty.all(Colors.transparent),
-            splashFactory: NoSplash.splashFactory,
-            tabs: const [
-              Tab(
-                height: 32, // Giảm từ 40 xuống 32
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.chat_bubble_outline,
-                        size: 14), // Giảm size từ 16 xuống 14
-                    SizedBox(width: 4), // Giảm từ 6 xuống 4
-                    Text('Chat'),
-                  ],
-                ),
+            Tab(
+              height: 40,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.settings, size: 14),
+                  SizedBox(width: 4),
+                  Text('Cài đặt'),
+                ],
               ),
-              Tab(
-                height: 40,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.history, size: 14),
-                    SizedBox(width: 4),
-                    Text('Lịch sử'),
-                  ],
-                ),
-              ),
-              Tab(
-                height: 40,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.settings, size: 14), // Giảm size từ 16 xuống 14
-                    SizedBox(width: 4), // Giảm từ 6 xuống 4
-                    Text('Cài đặt'),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
 
         // Content with loading/error handling
-        Expanded(
-          child: _buildContent(),
-        ),
+        Expanded(child: _buildContent()),
       ],
     );
   }
@@ -173,9 +130,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     if (_isLoading) {
       return const Padding(
         padding: EdgeInsets.all(20),
-        child: AssistantLoadingCard(
-          showTitle: true,
-        ),
+        child: AssistantLoadingCard(showTitle: true),
       );
     }
 

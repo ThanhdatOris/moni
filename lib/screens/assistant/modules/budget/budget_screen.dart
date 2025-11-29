@@ -10,6 +10,7 @@ import 'package:moni/utils/helpers/category_icon_helper.dart';
 
 import '../../../../models/category_model.dart';
 import '../../../assistant/services/real_data_service.dart' as real_data;
+import '../../widgets/assistant_module_tab_bar.dart';
 import 'widgets/budget_input_form.dart';
 import 'widgets/budget_progress_indicator.dart';
 import 'widgets/budget_recommendation_card.dart';
@@ -227,100 +228,53 @@ class _BudgetScreenState extends State<BudgetScreen>
     return Column(
       children: [
         // Tab bar only (no redundant header)
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 0),
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: AppColors.backgroundLight,
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(14),
-              bottomRight: Radius.circular(14),
+        AssistantModuleTabBar(
+          controller: _tabController,
+          indicatorColor: Colors.green.shade600,
+          tabs: const [
+            Tab(
+              height: 32,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.account_balance_wallet_outlined, size: 14),
+                    SizedBox(width: 4),
+                    Text('Tạo mới'),
+                  ],
+                ),
+              ),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: TabBar(
-            controller: _tabController,
-            isScrollable: false,
-            indicatorSize: TabBarIndicatorSize.tab,
-            indicator: BoxDecoration(
-              borderRadius: BorderRadius.circular(11), // Giảm từ 12 xuống 11
-              color: Colors
-                  .green
-                  .shade600, // Solid xanh lá cây thay vì gradient primary
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.green.shade600.withValues(
-                    alpha: 0.3,
-                  ), // Đổi màu shadow
-                  blurRadius: 4, // Giảm từ 6 xuống 4
-                  offset: const Offset(0, 1), // Giảm từ 2 xuống 1
+            Tab(
+              height: 40,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.trending_up, size: 14),
+                    SizedBox(width: 4),
+                    Text('Theo dõi'),
+                  ],
                 ),
-              ],
+              ),
             ),
-            labelColor: Colors.white,
-            unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ), // Giảm từ 12 xuống 10
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w400,
+            Tab(
+              height: 40,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.psychology, size: 14),
+                    SizedBox(width: 4),
+                    Text('Gợi ý AI'),
+                  ],
+                ),
+              ),
             ),
-            dividerColor: Colors.transparent,
-            overlayColor: WidgetStateProperty.all(Colors.transparent),
-            splashFactory: NoSplash.splashFactory,
-            tabs: const [
-              Tab(
-                height: 32,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.account_balance_wallet_outlined, size: 14),
-                      SizedBox(width: 4),
-                      Text('Tạo mới'),
-                    ],
-                  ),
-                ),
-              ),
-              Tab(
-                height: 40,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.trending_up, size: 14),
-                      SizedBox(width: 4),
-                      Text('Theo dõi'),
-                    ],
-                  ),
-                ),
-              ),
-              Tab(
-                height: 40,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.psychology, size: 14),
-                      SizedBox(width: 4),
-                      Text('Gợi ý AI'),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
 
         // Content

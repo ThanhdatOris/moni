@@ -66,6 +66,9 @@ class ReportPreviewContainer extends StatelessWidget {
 
         // Sample sections
         ...preview.sections.map((section) => _buildSectionPreview(section)),
+
+        // Bottom spacing
+        const SizedBox(height: 120),
       ],
     );
   }

@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:moni/config/app_config.dart';
 import 'package:moni/services/services.dart';
 
+import '../../widgets/assistant_module_tab_bar.dart';
 import 'widgets/report_chart_preview.dart';
 import 'widgets/report_export_options.dart';
 import 'widgets/report_preview_container.dart';
@@ -100,89 +101,44 @@ class _ReportsScreenState extends State<ReportsScreen>
     return Column(
       children: [
         // Tab bar only (no redundant header)
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 0),
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: AppColors.backgroundLight,
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(14),
-              bottomRight: Radius.circular(14),
+        AssistantModuleTabBar(
+          controller: _tabController,
+          indicatorColor: Colors.purple.shade600,
+          tabs: const [
+            Tab(
+              height: 32,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.description_outlined, size: 14),
+                  SizedBox(width: 4),
+                  Text('Templates'),
+                ],
+              ),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 6,
-                offset: const Offset(0, 1),
+            Tab(
+              height: 40,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.preview, size: 14),
+                  SizedBox(width: 4),
+                  Text('Preview'),
+                ],
               ),
-            ],
-          ),
-          child: TabBar(
-            controller: _tabController,
-            indicatorSize: TabBarIndicatorSize.tab,
-            indicator: BoxDecoration(
-              borderRadius: BorderRadius.circular(11), // Giảm từ 12 xuống 11
-              color:
-                  Colors.purple.shade600, // Solid tím thay vì gradient primary
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.purple.shade600.withValues(
-                    alpha: 0.3,
-                  ), // Đổi màu shadow
-                  blurRadius: 4, // Giảm từ 6 xuống 4
-                  offset: const Offset(0, 1), // Giảm từ 2 xuống 1
-                ),
-              ],
             ),
-            labelColor: Colors.white,
-            unselectedLabelColor: AppColors.textSecondary,
-            labelStyle: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ), // Giảm từ 12 xuống 10
-            unselectedLabelStyle: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w400,
+            Tab(
+              height: 40,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.file_download, size: 14),
+                  SizedBox(width: 4),
+                  Text('Export'),
+                ],
+              ),
             ),
-            dividerColor: Colors.transparent,
-            overlayColor: WidgetStateProperty.all(Colors.transparent),
-            splashFactory: NoSplash.splashFactory,
-            tabs: const [
-              Tab(
-                height: 32,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.description_outlined, size: 14),
-                    SizedBox(width: 4),
-                    Text('Templates'),
-                  ],
-                ),
-              ),
-              Tab(
-                height: 40,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.preview, size: 14),
-                    SizedBox(width: 4),
-                    Text('Preview'),
-                  ],
-                ),
-              ),
-              Tab(
-                height: 40,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.file_download, size: 14),
-                    SizedBox(width: 4),
-                    Text('Export'),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          ],
         ),
 
         // Content
@@ -202,7 +158,7 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildTemplatesTab() {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -216,27 +172,23 @@ class _ReportsScreenState extends State<ReportsScreen>
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: _availableTemplates.length,
-                    itemBuilder: (context, index) {
-                      final template = _availableTemplates[index];
-                      return ReportTemplateCard(
-                        template: template,
-                        isSelected: _selectedTemplate?.id == template.id,
-                        isLoading: _isLoading,
-                        onSelect: () => _showPreview(template),
-                        onPreview: () => _showPreview(template),
-                        onGenerate: () => _generateReport(template),
-                      );
-                    },
-                  ),
-                ),
-                // Bottom spacing for menubar
-                const SizedBox(height: 120),
-              ],
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: _availableTemplates.length + 1,
+              itemBuilder: (context, index) {
+                if (index == _availableTemplates.length) {
+                  return const SizedBox(height: 120);
+                }
+                final template = _availableTemplates[index];
+                return ReportTemplateCard(
+                  template: template,
+                  isSelected: _selectedTemplate?.id == template.id,
+                  isLoading: _isLoading,
+                  onSelect: () => _showPreview(template),
+                  onPreview: () => _showPreview(template),
+                  onGenerate: () => _generateReport(template),
+                );
+              },
             ),
           ),
         ],

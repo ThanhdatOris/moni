@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-
 import 'package:moni/config/app_config.dart';
+
 import '../services/conversation_service.dart';
 
 /// Chat history tab showing conversation history
 class ChatHistoryTab extends StatefulWidget {
   final TabController? tabController;
 
-  const ChatHistoryTab({
-    super.key,
-    this.tabController,
-  });
+  const ChatHistoryTab({super.key, this.tabController});
 
   @override
   State<ChatHistoryTab> createState() => _ChatHistoryTabState();
@@ -69,17 +66,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
 
           // Conversation list với spacing cho menubar
           Expanded(
-            child: Column(
-              children: [
-                Expanded(
-                  child: _isLoading
-                      ? _buildLoadingState()
-                      : _buildConversationList(),
-                ),
-                // Bottom spacing for menubar
-                const SizedBox(height: 120),
-              ],
-            ),
+            child: _isLoading ? _buildLoadingState() : _buildConversationList(),
           ),
         ],
       ),
@@ -130,40 +117,39 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
     required String value,
     required Color color,
     required double height,
-  }) =>
-      _buildStatCard(
-        icon: icon,
-        title: title,
-        value: value,
-        color: color,
-        height: height,
-      );
+  }) => _buildStatCard(
+    icon: icon,
+    title: title,
+    value: value,
+    color: color,
+    height: height,
+  );
 
   Widget _headerActions(double height) => SizedBox(
-        width: 56,
-        height: height,
-        child: Column(
-          children: [
-            Expanded(
-              child: _buildSquareIconButton(
-                icon: Icons.refresh,
-                color: AppColors.info,
-                onPressed: _loadConversationHistory,
-                tooltip: 'Làm mới',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: _buildSquareIconButton(
-                icon: Icons.add,
-                color: AppColors.success,
-                onPressed: _createNewConversation,
-                tooltip: 'Tạo mới',
-              ),
-            ),
-          ],
+    width: 56,
+    height: height,
+    child: Column(
+      children: [
+        Expanded(
+          child: _buildSquareIconButton(
+            icon: Icons.refresh,
+            color: AppColors.info,
+            onPressed: _loadConversationHistory,
+            tooltip: 'Làm mới',
+          ),
         ),
-      );
+        const SizedBox(height: 8),
+        Expanded(
+          child: _buildSquareIconButton(
+            icon: Icons.add,
+            color: AppColors.success,
+            onPressed: _createNewConversation,
+            tooltip: 'Tạo mới',
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildSquareIconButton({
     required IconData icon,
@@ -184,9 +170,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
     final stack = Stack(
       children: [
         Positioned.fill(child: button),
-        const Positioned.fill(
-          child: IgnorePointer(child: SizedBox()),
-        ),
+        const Positioned.fill(child: IgnorePointer(child: SizedBox())),
         Positioned.fill(
           child: Center(
             child: Icon(icon, color: AppColors.textWhite, size: 22),
@@ -345,8 +329,12 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
     }
 
     return ListView.builder(
-      itemCount: _conversations.length,
+      padding: EdgeInsets.zero,
+      itemCount: _conversations.length + 1,
       itemBuilder: (context, index) {
+        if (index == _conversations.length) {
+          return const SizedBox(height: 120);
+        }
         final conversation = _conversations[index];
         return _buildConversationCard(conversation);
       },
@@ -358,11 +346,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 64,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'Chưa có cuộc trò chuyện nào',
@@ -375,10 +359,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
           const SizedBox(height: 8),
           Text(
             'Bắt đầu trò chuyện với AI để xem lịch sử',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],
       ),
@@ -423,8 +404,10 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
@@ -454,18 +437,11 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Icon(
-                    Icons.access_time,
-                    size: 14,
-                    color: Colors.grey[500],
-                  ),
+                  Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
                   const SizedBox(width: 4),
                   Text(
                     _formatRelativeTime(conversation.lastUpdate),
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                   const Spacer(),
                   Icon(
@@ -515,7 +491,8 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
   }
 
   Future<void> _showConversationOptions(
-      ConversationSummary conversation) async {
+    ConversationSummary conversation,
+  ) async {
     // Đảm bảo không có TextField nào đang focus trước khi mở sheet
     FocusScope.of(context).unfocus();
 
@@ -529,10 +506,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
           children: [
             Text(
               conversation.title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -590,11 +564,13 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
               if (newTitle.isNotEmpty) {
                 // Cache Navigator before async gap
                 final navigator = Navigator.of(dialogContext);
-                
+
                 await _conversationService.renameConversation(
-                    conversation.id, newTitle);
+                  conversation.id,
+                  newTitle,
+                );
                 await _loadConversationHistory();
-                
+
                 // Use cached navigator instead of context
                 navigator.pop();
               }
@@ -612,7 +588,8 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
       builder: (dialogContext) => AlertDialog(
         title: const Text('Xóa cuộc trò chuyện'),
         content: Text(
-            'Bạn có chắc muốn xóa cuộc trò chuyện "${conversation.title}"?\n\nHành động này không thể hoàn tác.'),
+          'Bạn có chắc muốn xóa cuộc trò chuyện "${conversation.title}"?\n\nHành động này không thể hoàn tác.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
@@ -622,10 +599,10 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
             onPressed: () async {
               // Cache Navigator before async gap
               final navigator = Navigator.of(dialogContext);
-              
+
               await _conversationService.deleteConversation(conversation.id);
               await _loadConversationHistory();
-              
+
               // Use cached navigator instead of context
               navigator.pop();
             },
