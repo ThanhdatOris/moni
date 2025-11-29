@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:logger/logger.dart';
 
+import '../../models/assistant/chat_message_model.dart';
 import '../core/environment_service.dart';
 import 'ai_services.dart';
 
@@ -52,21 +53,86 @@ class AIProcessorService {
         Schema(
           SchemaType.object,
           properties: {
-            'amount': Schema(SchemaType.string,
-                description:
-                    'Transaction amount (preserve k/tr format: "18k", "1tr", or plain number)'),
-            'description': Schema(SchemaType.string,
-                description: 'Transaction description'),
-            'category': Schema(SchemaType.string,
-                description:
-                    'Smart category with auto-emoji assignment: "Ăn uống" (🍽️), "Di chuyển" (🚗), "Mua sắm" (🛒), "Giải trí" (🎬), "Y tế" (🏥), "Học tập" (🏫), "Hóa đơn" (🧾), "Lương" (💼), "Đầu tư" (📈), "Thưởng" (🎁), "Freelance" (💻), "Bán hàng" (💸), or create new category with appropriate name'),
-            'type': Schema(SchemaType.string,
-                description:
-                    'Transaction type: "income" for salary/bonus/earning/selling, "expense" for spending/buying/payments'),
-            'date': Schema(SchemaType.string,
-                description: 'Transaction date (YYYY-MM-DD), optional'),
+            'amount': Schema(
+              SchemaType.string,
+              description:
+                  'Transaction amount (preserve k/tr format: "18k", "1tr", or plain number)',
+            ),
+            'description': Schema(
+              SchemaType.string,
+              description: 'Transaction description',
+            ),
+            'category': Schema(
+              SchemaType.string,
+              description:
+                  'Smart category with auto-emoji assignment: "Ăn uống" (🍽️), "Di chuyển" (🚗), "Mua sắm" (🛒), "Giải trí" (🎬), "Y tế" (🏥), "Học tập" (🏫), "Hóa đơn" (🧾), "Lương" (💼), "Đầu tư" (📈), "Thưởng" (🎁), "Freelance" (💻), "Bán hàng" (💸), or create new category with appropriate name',
+            ),
+            'type': Schema(
+              SchemaType.string,
+              description:
+                  'Transaction type: "income" for salary/bonus/earning/selling, "expense" for spending/buying/payments',
+            ),
+            'date': Schema(
+              SchemaType.string,
+              description: 'Transaction date (YYYY-MM-DD), optional',
+            ),
           },
           requiredProperties: ['amount', 'description', 'category', 'type'],
+        ),
+      ),
+      FunctionDeclaration(
+        'getMonthlyReport',
+        'Get financial report for a specific month (income, expense, balance) to analyze spending',
+        Schema(
+          SchemaType.object,
+          properties: {
+            'month': Schema(
+              SchemaType.integer,
+              description:
+                  'Month (1-12). Defaults to current month if not specified.',
+            ),
+            'year': Schema(
+              SchemaType.integer,
+              description:
+                  'Year (e.g. 2024). Defaults to current year if not specified.',
+            ),
+          },
+          requiredProperties: [],
+        ),
+      ),
+      FunctionDeclaration(
+        'updateTransaction',
+        'Update an existing transaction. Use this when user wants to correct or modify a previous transaction.',
+        Schema(
+          SchemaType.object,
+          properties: {
+            'transactionId': Schema(
+              SchemaType.string,
+              description:
+                  'The ID of the transaction to update. Try to find this in the conversation history (e.g. from [EDIT_BUTTON:ID]).',
+            ),
+            'amount': Schema(
+              SchemaType.string,
+              description: 'New amount (optional)',
+            ),
+            'description': Schema(
+              SchemaType.string,
+              description: 'New description (optional)',
+            ),
+            'category': Schema(
+              SchemaType.string,
+              description: 'New category (optional)',
+            ),
+            'type': Schema(
+              SchemaType.string,
+              description: 'New type (income/expense) (optional)',
+            ),
+            'date': Schema(
+              SchemaType.string,
+              description: 'New date (YYYY-MM-DD) (optional)',
+            ),
+          },
+          requiredProperties: ['transactionId'],
         ),
       ),
     ];
@@ -107,7 +173,8 @@ class AIProcessorService {
         _logger.d('✅ Fallback model 2: Gemini 1.5 Pro');
       } catch (e) {
         _logger.w(
-            '⚠️ Fallback model 2 (gemini-1.5-pro) initialization failed: $e');
+          '⚠️ Fallback model 2 (gemini-1.5-pro) initialization failed: $e',
+        );
       }
     } catch (e) {
       _logger.e('❌ Failed to initialize primary Gemini model: $e');
@@ -118,7 +185,8 @@ class AIProcessorService {
         _logger.w('⚠️ Using fallback model 1 (gemini-pro)');
       } else {
         throw Exception(
-            'Could not initialize any Gemini model. Please check your API key and internet connection.');
+          'Could not initialize any Gemini model. Please check your API key and internet connection.',
+        );
       }
     }
 
@@ -140,10 +208,7 @@ class AIProcessorService {
       tokenManager: _tokenManager,
     );
 
-    _chatHandler = AIChatHandler(
-      model: _model,
-      tokenManager: _tokenManager,
-    );
+    _chatHandler = AIChatHandler(model: _model, tokenManager: _tokenManager);
 
     _transactionProcessor = AITransactionProcessor(
       model: _model,
@@ -151,12 +216,14 @@ class AIProcessorService {
       getIt: _getIt,
     );
 
-    _logger.i('🤖 AI Processor Service initialized successfully'
-        '\n  Model: $initializedModel'
-        '\n  Functions: ${functions.length} available'
-        '\n  Modules: 6 specialized services'
-        '\n  Token Limit: ${_tokenManager.dailyTokenLimit}/day'
-        '\n  Smart Cache: Enabled with tiered priorities');
+    _logger.i(
+      '🤖 AI Processor Service initialized successfully'
+      '\n  Model: $initializedModel'
+      '\n  Functions: ${functions.length} available'
+      '\n  Modules: 6 specialized services'
+      '\n  Token Limit: ${_tokenManager.dailyTokenLimit}/day'
+      '\n  Smart Cache: Enabled with tiered priorities',
+    );
   }
 
   // ============================================================================
@@ -171,7 +238,8 @@ class AIProcessorService {
   /// Batch category suggestions for multiple transactions
   /// Returns Map\<description, category>
   Future<Map<String, String>> suggestCategoriesBatch(
-      List<String> descriptions) async {
+    List<String> descriptions,
+  ) async {
     return await _categoryService.suggestCategoriesBatch(descriptions);
   }
 
@@ -191,7 +259,8 @@ class AIProcessorService {
 
   /// Analyze spending habits and give advice
   Future<String> analyzeSpendingHabits(
-      Map<String, dynamic> transactionData) async {
+    Map<String, dynamic> transactionData,
+  ) async {
     return await _textGenerator.analyzeSpendingHabits(transactionData);
   }
 
@@ -210,8 +279,11 @@ class AIProcessorService {
 
   /// Process chat input with streaming response
   /// Returns a stream of text chunks as they arrive (for better UX)
-  Stream<String> processChatInputStream(String input) async* {
-    yield* _chatHandler.processChatInputStream(input);
+  Stream<String> processChatInputStream(
+    String input, {
+    List<ChatMessage>? history,
+  }) async* {
+    yield* _chatHandler.processChatInputStream(input, history: history);
   }
 
   /// Generate welcome message
@@ -225,13 +297,15 @@ class AIProcessorService {
 
   /// Extract transaction from image using OCR + AI
   Future<Map<String, dynamic>> extractTransactionFromImageWithOCR(
-      File imageFile) async {
+    File imageFile,
+  ) async {
     return await _transactionProcessor.extractTransactionFromImage(imageFile);
   }
 
   /// Legacy method - delegates to OCR version
   Future<Map<String, dynamic>> extractTransactionFromImage(
-      File imageFile) async {
+    File imageFile,
+  ) async {
     return await extractTransactionFromImageWithOCR(imageFile);
   }
 

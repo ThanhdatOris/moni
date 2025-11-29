@@ -113,7 +113,7 @@ class ConversationService extends ChangeNotifier {
       // Fallback to local ID
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final random = (timestamp % 10000).toString().padLeft(4, '0');
-      _currentConversationId = '${timestamp}_$random';
+      _currentConversationId = 'temp_${timestamp}_$random';
     }
 
     _currentMessages.clear();

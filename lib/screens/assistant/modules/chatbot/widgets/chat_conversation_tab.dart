@@ -133,8 +133,12 @@ class _ChatConversationTabState extends State<ChatConversationTab>
       // Method này tự động xử lý function calls và token management
       String fullResponse = '';
 
+      // Pass history for context (excluding the placeholder AI message)
+      final historyContext = _messages.take(_messages.length - 1).toList();
+
       await for (final chunk in _aiService.processChatInputStream(
         text.trim(),
+        history: historyContext,
       )) {
         fullResponse += chunk;
 

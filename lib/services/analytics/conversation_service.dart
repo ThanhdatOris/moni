@@ -54,9 +54,7 @@ class ConversationService {
   }
 
   /// Tạo cuộc hội thoại mới
-  Future<String> createConversation({
-    required String title,
-  }) async {
+  Future<String> createConversation({required String title}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -103,11 +101,10 @@ class ConversationService {
           .orderBy('updated_at', descending: true)
           .snapshots()
           .map((snapshot) {
-        return snapshot.docs.map((doc) {
-          return ConversationModel.fromMap(
-              doc.data(), doc.id);
-        }).toList();
-      });
+            return snapshot.docs.map((doc) {
+              return ConversationModel.fromMap(doc.data(), doc.id);
+            }).toList();
+          });
     } catch (e) {
       _logger.e('Lỗi lấy danh sách cuộc hội thoại: $e');
       return Stream.value([]);
@@ -131,7 +128,9 @@ class ConversationService {
 
       if (doc.exists) {
         return ConversationModel.fromMap(
-            doc.data() as Map<String, dynamic>, doc.id);
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
       }
 
       return null;
@@ -188,10 +187,7 @@ class ConversationService {
     required String newTitle,
   }) async {
     try {
-      await updateConversation(
-        conversationId: conversationId,
-        title: newTitle,
-      );
+      await updateConversation(conversationId: conversationId, title: newTitle);
       _logger.i('Cập nhật tiêu đề cuộc hội thoại thành công: $newTitle');
     } catch (e) {
       _logger.e('Lỗi cập nhật tiêu đề cuộc hội thoại: $e');
@@ -223,11 +219,13 @@ class ConversationService {
       }
 
       // Xóa cuộc hội thoại
-      batch.delete(_firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('conversations')
-          .doc(conversationId));
+      batch.delete(
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('conversations')
+            .doc(conversationId),
+      );
 
       await batch.commit();
 
@@ -283,6 +281,11 @@ class ConversationService {
 
   /// Tăng số lượng tin nhắn trong cuộc hội thoại
   Future<void> incrementMessageCount(String conversationId) async {
+    // Skip if temporary conversation
+    if (conversationId.startsWith('temp_')) {
+      return;
+    }
+
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -295,9 +298,9 @@ class ConversationService {
           .collection('conversations')
           .doc(conversationId)
           .update({
-        'message_count': FieldValue.increment(1),
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'message_count': FieldValue.increment(1),
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
       _logger.i('Tăng message count thành công: $conversationId');
     } catch (e) {
@@ -307,9 +310,7 @@ class ConversationService {
   }
 
   /// Lấy cuộc hội thoại gần nhất hoặc tạo mới
-  Future<String> getOrCreateActiveConversation({
-    String? firstQuestion,
-  }) async {
+  Future<String> getOrCreateActiveConversation({String? firstQuestion}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -329,7 +330,7 @@ class ConversationService {
       if (recentConversations.docs.isNotEmpty) {
         final conversationDoc = recentConversations.docs.first;
         final conversationId = conversationDoc.id;
-        
+
         // ✅ ENHANCED: Set conversation as active nếu chưa active
         final conversationData = conversationDoc.data();
         if (conversationData['is_active'] != true) {
@@ -338,20 +339,19 @@ class ConversationService {
               .doc(user.uid)
               .collection('conversations')
               .doc(conversationId)
-              .update({
-            'is_active': true,
-            'updated_at': DateTime.now(),
-          });
+              .update({'is_active': true, 'updated_at': DateTime.now()});
           _logger.i('Set conversation as active: $conversationId');
         }
-        
+
         _logger.i('Using recent conversation: $conversationId');
         return conversationId;
       }
 
       // Nếu không có conversation nào, tạo mới với tiêu đề động
       _logger.i('No existing conversations, creating new one');
-      final newConversationId = await createConversationWithTitle(firstQuestion: firstQuestion);
+      final newConversationId = await createConversationWithTitle(
+        firstQuestion: firstQuestion,
+      );
       return newConversationId;
     } catch (e) {
       _logger.e('Lỗi lấy hoặc tạo cuộc hội thoại: $e');
