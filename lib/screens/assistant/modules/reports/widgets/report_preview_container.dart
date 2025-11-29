@@ -41,9 +41,6 @@ class ReportPreviewContainer extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Header
-          _buildHeader(context),
-
           // Preview content
           Expanded(
             child: SingleChildScrollView(
@@ -54,68 +51,6 @@ class ReportPreviewContainer extends StatelessWidget {
 
           // Action buttons
           _buildActionButtons(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.primaryDark],
-        ),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onClose,
-            icon: const Icon(Icons.close, color: Colors.white),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  preview.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Xem trước báo cáo • ${preview.estimatedPages} trang',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              'PREVIEW',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -148,7 +83,9 @@ class ReportPreviewContainer extends StatelessWidget {
           _buildOverviewItem('Thời gian tạo', preview.generatedDate),
           _buildOverviewItem('Kỳ báo cáo', preview.period),
           _buildOverviewItem(
-              'Số lượng giao dịch', '${preview.transactionCount}'),
+            'Số lượng giao dịch',
+            '${preview.transactionCount}',
+          ),
           _buildOverviewItem('Tổng số trang', '${preview.estimatedPages}'),
           const SizedBox(height: 12),
           Container(
@@ -245,49 +182,31 @@ class ReportPreviewContainer extends StatelessWidget {
   }
 
   Widget _buildChartPreview() {
-    if (charts != null && charts!.isNotEmpty) {
-      return GridView.count(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        physics: const NeverScrollableScrollPhysics(),
-        shrinkWrap: true,
-        children: charts!
-            .take(2)
-            .map((c) => ReportChartPreview(
-                  chartData: c,
-                  chartType: ChartType.donut,
-                  height: 160,
-                ))
-            .toList(),
-      );
-    }
-
     return Container(
-      height: 120,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.bar_chart,
-              color: Colors.white.withValues(alpha: 0.6),
-              size: 32,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Biểu đồ mẫu',
+      child: Row(
+        children: [
+          Icon(
+            Icons.pie_chart_outline,
+            color: Colors.white.withValues(alpha: 0.6),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Biểu đồ sẽ được hiển thị chi tiết trong file báo cáo',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
