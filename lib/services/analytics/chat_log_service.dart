@@ -24,7 +24,8 @@ class ChatLogService {
       // Nếu conversationId bắt đầu bằng 'temp_', không lưu vào Firestore
       if (conversationId.startsWith('temp_')) {
         _logger.i(
-            'Bỏ qua lưu chat log cho conversation tạm thời: $conversationId');
+          'Bỏ qua lưu chat log cho conversation tạm thời: $conversationId',
+        );
         return 'temp_${DateTime.now().millisecondsSinceEpoch}';
       }
 
@@ -91,15 +92,19 @@ class ChatLogService {
       // Thêm orderBy và các filter khác
       try {
         query = query.orderBy('created_at', descending: true);
-        
+
         if (startDate != null) {
-          query = query.where('created_at',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+          query = query.where(
+            'created_at',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          );
         }
 
         if (endDate != null) {
-          query = query.where('created_at',
-              isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+          query = query.where(
+            'created_at',
+            isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+          );
         }
       } catch (e) {
         _logger.w('OrderBy failed (missing index?), using basic query: $e');
@@ -118,26 +123,104 @@ class ChatLogService {
       }
 
       return query.snapshots().map((snapshot) {
-        final logs = snapshot.docs.map((doc) {
-          try {
-            final data = doc.data() as Map<String, dynamic>;
-            return ChatLogModel.fromMap(data, doc.id);
-          } catch (e) {
-            _logger.e('Error parsing chat log document ${doc.id}: $e');
-            return null;
-          }
-        }).where((log) => log != null).cast<ChatLogModel>().toList();
-        
+        final logs = snapshot.docs
+            .map((doc) {
+              try {
+                final data = doc.data() as Map<String, dynamic>;
+                return ChatLogModel.fromMap(data, doc.id);
+              } catch (e) {
+                _logger.e('Error parsing chat log document ${doc.id}: $e');
+                return null;
+              }
+            })
+            .where((log) => log != null)
+            .cast<ChatLogModel>()
+            .toList();
+
         // Sort manually nếu orderBy không work
         if (logs.isNotEmpty) {
           logs.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         }
-        
+
         return logs;
       });
     } catch (e) {
       _logger.e('Lỗi lấy lịch sử chat: $e');
       return Stream.value([]);
+    }
+  }
+
+  /// Lấy lịch sử chat một lần (Future) - Dùng cho việc sync
+  Future<List<ChatLogModel>> getLogsOnce({String? conversationId}) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return [];
+
+      if (conversationId != null && conversationId.startsWith('temp_')) {
+        return [];
+      }
+
+      Query query = _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('chat_logs');
+
+      if (conversationId != null) {
+        query = query.where('conversation_id', isEqualTo: conversationId);
+      }
+
+      // Sort by created_at
+      query = query.orderBy(
+        'created_at',
+        descending: false,
+      ); // Ascending for chat history
+
+      final snapshot = await query.get();
+
+      return snapshot.docs
+          .map((doc) {
+            try {
+              final data = doc.data() as Map<String, dynamic>;
+              return ChatLogModel.fromMap(data, doc.id);
+            } catch (e) {
+              return null;
+            }
+          })
+          .where((log) => log != null)
+          .cast<ChatLogModel>()
+          .toList();
+    } catch (e) {
+      _logger.e('Lỗi lấy logs once: $e');
+      // Fallback query nếu orderBy lỗi
+      final user = _auth.currentUser;
+      if (conversationId != null && user != null) {
+        try {
+          final snapshot = await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('chat_logs')
+              .where('conversation_id', isEqualTo: conversationId)
+              .get();
+
+          final logs = snapshot.docs
+              .map((doc) {
+                try {
+                  return ChatLogModel.fromMap(doc.data(), doc.id);
+                } catch (e) {
+                  return null;
+                }
+              })
+              .where((log) => log != null)
+              .cast<ChatLogModel>()
+              .toList();
+
+          logs.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+          return logs;
+        } catch (e2) {
+          return [];
+        }
+      }
+      return [];
     }
   }
 
@@ -195,10 +278,10 @@ class ChatLogService {
           .collection('chat_logs')
           .doc(interactionId)
           .update({
-        'transaction_id': transactionId,
-        'transaction_data': transactionData,
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'transaction_id': transactionId,
+            'transaction_data': transactionData,
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
       _logger.i('Cập nhật chat log với transaction thành công: $interactionId');
     } catch (e) {

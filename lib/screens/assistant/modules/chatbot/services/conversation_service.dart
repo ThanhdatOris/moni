@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:moni/services/analytics/chat_log_service.dart';
+import 'package:moni/services/analytics/conversation_service.dart' as cloud;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../../models/assistant/chat_message_model.dart';
@@ -15,6 +17,11 @@ class ConversationService extends ChangeNotifier {
 
   static const String _conversationsKey = 'chatbot_conversations';
   static const String _currentConversationKey = 'current_conversation_id';
+
+  // Cloud services
+  final cloud.ConversationService _cloudConversationService =
+      cloud.ConversationService();
+  final ChatLogService _chatLogService = ChatLogService();
 
   // Current conversation state
   String? _currentConversationId;
@@ -31,6 +38,9 @@ class ConversationService extends ChangeNotifier {
     _currentConversationId = prefs.getString(_currentConversationKey);
     // Real data service already initialized via DI
 
+    // Sync history from cloud in background
+    _syncHistoryFromCloud();
+
     // Load existing conversation if available, otherwise start new one
     if (_currentConversationId != null) {
       await _loadCurrentConversation();
@@ -39,12 +49,73 @@ class ConversationService extends ChangeNotifier {
     }
   }
 
+  /// Sync conversation history from Cloud to Local
+  Future<void> _syncHistoryFromCloud() async {
+    try {
+      // Get conversations from Firestore (using stream but taking first snapshot)
+      final conversationsStream = _cloudConversationService.getConversations();
+      final cloudConversations = await conversationsStream.first;
+
+      if (cloudConversations.isEmpty) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      final localJsonList = prefs.getStringList(_conversationsKey) ?? [];
+
+      // Convert local JSONs to map for easier merging
+      final Map<String, ConversationSummary> localMap = {};
+      for (final json in localJsonList) {
+        final data = jsonDecode(json) as Map<String, dynamic>;
+        final summary = ConversationSummary.fromJson(data);
+        localMap[summary.id] = summary;
+      }
+
+      // Merge cloud data
+      bool hasChanges = false;
+      for (final cloudConv in cloudConversations) {
+        // If cloud conversation is newer or doesn't exist locally
+        if (!localMap.containsKey(cloudConv.conversationId) ||
+            cloudConv.updatedAt.isAfter(
+              localMap[cloudConv.conversationId]!.lastUpdate,
+            )) {
+          localMap[cloudConv.conversationId] = ConversationSummary(
+            id: cloudConv.conversationId,
+            title: cloudConv.title,
+            lastMessage: '...', // Placeholder, will be updated when loaded
+            lastUpdate: cloudConv.updatedAt,
+            messageCount: cloudConv.messageCount,
+          );
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        final updatedList = localMap.values
+            .map((s) => jsonEncode(s.toJson()))
+            .toList();
+        await prefs.setStringList(_conversationsKey, updatedList);
+        notifyListeners();
+      }
+    } catch (e) {
+      // print('Error syncing from cloud: $e');
+    }
+  }
+
   /// Start a new conversation
   Future<void> startNewConversation() async {
     // Generate unique ID with timestamp + random to avoid collisions
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final random = (timestamp % 10000).toString().padLeft(4, '0');
-    _currentConversationId = '${timestamp}_$random';
+    // Or use cloud service to generate ID if online
+    try {
+      // Try to create on cloud first to get valid ID
+      final cloudId = await _cloudConversationService
+          .createConversationWithTitle(firstQuestion: 'New Conversation');
+      _currentConversationId = cloudId;
+    } catch (e) {
+      // Fallback to local ID
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final random = (timestamp % 10000).toString().padLeft(4, '0');
+      _currentConversationId = '${timestamp}_$random';
+    }
+
     _currentMessages.clear();
 
     final prefs = await SharedPreferences.getInstance();
@@ -52,7 +123,7 @@ class ConversationService extends ChangeNotifier {
 
     // Always add welcome message for new conversations
     await addWelcomeMessage();
-    
+
     // Save conversation immediately so it appears in history
     await _saveCurrentConversation();
     notifyListeners();
@@ -97,6 +168,38 @@ class ConversationService extends ChangeNotifier {
   Future<void> addMessage(ChatMessage message) async {
     _currentMessages.add(message);
     await _saveCurrentConversation();
+
+    // Sync to Cloud
+    if (_currentConversationId != null && message.text.isNotEmpty) {
+      try {
+        // Create chat log in cloud
+        await _chatLogService.createLog(
+          question: message.isUser ? message.text : '',
+          response: !message.isUser ? message.text : '',
+          conversationId: _currentConversationId!,
+          transactionId: message.transactionId,
+        );
+
+        // Update conversation stats
+        await _cloudConversationService.incrementMessageCount(
+          _currentConversationId!,
+        );
+
+        // Update title if it's the first user message
+        if (message.isUser &&
+            _currentMessages.where((m) => m.isUser).length == 1) {
+          await _cloudConversationService.updateConversationTitle(
+            conversationId: _currentConversationId!,
+            newTitle: message.text.length > 30
+                ? '${message.text.substring(0, 30)}...'
+                : message.text,
+          );
+        }
+      } catch (e) {
+        // Ignore cloud sync errors, local is primary for UI
+      }
+    }
+
     notifyListeners(); // Notify UI about changes
   }
 
@@ -104,26 +207,94 @@ class ConversationService extends ChangeNotifier {
   Future<void> loadConversation(String conversationId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final messagesJson =
-          prefs.getString('conversation_messages_$conversationId');
+      final messagesJson = prefs.getString(
+        'conversation_messages_$conversationId',
+      );
+
+      _currentMessages.clear();
+      bool loadedFromLocal = false;
 
       if (messagesJson != null) {
         final messagesList = jsonDecode(messagesJson) as List;
-        _currentMessages.clear();
-
-        for (final messageData in messagesList) {
-          final message = ChatMessage(
-            text: messageData['text'] as String,
-            isUser: messageData['isUser'] as bool,
-            timestamp: DateTime.parse(messageData['timestamp'] as String),
-            transactionId: messageData['transactionId'] as String?,
-          );
-          _currentMessages.add(message);
+        if (messagesList.isNotEmpty) {
+          for (final messageData in messagesList) {
+            final message = ChatMessage(
+              text: messageData['text'] as String,
+              isUser: messageData['isUser'] as bool,
+              timestamp: DateTime.parse(messageData['timestamp'] as String),
+              transactionId: messageData['transactionId'] as String?,
+            );
+            _currentMessages.add(message);
+          }
+          loadedFromLocal = true;
         }
-
-        _currentConversationId = conversationId;
-        notifyListeners(); // Notify UI about conversation change
       }
+
+      // If local is empty, try to load from Cloud
+      if (!loadedFromLocal) {
+        try {
+          // Use getLogsOnce for reliable fetching
+          final logs = await _chatLogService.getLogsOnce(
+            conversationId: conversationId,
+          );
+
+          if (logs.isNotEmpty) {
+            // Convert logs to messages
+            // Note: ChatLogModel has question AND response in one doc
+            // We need to split them into separate messages and sort by time
+            final List<ChatMessage> cloudMessages = [];
+
+            for (final log in logs) {
+              // User question
+              if (log.question.isNotEmpty) {
+                cloudMessages.add(
+                  ChatMessage(
+                    text: log.question,
+                    isUser: true,
+                    timestamp: log.createdAt,
+                  ),
+                );
+              }
+              // AI response
+              if (log.response.isNotEmpty) {
+                cloudMessages.add(
+                  ChatMessage(
+                    text: log.response,
+                    isUser: false,
+                    timestamp: log.createdAt.add(
+                      const Duration(milliseconds: 100),
+                    ), // Ensure response is after question
+                    transactionId: log.transactionId,
+                  ),
+                );
+              }
+            }
+
+            // Sort by timestamp
+            cloudMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+            _currentMessages.addAll(cloudMessages);
+
+            // Save to local for next time
+            if (_currentMessages.isNotEmpty) {
+              await _saveConversationMessages(conversationId);
+            }
+          } else {
+            // If truly empty (new conversation), add welcome
+            await addWelcomeMessage();
+          }
+        } catch (e) {
+          // Cloud load failed, just add welcome
+          await addWelcomeMessage();
+        }
+      }
+
+      _currentConversationId = conversationId;
+
+      // Save current conversation ID to persist selection
+      await prefs.setString(_currentConversationKey, conversationId);
+
+      notifyListeners(); // Notify UI about conversation change
     } catch (e) {
       // Handle error loading conversation
       // print('Error loading conversation $conversationId: $e');
@@ -132,21 +303,23 @@ class ConversationService extends ChangeNotifier {
 
   /// Get conversation history
   Future<List<ConversationSummary>> getConversationHistory() async {
+    // Trigger background sync
+    _syncHistoryFromCloud();
+
     final prefs = await SharedPreferences.getInstance();
     final conversationsJson = prefs.getStringList(_conversationsKey) ?? [];
 
     return conversationsJson.map((json) {
       final data = jsonDecode(json) as Map<String, dynamic>;
       return ConversationSummary.fromJson(data);
-    }).toList()
-      ..sort((a, b) => b.lastUpdate.compareTo(a.lastUpdate));
+    }).toList()..sort((a, b) => b.lastUpdate.compareTo(a.lastUpdate));
   }
 
   /// Save current conversation
   Future<void> _saveCurrentConversation() async {
     // Don't save if no conversation ID
     if (_currentConversationId == null) return;
-    
+
     // Save even with only welcome message, but skip if truly empty
     if (_currentMessages.isEmpty) return;
 
@@ -186,12 +359,14 @@ class ConversationService extends ChangeNotifier {
   Future<void> _saveConversationMessages(String conversationId) async {
     final prefs = await SharedPreferences.getInstance();
     final messagesData = _currentMessages
-        .map((message) => {
-              'text': message.text,
-              'isUser': message.isUser,
-              'timestamp': message.timestamp.toIso8601String(),
-              'transactionId': message.transactionId,
-            })
+        .map(
+          (message) => {
+            'text': message.text,
+            'isUser': message.isUser,
+            'timestamp': message.timestamp.toIso8601String(),
+            'transactionId': message.transactionId,
+          },
+        )
         .toList();
 
     await prefs.setString(
@@ -206,8 +381,9 @@ class ConversationService extends ChangeNotifier {
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final messagesJson =
-          prefs.getString('conversation_messages_$_currentConversationId');
+      final messagesJson = prefs.getString(
+        'conversation_messages_$_currentConversationId',
+      );
 
       if (messagesJson != null) {
         final messagesList = jsonDecode(messagesJson) as List;
@@ -250,7 +426,9 @@ class ConversationService extends ChangeNotifier {
 
   /// Rename conversation
   Future<void> renameConversation(
-      String conversationId, String newTitle) async {
+    String conversationId,
+    String newTitle,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final conversations = prefs.getStringList(_conversationsKey) ?? [];
@@ -324,8 +502,9 @@ class ConversationService extends ChangeNotifier {
   /// Get recent transactions context
   Future<String> getRecentTransactionsContext() async {
     try {
-      final transactions =
-          await _realDataService.getRecentTransactions(limit: 5);
+      final transactions = await _realDataService.getRecentTransactions(
+        limit: 5,
+      );
       if (transactions.isEmpty) return 'Chưa có giao dịch nào gần đây.';
 
       String context = 'Giao dịch gần đây:\n';
@@ -358,12 +537,12 @@ class ConversationSummary {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'lastMessage': lastMessage,
-        'lastUpdate': lastUpdate.toIso8601String(),
-        'messageCount': messageCount,
-      };
+    'id': id,
+    'title': title,
+    'lastMessage': lastMessage,
+    'lastUpdate': lastUpdate.toIso8601String(),
+    'messageCount': messageCount,
+  };
 
   factory ConversationSummary.fromJson(Map<String, dynamic> json) =>
       ConversationSummary(

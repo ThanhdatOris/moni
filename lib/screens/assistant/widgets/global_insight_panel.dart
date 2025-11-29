@@ -95,37 +95,32 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
         },
         'period': analytics.period,
         'top_categories': analytics.categoryData
-            .take(5)
-            .map((c) => {
-                  'name': c.category,
-                  'amount': c.amount,
-                  'percentage': c.percentage,
-                  'type': c.type,
-                })
+            .take(3) // Reduced from 5 to 3 to save tokens
+            .map(
+              (c) => {
+                'name': c.category,
+                'amount': c.amount,
+                'percentage': c.percentage,
+              },
+            )
             .toList(),
         'summary': spendingSummary,
       };
 
-      final prompt = '''
-Bạn là trợ lý tài chính. Dựa trên JSON dưới đây, tạo nội dung Markdown NGẮN với đúng 3 phần:
-
-### Cảnh báo
-- 2-3 dòng cảnh báo cụ thể, có % hoặc số tiền
-
-### Đề xuất hành động
-- 2-3 hành động khả thi ngay, ưu tiên tác động lớn
-
-### Mẹo nhanh
-- 2-3 mẹo tiết kiệm/thói quen dễ áp dụng
+      final prompt =
+          '''
+Dựa trên dữ liệu tài chính, hãy đưa ra nhận xét cực ngắn (tối đa 50 từ) gồm 3 ý chính:
+1. ⚠️ Cảnh báo: Vấn đề lớn nhất (nếu có).
+2. 💡 Hành động: 1 việc cần làm ngay để cải thiện.
+3. 🌟 Mẹo: 1 lời khuyên nhỏ dễ áp dụng.
 
 Yêu cầu:
-- Không viết phần giới thiệu chung
-- Mỗi dòng 8-20 từ, emoji ở đầu dòng
-- Dùng số liệu trong context
-- Trả lời tiếng Việt
+- Tuyệt đối không chào hỏi, không tiêu đề phần thừa.
+- Dùng emoji đầu dòng.
+- Ngắn gọn, súc tích, đi thẳng vào vấn đề.
+- Tiếng Việt.
 
-DỮ LIỆU:
-${jsonEncode(contextPayload)}
+DATA: ${jsonEncode(contextPayload)}
 ''';
 
       // Direct AI call without wrapper layers
@@ -174,10 +169,7 @@ ${jsonEncode(contextPayload)}
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [
-          AppColors.primary,
-          AppColors.primary.withValues(alpha: 0.85),
-        ],
+        colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.85)],
       ),
       child: _buildContent(),
     );
@@ -192,8 +184,9 @@ ${jsonEncode(contextPayload)}
           Text(
             'Không thể tải Insight',
             style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontWeight: FontWeight.w600),
+              color: Colors.white.withValues(alpha: 0.9),
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -209,7 +202,7 @@ ${jsonEncode(contextPayload)}
                 onPressed: _runInsight,
               ),
             ],
-          )
+          ),
         ],
       );
     }
@@ -231,11 +224,7 @@ ${jsonEncode(contextPayload)}
             child: _buildMarkdownOrText(_insightText!),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _buildMetaChips(),
-          ),
+          Wrap(spacing: 8, runSpacing: 8, children: _buildMetaChips()),
           const SizedBox(height: 12),
         ],
         const SizedBox.shrink(),
@@ -305,8 +294,10 @@ ${jsonEncode(contextPayload)}
         children: [
           Icon(icon, color: Colors.white, size: 14),
           const SizedBox(width: 6),
-          Text(label,
-              style: const TextStyle(color: Colors.white, fontSize: 12)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
         ],
       ),
     );
@@ -394,11 +385,11 @@ ${jsonEncode(contextPayload)}
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('• ',
-                style: TextStyle(color: Colors.white, fontSize: 16)),
-            Expanded(
-              child: _buildInlineMarkdown(bulletText),
+            const Text(
+              '• ',
+              style: TextStyle(color: Colors.white, fontSize: 16),
             ),
+            Expanded(child: _buildInlineMarkdown(bulletText)),
           ],
         ),
       );
@@ -417,27 +408,33 @@ ${jsonEncode(contextPayload)}
     // Xử lý bold **text**
     for (final match in boldRegex.allMatches(text)) {
       if (match.start > start) {
-        spans.add(TextSpan(
-          text: text.substring(start, match.start),
-          style: const TextStyle(color: Colors.white, height: 1.35),
-        ));
+        spans.add(
+          TextSpan(
+            text: text.substring(start, match.start),
+            style: const TextStyle(color: Colors.white, height: 1.35),
+          ),
+        );
       }
-      spans.add(TextSpan(
-        text: match.group(1),
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w700,
-          height: 1.35,
+      spans.add(
+        TextSpan(
+          text: match.group(1),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            height: 1.35,
+          ),
         ),
-      ));
+      );
       start = match.end;
     }
 
     if (start < text.length) {
-      spans.add(TextSpan(
-        text: text.substring(start),
-        style: const TextStyle(color: Colors.white, height: 1.35),
-      ));
+      spans.add(
+        TextSpan(
+          text: text.substring(start),
+          style: const TextStyle(color: Colors.white, height: 1.35),
+        ),
+      );
     }
 
     if (spans.length == 1 && spans.first.style?.fontWeight == null) {
@@ -448,9 +445,7 @@ ${jsonEncode(contextPayload)}
       );
     }
 
-    return RichText(
-      text: TextSpan(children: spans),
-    );
+    return RichText(text: TextSpan(children: spans));
   }
 
   Widget _buildStructuredInsight(Map<String, dynamic> data) {
@@ -485,23 +480,25 @@ ${jsonEncode(contextPayload)}
   }
 
   Widget _sectionHeader(String text) => Text(
-        text,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.95),
-          fontWeight: FontWeight.w700,
-        ),
-      );
+    text,
+    style: TextStyle(
+      color: Colors.white.withValues(alpha: 0.95),
+      fontWeight: FontWeight.w700,
+    ),
+  );
 
   Widget _bullet(String text) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('• ', style: TextStyle(color: Colors.white)),
-          Expanded(
-            child: Text(text,
-                style: const TextStyle(color: Colors.white, height: 1.35)),
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text('• ', style: TextStyle(color: Colors.white)),
+      Expanded(
+        child: Text(
+          text,
+          style: const TextStyle(color: Colors.white, height: 1.35),
+        ),
+      ),
+    ],
+  );
 
   List<String> _computeLocalTips(AnalyticsData analytics) {
     final tips = <String>[];
@@ -511,7 +508,8 @@ ${jsonEncode(contextPayload)}
 
     if (income <= 0 && expense <= 0) {
       tips.add(
-          'Chưa có dữ liệu giao dịch. Hãy thêm vài giao dịch để AI phân tích.');
+        'Chưa có dữ liệu giao dịch. Hãy thêm vài giao dịch để AI phân tích.',
+      );
       return tips;
     }
 
@@ -521,14 +519,16 @@ ${jsonEncode(contextPayload)}
 
     if (savingsRate < 10) {
       tips.add(
-          'Tỷ lệ tiết kiệm thấp (${savingsRate.toStringAsFixed(1)}%). Đặt mục tiêu ≥ 15%.');
+        'Tỷ lệ tiết kiệm thấp (${savingsRate.toStringAsFixed(1)}%). Đặt mục tiêu ≥ 15%.',
+      );
     }
 
     if (analytics.categoryData.isNotEmpty) {
       final top = analytics.categoryData.first;
       if (top.percentage > 30) {
         tips.add(
-            'Danh mục cao nhất: ${top.category} ${top.percentage.toStringAsFixed(1)}%. Thiết lập hạn mức.');
+          'Danh mục cao nhất: ${top.category} ${top.percentage.toStringAsFixed(1)}%. Thiết lập hạn mức.',
+        );
       }
     }
 
