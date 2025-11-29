@@ -59,8 +59,9 @@ class _CategoryListState extends State<CategoryList>
       return _buildEmptyState();
     }
 
-    final displayData =
-        _showAllCategories ? widget.data : widget.data.take(6).toList();
+    final displayData = _showAllCategories
+        ? widget.data
+        : widget.data.take(6).toList();
 
     return FadeTransition(
       opacity: _fadeAnimation,
@@ -123,10 +124,7 @@ class _CategoryListState extends State<CategoryList>
                       ? 'Không có dữ liệu trong khoảng thời gian đã chọn'
                       : 'Thêm giao dịch để xem phân tích theo danh mục',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.grey600,
-                  ),
+                  style: TextStyle(fontSize: 12, color: AppColors.grey600),
                 ),
               ],
             ),
@@ -248,24 +246,25 @@ class _CategoryListState extends State<CategoryList>
       child: LayoutBuilder(
         builder: (context, constraints) {
           // Responsive columns: 2 for compact, 3 for normal, 4 for tablet
-          final crossAxisCount =
-              widget.isCompact ? 2 : (constraints.maxWidth > 600 ? 3 : 2);
-          final childAspectRatio = widget.isCompact ? 1.6 : 1.7;
+          final crossAxisCount = widget.isCompact
+              ? 2
+              : (constraints.maxWidth > 600 ? 3 : 2);
+          final childAspectRatio = widget.isCompact ? 1.35 : 1.5;
 
           return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            childAspectRatio: childAspectRatio,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemCount: displayData.length,
-          itemBuilder: (context, index) {
-            return _buildModernCategoryCard(displayData[index], index);
-          },
-        );
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: childAspectRatio,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            itemCount: displayData.length,
+            itemBuilder: (context, index) {
+              return _buildModernCategoryCard(displayData[index], index);
+            },
+          );
         },
       ),
     );
@@ -284,16 +283,10 @@ class _CategoryListState extends State<CategoryList>
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              color.withValues(alpha: 0.02),
-            ],
+            colors: [Colors.white, color.withValues(alpha: 0.02)],
           ),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: color.withValues(alpha: 0.15),
-            width: 1.5,
-          ),
+          border: Border.all(color: color.withValues(alpha: 0.15), width: 1.5),
           boxShadow: [
             BoxShadow(
               color: color.withValues(alpha: 0.08),
@@ -321,9 +314,11 @@ class _CategoryListState extends State<CategoryList>
               ),
               // Content
               Padding(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8.0), // Reduced from 10
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment:
+                      MainAxisAlignment.spaceBetween, // Distribute space
                   children: [
                     // Icon và percentage
                     Row(
@@ -352,7 +347,9 @@ class _CategoryListState extends State<CategoryList>
                         if (!widget.isAllFilter)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 2),
+                              horizontal: 5,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: color,
                               borderRadius: BorderRadius.circular(6),
@@ -368,27 +365,32 @@ class _CategoryListState extends State<CategoryList>
                           ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    // Category name
-                    Text(
-                      item.category,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 1),
-                    // Amount
-                    Text(
-                      '${_formatCurrency(item.amount)}₫',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: color,
-                      ),
+                    // const SizedBox(height: 2), // Removed fixed spacing
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Category name
+                        Text(
+                          item.category,
+                          style: const TextStyle(
+                            fontSize: 12, // Reduced from 13
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 1), // Reduced spacing
+                        // Amount
+                        Text(
+                          '${_formatCurrency(item.amount)}₫',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -421,7 +423,7 @@ class _CategoryListState extends State<CategoryList>
                         ? [AppColors.grey200, AppColors.grey100]
                         : [
                             AppColors.primary.withValues(alpha: 0.1),
-                            AppColors.primary.withValues(alpha: 0.05)
+                            AppColors.primary.withValues(alpha: 0.05),
                           ],
                   ),
                   borderRadius: BorderRadius.circular(12),
@@ -470,7 +472,7 @@ class _CategoryListState extends State<CategoryList>
                 gradient: LinearGradient(
                   colors: [
                     AppColors.primary,
-                    AppColors.primary.withValues(alpha: 0.8)
+                    AppColors.primary.withValues(alpha: 0.8),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(12),
