@@ -145,11 +145,10 @@ class AIProcessorService {
       tokenManager: _tokenManager,
     );
 
-    final ocrService = _getIt<OCRService>();
     _transactionProcessor = AITransactionProcessor(
       model: _model,
-      ocrService: ocrService,
       tokenManager: _tokenManager,
+      getIt: _getIt,
     );
 
     _logger.i('🤖 AI Processor Service initialized successfully'

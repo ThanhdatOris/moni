@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:get_it/get_it.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:logger/logger.dart';
 
@@ -14,49 +15,61 @@ import 'ocr_service.dart';
 /// - Image validation
 /// - AI verification of OCR results
 /// - Combine OCR + AI for best results
+///
+/// ⚠️ OCRService is created per-request and disposed after use
+/// to prevent memory leak (ML Kit TextRecognizer ~30-50 MB native memory)
 class AITransactionProcessor {
   final GenerativeModel _model;
   final Logger _logger = Logger();
-  final OCRService _ocrService;
   final AITokenManager _tokenManager;
+  final GetIt _getIt; // ✅ Use GetIt to create OCRService per-request
 
   AITransactionProcessor({
     required GenerativeModel model,
-    required OCRService ocrService,
     required AITokenManager tokenManager,
-  })  : _model = model,
-        _ocrService = ocrService,
-        _tokenManager = tokenManager;
+    required GetIt getIt,
+  }) : _model = model,
+       _tokenManager = tokenManager,
+       _getIt = getIt;
 
   /// Extract transaction from image using OCR + AI verification
   Future<Map<String, dynamic>> extractTransactionFromImage(
-      File imageFile) async {
+    File imageFile,
+  ) async {
+    // ✅ Create OCRService instance for this request
+    OCRService? ocrService;
+
     try {
       _logger.i('📸 Processing image for transaction extraction');
 
+      // Create new OCRService instance (Factory pattern)
+      ocrService = _getIt<OCRService>();
+
       // Step 1: Run OCR to extract text from image
-      final String extractedText =
-          await _ocrService.extractTextFromImage(imageFile);
+      final String extractedText = await ocrService.extractTextFromImage(
+        imageFile,
+      );
 
       if (extractedText.isEmpty) {
-        return {
-          'success': false,
-          'error': 'Could not extract text from image',
-        };
+        return {'success': false, 'error': 'Could not extract text from image'};
       }
 
       _logger.d('📝 OCR extracted ${extractedText.length} characters');
 
       // Step 2: Analyze extracted text with OCR service
-      final ocrAnalysis = _ocrService.analyzeReceiptText(extractedText);
+      final ocrAnalysis = ocrService.analyzeReceiptText(extractedText);
       final int ocrConfidence = 75; // OCR base confidence
 
       // Step 3: If OCR analysis is confident, use it directly
       if (ocrConfidence >= 80) {
         _logger.i('✅ OCR confidence high ($ocrConfidence%), using OCR results');
         return _buildResult(
-            extractedText, ocrAnalysis, {}, ocrConfidence,
-            useAI: false);
+          extractedText,
+          ocrAnalysis,
+          {},
+          ocrConfidence,
+          useAI: false,
+        );
       }
 
       // Step 4: Use AI to verify and improve OCR results
@@ -65,14 +78,20 @@ class AITransactionProcessor {
 
       // Step 5: Combine OCR and AI results
       return _buildResult(
-          extractedText, ocrAnalysis, aiAnalysis, ocrConfidence,
-          useAI: true);
+        extractedText,
+        ocrAnalysis,
+        aiAnalysis,
+        ocrConfidence,
+        useAI: true,
+      );
     } catch (e) {
       _logger.e('❌ Error extracting transaction from image: $e');
-      return {
-        'success': false,
-        'error': e.toString(),
-      };
+      return {'success': false, 'error': e.toString()};
+    } finally {
+      // ✅ CRITICAL: Always dispose OCRService to free native memory
+      // This prevents memory leak of ~30-50 MB from ML Kit TextRecognizer
+      ocrService?.dispose();
+      _logger.d('🧹 OCRService disposed (freed native memory)');
     }
   }
 
@@ -91,7 +110,8 @@ class AITransactionProcessor {
           !fileName.endsWith('.jpeg') &&
           !fileName.endsWith('.png')) {
         throw Exception(
-            'Định dạng ảnh không được hỗ trợ. Vui lòng chọn file JPG hoặc PNG.');
+          'Định dạng ảnh không được hỗ trợ. Vui lòng chọn file JPG hoặc PNG.',
+        );
       }
 
       return true;
@@ -103,9 +123,12 @@ class AITransactionProcessor {
 
   /// Analyze text with AI to verify OCR results
   Future<Map<String, dynamic>> _analyzeTextWithAI(
-      String text, Map<String, dynamic> ocrAnalysis) async {
+    String text,
+    Map<String, dynamic> ocrAnalysis,
+  ) async {
     try {
-      final prompt = '''
+      final prompt =
+          '''
 Phân tích văn bản hóa đơn sau và trích xuất thông tin giao dịch. Văn bản này đã được OCR từ ảnh hóa đơn.
 
 Văn bản hóa đơn:
@@ -140,9 +163,13 @@ Lưu ý:
       await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
 
       final response = await _model.generateContent([Content.text(prompt)]);
-      
+
       // Update token usage after API call
-      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, response.text ?? '');
+      await AIHelpers.updateUsageAfterCall(
+        _tokenManager,
+        prompt,
+        response.text ?? '',
+      );
 
       final responseText = response.text ?? '';
       final parsedResult = _parseAIAnalysisResponse(responseText);
@@ -179,8 +206,9 @@ Lưu ý:
       final Map<String, dynamic> data = Map<String, dynamic>.from(decoded);
 
       // Normalize keys and data types
-      final double verifiedAmount =
-          AIHelpers.parseAmount(data['verified_amount']);
+      final double verifiedAmount = AIHelpers.parseAmount(
+        data['verified_amount'],
+      );
       final String description = (data['description'] ?? '').toString();
       final String categorySuggestion =
           (data['category_suggestion'] ?? data['category'] ?? '').toString();
@@ -213,11 +241,12 @@ Lưu ý:
 
   /// Build final result combining OCR and AI
   Map<String, dynamic> _buildResult(
-      String extractedText,
-      Map<String, dynamic> ocrAnalysis,
-      Map<String, dynamic> aiAnalysis,
-      int ocrConfidence,
-      {required bool useAI}) {
+    String extractedText,
+    Map<String, dynamic> ocrAnalysis,
+    Map<String, dynamic> aiAnalysis,
+    int ocrConfidence, {
+    required bool useAI,
+  }) {
     final amount = useAI && aiAnalysis.isNotEmpty
         ? (aiAnalysis['verified_amount'] ?? ocrAnalysis['suggestedAmount'])
         : ocrAnalysis['suggestedAmount'];
@@ -236,8 +265,9 @@ Lưu ý:
 
     // Calculate combined confidence
     final aiConfidence = aiAnalysis['confidence_score'] ?? 0;
-    final combinedConfidence =
-        useAI ? ((ocrConfidence + aiConfidence) / 2).round() : ocrConfidence;
+    final combinedConfidence = useAI
+        ? ((ocrConfidence + aiConfidence) / 2).round()
+        : ocrConfidence;
 
     return {
       'success': true,

@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import '../screens/assistant/services/real_data_service.dart';
 import 'package:moni/services/services.dart';
+
 final getIt = GetIt.instance;
 
 /// Simple Dependency Injection for Legacy Architecture
@@ -17,7 +18,8 @@ Future<void> init() async {
   // Firebase
   getIt.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
   getIt.registerLazySingleton<FirebaseFirestore>(
-      () => FirebaseFirestore.instance);
+    () => FirebaseFirestore.instance,
+  );
   getIt.registerLazySingleton<Connectivity>(() => Connectivity());
 
   // ==========================================================================
@@ -37,10 +39,10 @@ Future<void> init() async {
   getIt.registerLazySingleton<CategoryService>(() => CategoryService());
 
   // Transaction service with offline support
-  getIt.registerLazySingleton<TransactionService>(() => TransactionService(
-        offlineService: getIt<OfflineService>(),
-      ));
-  
+  getIt.registerLazySingleton<TransactionService>(
+    () => TransactionService(offlineService: getIt<OfflineService>()),
+  );
+
   // Budget service - set transaction service and category service after registration
   getIt.registerLazySingleton<BudgetService>(() {
     final budgetService = BudgetService();
@@ -50,35 +52,52 @@ Future<void> init() async {
   });
 
   // Chart Data Service
-  getIt.registerLazySingleton<ChartDataService>(() => ChartDataService(
-        transactionService: getIt<TransactionService>(),
-        categoryService: getIt<CategoryService>(),
-      ));
+  getIt.registerLazySingleton<ChartDataService>(
+    () => ChartDataService(
+      transactionService: getIt<TransactionService>(),
+      categoryService: getIt<CategoryService>(),
+    ),
+  );
 
   // Services that depend on TransactionService
-  getIt.registerLazySingleton<BudgetAlertService>(() => BudgetAlertService(
-        transactionService: getIt<TransactionService>(),
-      ));
-  getIt.registerLazySingleton<ReportService>(() => ReportService(
-        transactionService: getIt<TransactionService>(),
-      ));
+  getIt.registerLazySingleton<BudgetAlertService>(
+    () => BudgetAlertService(transactionService: getIt<TransactionService>()),
+  );
+  getIt.registerLazySingleton<ReportService>(
+    () => ReportService(transactionService: getIt<TransactionService>()),
+  );
 
   // Sync service
-  getIt.registerLazySingleton<OfflineSyncService>(() => OfflineSyncService(
-        offlineService: getIt<OfflineService>(),
-        transactionService: getIt<TransactionService>(),
-        categoryService: getIt<CategoryService>(),
-      ));
+  getIt.registerLazySingleton<OfflineSyncService>(
+    () => OfflineSyncService(
+      offlineService: getIt<OfflineService>(),
+      transactionService: getIt<TransactionService>(),
+      categoryService: getIt<CategoryService>(),
+    ),
+  );
 
   // Anonymous conversion service
   getIt.registerLazySingleton<AnonymousConversionService>(
-      () => AnonymousConversionService(
-            offlineService: getIt<OfflineService>(),
-            syncService: getIt<OfflineSyncService>(),
-          ));
+    () => AnonymousConversionService(
+      offlineService: getIt<OfflineService>(),
+      syncService: getIt<OfflineSyncService>(),
+    ),
+  );
+
+  // ==========================================================================
+  // FACTORY SERVICES (Need disposal after use)
+  // ==========================================================================
+
+  // ✅ OCR Service - Factory pattern để dispose sau mỗi lần dùng
+  // Fix memory leak: ML Kit TextRecognizer (~30-50 MB native memory)
+  // Must call dispose() after each use to free native resources
+  getIt.registerFactory<OCRService>(() => OCRService());
+
+  // ==========================================================================
+  // SINGLETON SERVICES (Persistent throughout app lifecycle)
+  // ==========================================================================
 
   // Other services
-  getIt.registerLazySingleton<OCRService>(() => OCRService());
   getIt.registerLazySingleton<AIProcessorService>(() => AIProcessorService());
   getIt.registerLazySingleton<ChatLogService>(() => ChatLogService());
   getIt.registerLazySingleton<ConversationService>(() => ConversationService());
@@ -95,11 +114,14 @@ Future<void> init() async {
 
   // Validation Services
   getIt.registerLazySingleton<AdvancedValidationService>(
-      () => AdvancedValidationService());
+    () => AdvancedValidationService(),
+  );
   getIt.registerLazySingleton<DuplicateDetectionService>(
-      () => DuplicateDetectionService());
+    () => DuplicateDetectionService(),
+  );
   getIt.registerLazySingleton<TransactionValidationService>(
-      () => TransactionValidationService());
+    () => TransactionValidationService(),
+  );
 }
 
 /// Reset dependencies (for testing)
