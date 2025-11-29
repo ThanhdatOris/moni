@@ -41,16 +41,19 @@ class ReportPreviewContainer extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Preview content
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              child: _buildPreviewContent(),
+              child: Column(
+                children: [
+                  _buildPreviewContent(),
+                  const SizedBox(height: 20),
+                  _buildFloatingActionButtons(),
+                  const SizedBox(height: 120),
+                ],
+              ),
             ),
           ),
-
-          // Action buttons
-          _buildActionButtons(),
         ],
       ),
     );
@@ -66,9 +69,6 @@ class ReportPreviewContainer extends StatelessWidget {
 
         // Sample sections
         ...preview.sections.map((section) => _buildSectionPreview(section)),
-
-        // Bottom spacing
-        const SizedBox(height: 120),
       ],
     );
   }
@@ -343,46 +343,28 @@ class ReportPreviewContainer extends StatelessWidget {
     }
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildFloatingActionButtons() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: AssistantActionButton(
-              text: 'Tùy chỉnh',
-              icon: Icons.tune,
-              type: ButtonType.secondary,
-              backgroundColor: Colors.white,
-              textColor: AppColors.textPrimary,
-              onPressed: onCustomize,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: AssistantActionButton(
-              text: 'Tạo báo cáo hoàn chỉnh',
-              icon: Icons.file_download,
-              type: ButtonType.primary,
-              backgroundColor: AppColors.primary,
-              textColor: Colors.white,
-              isLoading: isLoading,
-              onPressed: onGenerate,
-            ),
-          ),
-        ],
+      child: AssistantActionButton(
+        text: 'Tạo báo cáo',
+        icon: Icons.file_download,
+        type: ButtonType.primary,
+        backgroundColor: AppColors.primary,
+        textColor: Colors.white,
+        isLoading: isLoading,
+        onPressed: onGenerate,
       ),
     );
   }
