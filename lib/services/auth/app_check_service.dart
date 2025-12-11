@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
@@ -21,25 +23,54 @@ class AppCheckService {
       final debugToken = EnvironmentService.firebaseAppCheckDebugToken;
       if (kDebugMode) {
         if (debugToken.isNotEmpty) {
-          _logger.i('🔓 App Check Debug Token configured: ${debugToken.substring(0, 8)}...');
-          _logger.i('Make sure this token is added to Firebase Console > App Check > Manage debug tokens');
+          _logger.i(
+            '🔓 App Check Debug Token configured: ${debugToken.substring(0, 8)}...',
+          );
+          _logger.i(
+            'Make sure this token is added to Firebase Console > App Check > Manage debug tokens',
+          );
         } else {
-          _logger.w('⚠️  No debug token found. Add FIREBASE_APPCHECK_DEBUG_TOKEN to .env');
+          _logger.w(
+            '⚠️  No debug token found. Add FIREBASE_APPCHECK_DEBUG_TOKEN to .env',
+          );
         }
       }
 
-      // Khởi tạo Firebase App Check với debug provider cho development
-      // Debug token sẽ được tự động sinh ra bởi AndroidProvider.debug/AppleProvider.debug
-      // và có thể được override bằng token trong .env file
-      await FirebaseAppCheck.instance.activate(
-        androidProvider: AndroidProvider.debug,
-        appleProvider: AppleProvider.debug,
-        webProvider:
-            ReCaptchaV3Provider('6LcXXXXXXXXXXXXXXXXXXXXX'), // Placeholder key
-      );
+      // Khởi tạo Firebase App Check
+      // - Debug mode: Dùng debug providers với token từ .env
+      // - Production: Dùng Play Integrity (Android) / DeviceCheck (iOS)
+      // API mới: Chỉ dùng 1 provider duy nhất cho platform hiện tại
+      if (Platform.isAndroid) {
+        // Android: Play Integrity API (production) hoặc Debug (development)
+        // Play Integrity thay thế SafetyNet (deprecated từ 2024)
+        await FirebaseAppCheck.instance.activate(
+          providerAndroid: kDebugMode
+              ? AndroidDebugProvider()
+              : AndroidPlayIntegrityProvider(),
+        );
+      } else if (Platform.isIOS) {
+        // iOS: DeviceCheck (production) hoặc Debug (development)
+        // DeviceCheck là provider mặc định, App Attest cho iOS 14+
+        await FirebaseAppCheck.instance.activate(
+          providerApple: kDebugMode
+              ? AppleDebugProvider()
+              : AppleDeviceCheckProvider(),
+        );
+      } else {
+        // Web: ReCAPTCHA v3
+        await FirebaseAppCheck.instance.activate(
+          providerWeb: ReCaptchaV3Provider(
+            EnvironmentService.recaptchaSiteKey.isNotEmpty
+                ? EnvironmentService.recaptchaSiteKey
+                : '6LcXXXXXXXXXXXXXXXXXXXXX', // Placeholder
+          ),
+        );
+      }
 
       _isInitialized = true;
-      _logger.i('✅ App Check initialized successfully ${kDebugMode ? "(Debug Mode)" : ""}');
+      _logger.i(
+        '✅ App Check initialized successfully ${kDebugMode ? "(Debug Mode)" : ""}',
+      );
     } on Exception catch (e) {
       // Xử lý lỗi đặc biệt cho Firebase App Check API chưa được kích hoạt
       final errorMessage = e.toString().toLowerCase();
@@ -48,9 +79,11 @@ class AppCheckService {
           errorMessage.contains('api has not been used') ||
           errorMessage.contains('disabled')) {
         _logger.w(
-            'Firebase App Check API chưa được kích hoạt. Ứng dụng sẽ chạy mà không có App Check.');
+          'Firebase App Check API chưa được kích hoạt. Ứng dụng sẽ chạy mà không có App Check.',
+        );
         _logger.w(
-            'Để kích hoạt, truy cập: https://console.developers.google.com/apis/api/firebaseappcheck.googleapis.com/overview?project=YOUR_PROJECT_ID');
+          'Để kích hoạt, truy cập: https://console.developers.google.com/apis/api/firebaseappcheck.googleapis.com/overview?project=YOUR_PROJECT_ID',
+        );
       } else {
         _logger.e('Lỗi khởi tạo App Check: $e');
       }
@@ -76,14 +109,14 @@ class AppCheckService {
   /// Log instructions để setup debug token
   static void logDebugTokenInstructions() {
     if (!kDebugMode) return;
-    
+
     final token = getDebugToken();
     if (token == null) {
       _logger.w('⚠️  No App Check Debug Token found in .env file');
       _logger.w('Add FIREBASE_APPCHECK_DEBUG_TOKEN to .env');
       return;
     }
-    
+
     _logger.i('📋 App Check Debug Token Setup Instructions:');
     _logger.i('1. Go to Firebase Console > App Check');
     _logger.i('2. Select your app');
@@ -92,4 +125,3 @@ class AppCheckService {
     _logger.i('5. Token is already configured in .env file ✅');
   }
 }
-

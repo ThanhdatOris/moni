@@ -77,7 +77,8 @@ class _AssistantScreenState extends State<AssistantScreen>
     _tabController.dispose();
     _iconAnimationController.dispose();
     // Đảm bảo hiện lại menubar khi rời AssistantScreen
-    _uiOptimization.exitAssistantChatMode();
+    // Deferred để tránh setState() khi widget tree locked
+    _uiOptimization.exitAssistantChatMode(deferred: true);
     super.dispose();
   }
 

@@ -3,8 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moni/config/app_config.dart';
+import 'package:provider/provider.dart';
 
+import '../../../providers/connectivity_provider.dart';
 import '../../../services/ai_services/ai_services.dart';
+import '../../../widgets/ai_feature_wrapper.dart';
 import '../../assistant/services/real_data_service.dart';
 import 'assistant_action_button.dart';
 import 'assistant_base_card.dart';
@@ -56,12 +59,23 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
 
   Future<void> _runInsight() async {
     if (!mounted) return;
+    
+    // ✅ CHECK OFFLINE
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      setState(() {
+        _error = 'offline'; // Special error code
+        _isLoading = false;
+      });
+      return;
+    }
+    
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    try {
+    try{
       // 🎯 OPTIMIZATION: Check cache first
       final cacheKey = _getCacheKey(widget.moduleId);
       final cached = _insightCache[cacheKey];
@@ -160,22 +174,47 @@ DATA: ${jsonEncode(contextPayload)}
 
   @override
   Widget build(BuildContext context) {
-    return AssistantBaseCard(
-      title: widget.title,
-      titleIcon: Icons.psychology,
-      isLoading: _isLoading,
-      hasError: _error != null,
-      onTap: null,
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.85)],
+    return AIFeatureWrapper(
+      offlineMessage: 'AI Insights cần kết nối internet',
+      showOverlay: _error == 'offline',
+      child: AssistantBaseCard(
+        title: widget.title,
+        titleIcon: Icons.psychology,
+        isLoading: _isLoading,
+        hasError: _error != null && _error != 'offline',
+        onTap: null,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.85)],
+        ),
+        child: _buildContent(),
       ),
-      child: _buildContent(),
     );
   }
 
   Widget _buildContent() {
+    // Offline state - hiển thị message nhẹ nhàng
+    if (_error == 'offline') {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Icon(Icons.wifi_off_rounded, color: Colors.white70, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              'Cần kết nối internet',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
     if (_error != null) {
       return Column(
         mainAxisSize: MainAxisSize.min,

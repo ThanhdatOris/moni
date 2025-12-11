@@ -4,11 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
-
 import 'package:moni/config/app_config.dart';
+import 'package:moni/providers/connectivity_provider.dart';
+import 'package:moni/services/services.dart';
+import 'package:provider/provider.dart' as provider;
+
 import 'core/injection_container.dart' as di;
 import 'screens/splash_wrapper.dart';
-import 'package:moni/services/services.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -61,8 +64,17 @@ void main() async {
   }
 
   runApp(
-    const ProviderScope(
-      child: MyApp(),
+    // Riverpod for state management
+    ProviderScope(
+      // Provider for connectivity state
+      child: provider.MultiProvider(
+        providers: [
+          provider.ChangeNotifierProvider(
+            create: (_) => ConnectivityProvider(),
+          ),
+        ],
+        child: const MyApp(),
+      ),
     ),
   );
 }
@@ -75,7 +87,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: AppConfig.appName,
       debugShowCheckedModeBanner: false,
-      
+
       // Localization configuration
       locale: const Locale('vi', 'VN'),
       localizationsDelegates: const [
@@ -87,7 +99,7 @@ class MyApp extends StatelessWidget {
         Locale('vi', 'VN'), // Vietnamese
         Locale('en', 'US'), // English
       ],
-      
+
       theme: ThemeData.light().copyWith(
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
         primaryColor: AppColors.primary,
@@ -96,7 +108,8 @@ class MyApp extends StatelessWidget {
           elevation: 0,
           systemOverlayStyle: SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.dark, // Dark icons for light mode
+            statusBarIconBrightness:
+                Brightness.dark, // Dark icons for light mode
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(

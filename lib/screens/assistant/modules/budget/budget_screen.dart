@@ -7,8 +7,10 @@ import 'package:moni/services/data/budget_service.dart';
 import 'package:moni/services/data/category_service.dart';
 import 'package:moni/utils/formatting/currency_formatter.dart';
 import 'package:moni/utils/helpers/category_icon_helper.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../models/category_model.dart';
+import '../../../../providers/connectivity_provider.dart';
 import '../../../assistant/services/real_data_service.dart' as real_data;
 import '../../widgets/assistant_module_tab_bar.dart';
 import 'widgets/budget_input_form.dart';
@@ -356,6 +358,24 @@ class _BudgetScreenState extends State<BudgetScreen>
   }
 
   Future<void> _generateNewRecommendation() async {
+    // ✅ CHECK OFFLINE
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Text('Cần kết nối internet để tạo gợi ý AI'),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {

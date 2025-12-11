@@ -63,11 +63,27 @@ class UIOptimizationService extends ChangeNotifier {
   }
 
   /// Exit Assistant Chat mode - hiện lại menubar
-  void exitAssistantChatMode() {
+  void exitAssistantChatMode({bool deferred = false}) {
     if (_isInAssistantChatMode) {
       _isInAssistantChatMode = false;
-      notifyListeners();
+      
+      if (deferred) {
+        // Defer notifyListeners để tránh lỗi khi gọi trong dispose()
+        Future.microtask(() {
+          if (!_disposed) notifyListeners();
+        });
+      } else {
+        notifyListeners();
+      }
     }
+  }
+  
+  bool _disposed = false;
+  
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 
   /// Get bottom spacing phù hợp

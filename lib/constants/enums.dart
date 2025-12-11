@@ -185,29 +185,6 @@ enum NotificationType {
 }
 
 /// Tần suất recurring
-enum RecurringFrequency {
-  daily,
-  weekly,
-  monthly,
-  yearly,
-}
-
-/// Extension cho RecurringFrequency
-extension RecurringFrequencyExtension on RecurringFrequency {
-  String get displayName {
-    switch (this) {
-      case RecurringFrequency.daily:
-        return 'Hàng ngày';
-      case RecurringFrequency.weekly:
-        return 'Hàng tuần';
-      case RecurringFrequency.monthly:
-        return 'Hàng tháng';
-      case RecurringFrequency.yearly:
-        return 'Hàng năm';
-    }
-  }
-}
-
 /// Mức độ rủi ro trùng lặp
 enum DuplicateRiskLevel {
   none,
@@ -381,7 +358,6 @@ enum BudgetTipCategory {
 enum AdvancedValidationResult {
   proceed,
   cancel,
-  setupRecurring,
 }
 
 // =============================================================================

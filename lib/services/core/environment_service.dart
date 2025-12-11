@@ -54,6 +54,9 @@ class EnvironmentService {
   
   static String get firebaseAppCheckDebugToken => 
       dotenv.env['FIREBASE_APPCHECK_DEBUG_TOKEN'] ?? '';
+  
+  static String get recaptchaSiteKey =>
+      dotenv.env['RECAPTCHA_SITE_KEY'] ?? '';
 
   // ===================
   // GEMINI AI CONFIG

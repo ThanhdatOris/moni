@@ -252,57 +252,33 @@ class OfflineService {
     }
   }
 
-  /// Đồng bộ dữ liệu offline lên cloud
+  // =====================================================
+  // DEPRECATED METHODS - Legacy SharedPreferences-based sync
+  // Firestore Persistence automatically handles offline sync
+  // =====================================================
+
+  /// @deprecated Không còn sử dụng - Firestore Persistence tự động handle sync
+  /// Legacy method từ kiến trúc cũ dùng SharedPreferences
+  @Deprecated(
+    'Use Firestore Persistence instead - it handles sync automatically',
+  )
   Future<List<String>> syncOfflineTransactions() async {
-    try {
-      if (!await isOnline) {
-        throw Exception('Không có kết nối internet');
-      }
-
-      final offlineTransactions = await getOfflineTransactions();
-      if (offlineTransactions.isEmpty) {
-        logInfo('Không có giao dịch offline để sync');
-        return [];
-      }
-
-      logInfo('Bắt đầu sync ${offlineTransactions.length} giao dịch offline');
-
-      final syncedIds = <String>[];
-
-      // Import và sử dụng TransactionService để sync
-      // Tạm thời return empty list
-      // TODO: Implement actual sync with TransactionService
-
-      logInfo('Sync dữ liệu offline thành công: ${syncedIds.length} giao dịch');
-      return syncedIds;
-    } catch (e) {
-      logError('Lỗi sync dữ liệu offline', error: e);
-      throw Exception('Không thể đồng bộ dữ liệu: $e');
-    }
+    logWarning(
+      '⚠️ syncOfflineTransactions() is DEPRECATED. '
+      'Firestore Persistence handles all offline sync automatically.',
+    );
+    return [];
   }
 
-  /// Xóa dữ liệu offline sau khi sync thành công
+  /// @deprecated Không còn sử dụng - Firestore Persistence tự động handle sync
+  @Deprecated(
+    'Use Firestore Persistence instead - it handles sync automatically',
+  )
   Future<void> clearSyncedOfflineData(List<String> syncedTransactionIds) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final existingData = prefs.getStringList(_keyOfflineTransactions) ?? [];
-
-      final remainingData = existingData.where((jsonStr) {
-        final map = jsonDecode(jsonStr) as Map<String, dynamic>;
-        return !syncedTransactionIds.contains(map['transaction_id']);
-      }).toList();
-
-      await prefs.setStringList(_keyOfflineTransactions, remainingData);
-
-      // Cập nhật thời gian sync
-      await prefs.setString(_keyLastSyncTime, DateTime.now().toIso8601String());
-
-      logInfo(
-        'Đã xóa ${syncedTransactionIds.length} giao dịch offline đã sync',
-      );
-    } catch (e) {
-      logError('Lỗi xóa dữ liệu offline đã sync', error: e);
-    }
+    logWarning(
+      '⚠️ clearSyncedOfflineData() is DEPRECATED. '
+      'Firestore Persistence handles cleanup automatically.',
+    );
   }
 
   /// Xóa tất cả dữ liệu offline

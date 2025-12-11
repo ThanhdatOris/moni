@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moni/config/app_config.dart';
 import 'package:moni/services/services.dart';
+import 'package:provider/provider.dart';
 
+import '../../../../providers/connectivity_provider.dart';
 import '../../widgets/assistant_module_tab_bar.dart';
 import 'widgets/report_chart_preview.dart';
 import 'widgets/report_export_options.dart';
@@ -283,6 +285,24 @@ class _ReportsScreenState extends State<ReportsScreen>
   }
 
   Future<void> _generateReport(ReportTemplate template) async {
+    // ✅ CHECK OFFLINE
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Text('Cần kết nối internet để tạo báo cáo AI'),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {

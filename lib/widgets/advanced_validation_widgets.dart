@@ -6,18 +6,14 @@ import 'package:moni/services/services.dart';
 /// Dialog hiển thị advanced validation warnings
 class BudgetAdvancedValidationDialog extends StatelessWidget {
   final ValidationResult validationResult;
-  final RecurringTransactionSuggestion? recurringSuggestion;
   final VoidCallback onProceed;
   final VoidCallback onCancel;
-  final VoidCallback? onSetupRecurring;
 
   const BudgetAdvancedValidationDialog({
     super.key,
     required this.validationResult,
-    this.recurringSuggestion,
     required this.onProceed,
     required this.onCancel,
-    this.onSetupRecurring,
   });
 
   @override
@@ -59,12 +55,7 @@ class BudgetAdvancedValidationDialog extends StatelessWidget {
                   _buildWarningItem(entry.key, entry.value)),
               ],
               
-              if (recurringSuggestion != null) ...[
-                const SizedBox(height: 16),
-                _buildRecurringSuggestion(recurringSuggestion!),
-              ],
-              
-              if (!validationResult.hasWarnings && recurringSuggestion == null) ...[
+              if (!validationResult.hasWarnings) ...[
                 const Text(
                   'Giao dịch của bạn trông tốt! Không có gì bất thường.',
                   style: TextStyle(fontSize: 14),
@@ -79,12 +70,6 @@ class BudgetAdvancedValidationDialog extends StatelessWidget {
           onPressed: onCancel,
           child: const Text('Hủy'),
         ),
-        if (recurringSuggestion != null && onSetupRecurring != null) ...[
-          TextButton(
-            onPressed: onSetupRecurring,
-            child: const Text('Thiết lập tự động'),
-          ),
-        ],
         const SizedBox(width: 8),
         ElevatedButton(
           onPressed: onProceed,
@@ -146,74 +131,6 @@ class BudgetAdvancedValidationDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildRecurringSuggestion(RecurringTransactionSuggestion suggestion) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: Colors.blue.withValues(alpha:0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.repeat,
-                color: Colors.blue,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Giao dịch định kỳ',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Hệ thống phát hiện bạn có ${suggestion.similarTransactions.length} giao dịch tương tự với khoảng cách ${suggestion.intervalDays} ngày.',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.blue.withValues(alpha:0.8),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Gợi ý: Thiết lập giao dịch tự động ${suggestion.suggestedFrequency.displayName.toLowerCase()}',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.blue.withValues(alpha:0.8),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.blue,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              'Độ tin cậy: ${(suggestion.confidence * 100).toInt()}%',
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Color _getWarningColor(String key) {
     switch (key) {
@@ -280,9 +197,8 @@ class BudgetAdvancedValidationDialog extends StatelessWidget {
   static Future<AdvancedValidationResult> show(
     BuildContext context, {
     required ValidationResult validationResult,
-    RecurringTransactionSuggestion? recurringSuggestion,
   }) async {
-    if (!validationResult.hasWarnings && recurringSuggestion == null) {
+    if (!validationResult.hasWarnings) {
       return AdvancedValidationResult.proceed;
     }
 
@@ -291,12 +207,8 @@ class BudgetAdvancedValidationDialog extends StatelessWidget {
       barrierDismissible: false,
       builder: (context) => BudgetAdvancedValidationDialog(
         validationResult: validationResult,
-        recurringSuggestion: recurringSuggestion,
         onProceed: () => Navigator.of(context).pop(AdvancedValidationResult.proceed),
         onCancel: () => Navigator.of(context).pop(AdvancedValidationResult.cancel),
-        onSetupRecurring: recurringSuggestion != null
-            ? () => Navigator.of(context).pop(AdvancedValidationResult.setupRecurring)
-            : null,
       ),
     );
 

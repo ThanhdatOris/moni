@@ -5,13 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
-
 import 'package:moni/config/app_config.dart';
+import 'package:moni/services/services.dart';
 
 import '../../models/category_model.dart';
 import '../../models/transaction_model.dart';
 import '../../services/providers/providers.dart';
-import 'package:moni/services/services.dart';
 import '../../utils/formatting/currency_formatter.dart';
 import '../../widgets/advanced_validation_widgets.dart';
 import '../../widgets/duplicate_warning_dialog.dart';
@@ -31,7 +30,8 @@ class AddTransactionScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AddTransactionScreen> createState() => _AddTransactionScreenState();
+  ConsumerState<AddTransactionScreen> createState() =>
+      _AddTransactionScreenState();
 }
 
 class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
@@ -104,7 +104,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
   /// Preselect category if initialCategoryId is provided
   void _preselectCategory() {
     if (widget.initialCategoryId == null) return;
-    
+
     final categoriesAsync = ref.read(allCategoriesProvider);
     if (categoriesAsync.hasValue) {
       final allCategories = categoriesAsync.value!;
@@ -122,7 +122,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
       }
     }
   }
-
 
   String _formatErrorMessage(dynamic error) {
     String errorMessage = error.toString();
@@ -174,7 +173,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
     final categoriesAsync = ref.watch(allCategoriesProvider);
     final categories = ref.watch(categoriesByTypeProvider(_selectedType));
     final isLoading = categoriesAsync.isLoading;
-    final categoriesError = categoriesAsync.hasError 
+    final categoriesError = categoriesAsync.hasError
         ? _formatErrorMessage(categoriesAsync.error!)
         : null;
 
@@ -270,8 +269,11 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
               SnackBar(
                 content: Row(
                   children: [
-                    const Icon(Icons.auto_awesome,
-                        color: Colors.white, size: 20),
+                    const Icon(
+                      Icons.auto_awesome,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
@@ -308,12 +310,14 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
         // Xử lý format như "125,000" hoặc "125k"
         final cleanAmount = amount.replaceAll(',', '').replaceAll(' ', '');
         final parsedAmount = double.tryParse(cleanAmount) ?? 0;
-        _amountController.text =
-            CurrencyFormatter.formatDisplay(parsedAmount.toInt());
+        _amountController.text = CurrencyFormatter.formatDisplay(
+          parsedAmount.toInt(),
+        );
         _aiFilledFields.add('amount');
       } else if (amount is num) {
-        _amountController.text =
-            CurrencyFormatter.formatDisplay(amount.toInt());
+        _amountController.text = CurrencyFormatter.formatDisplay(
+          amount.toInt(),
+        );
         _aiFilledFields.add('amount');
       }
     }
@@ -363,7 +367,9 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
       _aiFilledFields.add('type');
 
       // Categories sẽ tự động update từ provider khi type thay đổi
-      _logger.d('✅ Type changed to $newType, categories will update automatically');
+      _logger.d(
+        '✅ Type changed to $newType, categories will update automatically',
+      );
     }
 
     // Điền date với fallback an toàn
@@ -400,14 +406,17 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
 
     // FIXED: Điền category sau khi categories đã được load (với delay longer cho income)
     final isIncomeType = _selectedType == TransactionType.income;
-    final delayMs =
-        isIncomeType ? 1200 : 800; // More time for income category loading
+    final delayMs = isIncomeType
+        ? 1200
+        : 800; // More time for income category loading
 
     Future.delayed(Duration(milliseconds: delayMs), () {
       if (mounted) {
-        _logger
-            .d('🔍 Attempting to auto-select category for $_selectedType...');
-        final categoryName = scanResults['category_name'] ??
+        _logger.d(
+          '🔍 Attempting to auto-select category for $_selectedType...',
+        );
+        final categoryName =
+            scanResults['category_name'] ??
             scanResults['category_suggestion'] ??
             scanResults['categoryHint'];
         if (categoryName != null && categoryName.toString().isNotEmpty) {
@@ -421,10 +430,13 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
               _showAiFilledHint = _aiFilledFields.isNotEmpty;
             });
           } else {
-            final categories = ref.read(categoriesByTypeProvider(_selectedType));
+            final categories = ref.read(
+              categoriesByTypeProvider(_selectedType),
+            );
             _logger.w('❌ Category not found: ${categoryName.toString()}');
             _logger.d(
-                '📋 Available categories: ${categories.map((c) => c.name).join(', ')}');
+              '📋 Available categories: ${categories.map((c) => c.name).join(', ')}',
+            );
           }
         }
       }
@@ -442,14 +454,17 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
           .where((cat) => cat.type == _currentTransactionType)
           .toList();
       _logger.d(
-          '🔍 Searching in ${currentTypeCategories.length} categories of type $_currentTransactionType');
+        '🔍 Searching in ${currentTypeCategories.length} categories of type $_currentTransactionType',
+      );
 
       if (currentTypeCategories.isEmpty) return null;
 
       // Tìm exact match trước
       var exactMatch = currentTypeCategories
-          .where((category) =>
-              category.name.toLowerCase() == categoryName.toLowerCase())
+          .where(
+            (category) =>
+                category.name.toLowerCase() == categoryName.toLowerCase(),
+          )
           .firstOrNull;
       if (exactMatch != null) {
         _logger.d('✅ Found exact match: ${exactMatch.name}');
@@ -458,11 +473,15 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
 
       // Tìm partial match
       var partialMatch = currentTypeCategories
-          .where((category) =>
-              category.name
-                  .toLowerCase()
-                  .contains(categoryName.toLowerCase()) ||
-              categoryName.toLowerCase().contains(category.name.toLowerCase()))
+          .where(
+            (category) =>
+                category.name.toLowerCase().contains(
+                  categoryName.toLowerCase(),
+                ) ||
+                categoryName.toLowerCase().contains(
+                  category.name.toLowerCase(),
+                ),
+          )
           .firstOrNull;
       if (partialMatch != null) {
         _logger.d('✅ Found partial match: ${partialMatch.name}');
@@ -471,7 +490,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
 
       // Fallback: return first category of current type
       _logger.w(
-          '⚠️ No match found, returning first category of type $_currentTransactionType');
+        '⚠️ No match found, returning first category of type $_currentTransactionType',
+      );
       return currentTypeCategories.firstOrNull;
     } catch (e) {
       _logger.e('❌ Error in _findCategoryByName: $e');
@@ -594,10 +614,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
         } else {
           // Hiển thị cảnh báo nhưng cho phép tiếp tục
           if (!mounted) return;
-          await BudgetLimitWarningDialog.show(
-            context,
-            limitResult,
-          );
+          await BudgetLimitWarningDialog.show(context, limitResult);
         }
       }
     }
@@ -606,10 +623,10 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
     final categories = ref.read(categoriesByTypeProvider(_selectedType));
     final advancedValidationResult =
         await AdvancedValidationService.validateSpendingPattern(
-      newTransaction: newTransaction,
-      recentTransactions: recentTransactions,
-      categories: categories,
-    );
+          newTransaction: newTransaction,
+          recentTransactions: recentTransactions,
+          categories: categories,
+        );
 
     // Hiển thị advanced validation nếu có warnings
     if (advancedValidationResult.hasWarnings) {
@@ -619,17 +636,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
         validationResult: advancedValidationResult,
       );
 
-      // TODO: Handle template suggestions separately
-      // Template suggestions: ${templateSuggestions.length} found
-
-      switch (advancedResult) {
-        case AdvancedValidationResult.cancel:
-          return;
-        case AdvancedValidationResult.setupRecurring:
-          // TODO: Implement recurring transaction setup
-          break;
-        case AdvancedValidationResult.proceed:
-          break;
+      if (advancedResult == AdvancedValidationResult.cancel) {
+        return;
       }
     }
 
@@ -719,7 +727,8 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Số tiền khá lớn (${CurrencyFormatter.formatCurrencyForError(amount)})'),
+              'Số tiền khá lớn (${CurrencyFormatter.formatCurrencyForError(amount)})',
+            ),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 2),
           ),
@@ -792,7 +801,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
       return null;
     }
   }
-
 
   @override
   void dispose() {

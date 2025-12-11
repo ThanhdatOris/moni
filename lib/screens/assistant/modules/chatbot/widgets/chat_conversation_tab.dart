@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moni/config/app_config.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../../models/assistant/chat_message_model.dart';
+import '../../../../../providers/connectivity_provider.dart';
 import '../../../../../services/ai_services/ai_services.dart';
 import '../../../services/ui_optimization_service.dart';
 import '../services/conversation_service.dart';
@@ -96,6 +98,31 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
   Future<void> _sendMessage(String text) async {
     if (text.trim().isEmpty) return;
+
+    // ✅ CHECK OFFLINE TRƯỚC KHI GỬI
+    final connectivity = context.read<ConnectivityProvider>();
+    if (connectivity.isOffline) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '💬 Chat AI cần kết nối internet. Hãy thử lại khi online!',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
 
     final userMessage = ChatMessage(
       text: text.trim(),
@@ -483,10 +510,14 @@ class _ChatConversationTabState extends State<ChatConversationTab>
   }
 
   Widget _buildInputArea() {
-    return AnimatedBuilder(
-      animation: _uiOptimization,
-      builder: (context, child) {
-        return Container(
+    return Consumer<ConnectivityProvider>(
+      builder: (context, connectivity, _) {
+        final isOffline = connectivity.isOffline;
+        
+        return AnimatedBuilder(
+          animation: _uiOptimization,
+          builder: (context, child) {
+            return Container(
           padding: EdgeInsets.fromLTRB(
             16,
             12,
@@ -504,57 +535,79 @@ class _ChatConversationTabState extends State<ChatConversationTab>
           child: Row(
             children: [
               Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.grey[200]!),
-                  ),
-                  child: TextField(
-                    focusNode: _focusNode,
-                    controller: _messageController,
-                    decoration: InputDecoration(
-                      hintText: 'Nhập tin nhắn...',
-                      hintStyle: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 14,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
+                child: Opacity(
+                  opacity: isOffline ? 0.5 : 1.0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isOffline ? Colors.grey[200] : Colors.grey[50],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.grey[200]!),
                     ),
-                    maxLines: null,
-                    textCapitalization: TextCapitalization.sentences,
-                    onSubmitted: _sendMessage,
+                    child: TextField(
+                      focusNode: _focusNode,
+                      controller: _messageController,
+                      enabled: !isOffline,
+                      decoration: InputDecoration(
+                        hintText: isOffline 
+                            ? 'Cần internet để chat...' 
+                            : 'Nhập tin nhắn...',
+                        hintStyle: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 14,
+                        ),
+                        prefixIcon: isOffline
+                            ? Icon(
+                                Icons.wifi_off_rounded,
+                                size: 18,
+                                color: Colors.orange.shade600,
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: isOffline ? 8 : 16,
+                          vertical: 10,
+                        ),
+                      ),
+                      maxLines: null,
+                      textCapitalization: TextCapitalization.sentences,
+                      onSubmitted: _sendMessage,
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: 8),
               GestureDetector(
-                onTap: () => _sendMessage(_messageController.text),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.primary,
-                        AppColors.primary.withValues(alpha: 0.8),
-                      ],
+                onTap: isOffline ? null : () => _sendMessage(_messageController.text),
+                child: Opacity(
+                  opacity: isOffline ? 0.5 : 1.0,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: isOffline
+                          ? LinearGradient(
+                              colors: [Colors.grey, Colors.grey.shade400],
+                            )
+                          : LinearGradient(
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primary.withValues(alpha: 0.8),
+                              ],
+                            ),
+                      shape: BoxShape.circle,
                     ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.send_rounded,
-                    color: Colors.white,
-                    size: 20,
+                    child: const Icon(
+                      Icons.send_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
+        );
+      },
         );
       },
     );
