@@ -14,7 +14,6 @@ import 'ai_services.dart';
 /// Delegates to specialized modules for specific tasks.
 ///
 /// Modules:
-/// - AITokenManager: Token quota & rate limiting
 /// - AIResponseCache: Smart persistent caching
 /// - AICategoryService: Category suggestions
 /// - AITextGenerator: Text generation & analysis
@@ -25,7 +24,6 @@ class AIProcessorService {
   final GetIt _getIt = GetIt.instance;
 
   // Specialized modules
-  late final AITokenManager _tokenManager;
   late final AIResponseCache _cache;
   late final AICategoryService _categoryService;
   late final AITextGenerator _textGenerator;
@@ -191,28 +189,24 @@ class AIProcessorService {
     }
 
     // Initialize specialized modules
-    _tokenManager = AITokenManager();
     _cache = AIResponseCache();
     _cache.loadFromDisk();
 
     _categoryService = AICategoryService(
       model: _model,
       cache: _cache,
-      tokenManager: _tokenManager,
     );
 
     _textGenerator = AITextGenerator(
       model: _model,
       fallbackModel1: _fallbackModel1,
       fallbackModel2: _fallbackModel2,
-      tokenManager: _tokenManager,
     );
 
-    _chatHandler = AIChatHandler(model: _model, tokenManager: _tokenManager);
+    _chatHandler = AIChatHandler(model: _model);
 
     _transactionProcessor = AITransactionProcessor(
       model: _model,
-      tokenManager: _tokenManager,
       getIt: _getIt,
     );
 
@@ -220,8 +214,7 @@ class AIProcessorService {
       '🤖 AI Processor Service initialized successfully'
       '\n  Model: $initializedModel'
       '\n  Functions: ${functions.length} available'
-      '\n  Modules: 6 specialized services'
-      '\n  Token Limit: ${_tokenManager.dailyTokenLimit}/day'
+      '\n  Modules: 5 specialized services'
       '\n  Smart Cache: Enabled with tiered priorities',
     );
   }
@@ -313,26 +306,6 @@ class AIProcessorService {
   Future<bool> validateImageForProcessing(File imageFile) async {
     return await _transactionProcessor.validateImageForProcessing(imageFile);
   }
-
-  // ============================================================================
-  // PUBLIC API - Token Management
-  // ============================================================================
-
-  /// Get token usage statistics
-  Future<Map<String, dynamic>> getTokenUsageStats() async {
-    return await _tokenManager.getTokenUsageStats();
-  }
-
-  /// Force reset token quota (admin tool)
-  Future<void> forceResetTokenQuota() async {
-    await _tokenManager.forceResetTokenQuota();
-  }
-
-  /// Get current daily token count
-  int get dailyTokenCount => _tokenManager.dailyTokenCount;
-
-  /// Get daily token limit
-  int get dailyTokenLimit => _tokenManager.dailyTokenLimit;
 
   // ============================================================================
   // PUBLIC API - Cache Management

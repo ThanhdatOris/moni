@@ -103,17 +103,6 @@ service cloud.firestore {
         allow delete: if isOwner(userId);
       }
       
-      // AI token usage tracking subcollection
-      match /ai_usage/{docId} {
-        allow read, write: if isOwner(userId);
-        allow create: if isOwner(userId);
-        allow update: if isOwner(userId);
-        
-        // Prevent manual token count manipulation
-        allow update: if isOwner(userId) && 
-                         request.resource.data.dailyTokenCount >= resource.data.dailyTokenCount;
-      }
-      
       // Budgets subcollection
       match /budgets/{budgetId} {
         allow read, write: if isOwner(userId);

@@ -5,9 +5,7 @@ import 'package:logger/logger.dart';
 import 'package:moni/constants/enums.dart';
 
 import '../core/environment_service.dart';
-import 'ai_helpers.dart';
 import 'ai_response_cache.dart';
-import 'ai_token_manager.dart';
 
 /// Handles category suggestions for transactions
 /// - Single category suggestion with cache
@@ -17,15 +15,12 @@ class AICategoryService {
   final GenerativeModel _model;
   final Logger _logger = Logger();
   final AIResponseCache _cache;
-  final AITokenManager _tokenManager;
 
   AICategoryService({
     required GenerativeModel model,
     required AIResponseCache cache,
-    required AITokenManager tokenManager,
   })  : _model = model,
-        _cache = cache,
-        _tokenManager = tokenManager;
+        _cache = cache;
 
   /// Suggest category for a single transaction description
   Future<String> suggestCategory(String description) async {
@@ -47,14 +42,8 @@ Suggest best category for transaction: "$description"
 Return Vietnamese category name only: "Ăn uống", "Mua sắm", "Đi lại", "Giải trí", "Lương", etc.
 ''';
 
-      // Check usage before API call
-      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
-
       final response = await _model.generateContent([Content.text(prompt)]);
       final result = response.text?.trim() ?? 'Khác';
-
-      // Update token usage after API call
-      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, result);
 
       // Save to smart cache (7 days TTL)
       _cache.put(cacheKey, result, CachePriority.high);
@@ -119,14 +108,8 @@ Valid categories: "Ăn uống", "Mua sắm", "Đi lại", "Giải trí", "Y tế
 Response format: {"0": "Ăn uống", "1": "Đi lại", ...}
 ''';
 
-      // Check usage before API call
-      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
-
       final response = await _model.generateContent([Content.text(prompt)]);
       final responseText = response.text?.trim() ?? '{}';
-
-      // Update token usage after API call
-      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, responseText);
 
       // Parse JSON response
       try {

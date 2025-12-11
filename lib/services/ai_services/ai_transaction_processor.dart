@@ -7,7 +7,6 @@ import 'package:logger/logger.dart';
 
 import '../core/environment_service.dart';
 import 'ai_helpers.dart';
-import 'ai_token_manager.dart';
 import 'ocr_service.dart';
 
 /// Handles transaction extraction from images
@@ -21,15 +20,12 @@ import 'ocr_service.dart';
 class AITransactionProcessor {
   final GenerativeModel _model;
   final Logger _logger = Logger();
-  final AITokenManager _tokenManager;
   final GetIt _getIt; // ✅ Use GetIt to create OCRService per-request
 
   AITransactionProcessor({
     required GenerativeModel model,
-    required AITokenManager tokenManager,
     required GetIt getIt,
   }) : _model = model,
-       _tokenManager = tokenManager,
        _getIt = getIt;
 
   /// Extract transaction from image using OCR + AI verification
@@ -159,17 +155,7 @@ Lưu ý:
 - Mô tả nên bao gồm thông tin về giao dịch, không cần tách riêng tên cửa hàng
 ''';
 
-      // Check usage before API call
-      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
-
       final response = await _model.generateContent([Content.text(prompt)]);
-
-      // Update token usage after API call
-      await AIHelpers.updateUsageAfterCall(
-        _tokenManager,
-        prompt,
-        response.text ?? '',
-      );
 
       final responseText = response.text ?? '';
       final parsedResult = _parseAIAnalysisResponse(responseText);

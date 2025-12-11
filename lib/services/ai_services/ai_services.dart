@@ -4,7 +4,6 @@ export 'ai_helpers.dart';
 export 'ai_processor_service.dart';
 export 'ai_response_cache.dart';
 export 'ai_text_generator.dart';
-export 'ai_token_manager.dart';
 export 'ai_transaction_processor.dart';
 export 'genui_service.dart';
 export 'ocr_service.dart';

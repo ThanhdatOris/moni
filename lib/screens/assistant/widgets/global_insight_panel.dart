@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moni/config/app_config.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../providers/connectivity_provider.dart';
 import '../../../services/ai_services/ai_services.dart';
@@ -59,9 +60,24 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
 
   Future<void> _runInsight() async {
     if (!mounted) return;
-    
-    // ✅ CHECK OFFLINE
+
+    // ✅ CHECK OFFLINE - Lấy connectivity trước khi await
     final connectivity = context.read<ConnectivityProvider>();
+
+    // ✅ CHECK IF AUTO INSIGHTS IS ENABLED
+    final prefs = await SharedPreferences.getInstance();
+    final autoInsightsEnabled =
+        prefs.getBool('ai_auto_insights_enabled') ?? true;
+
+    if (!autoInsightsEnabled) {
+      setState(() {
+        _error = 'disabled'; // Special error code
+        _isLoading = false;
+      });
+      return;
+    }
+
+    // Check offline sau khi có cả connectivity và prefs
     if (connectivity.isOffline) {
       setState(() {
         _error = 'offline'; // Special error code
@@ -69,13 +85,13 @@ class _GlobalInsightPanelState extends State<GlobalInsightPanel> {
       });
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
-    try{
+    try {
       // 🎯 OPTIMIZATION: Check cache first
       final cacheKey = _getCacheKey(widget.moduleId);
       final cached = _insightCache[cacheKey];
@@ -174,6 +190,11 @@ DATA: ${jsonEncode(contextPayload)}
 
   @override
   Widget build(BuildContext context) {
+    // Hide widget completely if disabled
+    if (_error == 'disabled') {
+      return const SizedBox.shrink();
+    }
+
     return AIFeatureWrapper(
       offlineMessage: 'AI Insights cần kết nối internet',
       showOverlay: _error == 'offline',
@@ -181,12 +202,15 @@ DATA: ${jsonEncode(contextPayload)}
         title: widget.title,
         titleIcon: Icons.psychology,
         isLoading: _isLoading,
-        hasError: _error != null && _error != 'offline',
+        hasError: _error != null && _error != 'offline' && _error != 'disabled',
         onTap: null,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.85)],
+          colors: [
+            AppColors.primary,
+            AppColors.primary.withValues(alpha: 0.85),
+          ],
         ),
         child: _buildContent(),
       ),
@@ -214,7 +238,7 @@ DATA: ${jsonEncode(contextPayload)}
         ),
       );
     }
-    
+
     if (_error != null) {
       return Column(
         mainAxisSize: MainAxisSize.min,

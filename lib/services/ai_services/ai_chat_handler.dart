@@ -12,7 +12,6 @@ import '../core/environment_service.dart';
 import '../data/category_service.dart';
 import '../data/transaction_service.dart';
 import 'ai_helpers.dart';
-import 'ai_token_manager.dart';
 
 /// Handles chat processing and function calls
 /// - Process chat input with AI
@@ -23,13 +22,10 @@ class AIChatHandler {
   final GenerativeModel _model;
   final Logger _logger = Logger();
   final GetIt _getIt = GetIt.instance;
-  final AITokenManager _tokenManager;
 
   AIChatHandler({
     required GenerativeModel model,
-    required AITokenManager tokenManager,
-  }) : _model = model,
-       _tokenManager = tokenManager;
+  }) : _model = model;
 
   /// Process chat input with streaming response
   /// Returns a stream of text chunks as they arrive
@@ -146,9 +142,6 @@ User input: "$input"
         return;
       }
 
-      // Check usage before API call
-      await AIHelpers.checkUsageBeforeCall(_tokenManager, prompt);
-
       // 1. Prepare History
       List<Content> historyContent = [];
       if (history != null) {
@@ -175,9 +168,6 @@ User input: "$input"
         fullResponse += chunk;
         yield chunk;
       }
-
-      // Update token usage after streaming completes
-      await AIHelpers.updateUsageAfterCall(_tokenManager, prompt, fullResponse);
 
       if (EnvironmentService.debugMode) {
         _logger.d(

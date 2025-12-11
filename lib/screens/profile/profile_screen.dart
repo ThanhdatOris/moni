@@ -7,6 +7,7 @@ import 'package:moni/core/injection_container.dart';
 import '../../models/user_model.dart';
 import '../../widgets/custom_page_header.dart';
 import 'widgets/about_section.dart';
+import 'widgets/ai_settings_section.dart';
 import 'widgets/appearance_section.dart';
 import 'widgets/help_section.dart';
 import 'widgets/logout_section.dart';
@@ -258,6 +259,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'title': 'Bảo mật',
       'subtitle': 'Mật khẩu, sinh trắc học',
       'widget': SecuritySection(isGoogleAuth: _isGoogleAuth()),
+    },
+    {
+      'icon': Icons.psychology_outlined,
+      'title': 'AI Insights',
+      'subtitle': 'Cài đặt tự động tạo phân tích AI',
+      'widget': const AISettingsSection(),
     },
     {
       'icon': Icons.notifications_outlined,
