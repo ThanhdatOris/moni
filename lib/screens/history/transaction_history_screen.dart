@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moni/config/app_config.dart';
 
-import '../../models/transaction_model.dart';
+import '../../models/models.dart';
 import '../../services/providers/providers.dart';
 import '../../utils/formatting/currency_formatter.dart';
-import '../../utils/formatting/date_formatter.dart';
 import '../../widgets/custom_page_header.dart';
 import 'transaction_detail_screen.dart';
+import 'widgets/active_filters_bar.dart';
+import 'widgets/advanced_filter_sheet.dart';
 import 'widgets/history_calendar_grid.dart';
 import 'widgets/history_empty_state.dart';
 import 'widgets/history_grouped_transactions_list.dart';
@@ -15,15 +16,24 @@ import 'widgets/history_summary_item.dart';
 import 'widgets/history_transaction_item.dart';
 
 class TransactionHistoryScreen extends ConsumerStatefulWidget {
+  // Backward compatibility parameters
   final String? categoryId;
   final TransactionType? filterType;
   final DateTime? filterDate;
+
+  // New filter parameter
+  final TransactionFilter? initialFilter;
+
+  // Tab control
+  final int? initialTabIndex; // 0 = Calendar, 1 = List
 
   const TransactionHistoryScreen({
     super.key,
     this.categoryId,
     this.filterType,
     this.filterDate,
+    this.initialFilter,
+    this.initialTabIndex,
   });
 
   @override
@@ -37,17 +47,33 @@ class _TransactionHistoryScreenState
   late TabController _tabController;
   late DateTime _selectedDay;
   late DateTime _focusedDay;
-  TransactionType? _filterType;
+  late TransactionFilter _currentFilter;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTabIndex ?? 0, // Default = Calendar
+    );
 
-    // Initialize with filter data or defaults
+    // Initialize dates
     _selectedDay = widget.filterDate ?? DateTime.now();
     _focusedDay = widget.filterDate ?? DateTime.now();
-    _filterType = widget.filterType;
+
+    // Initialize filter (backward compatibility)
+    if (widget.initialFilter != null) {
+      _currentFilter = widget.initialFilter!;
+    } else if (widget.categoryId != null || widget.filterType != null) {
+      // Support old constructor parameters
+      _currentFilter = TransactionFilter(
+        categoryIds: widget.categoryId != null ? [widget.categoryId!] : null,
+        type: widget.filterType,
+      );
+    } else {
+      _currentFilter = TransactionFilter.empty();
+    }
   }
 
   @override
@@ -61,7 +87,6 @@ class _TransactionHistoryScreenState
 
     setState(() {
       _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + delta, 1);
-      // Reset selected day to first of new month
       _selectedDay = _focusedDay;
     });
   }
@@ -98,13 +123,33 @@ class _TransactionHistoryScreenState
     }
   }
 
+  Future<void> _showAdvancedFilter() async {
+    final newFilter = await AdvancedFilterSheet.show(context, _currentFilter);
+    if (newFilter != null && mounted) {
+      setState(() {
+        _currentFilter = newFilter;
+      });
+    }
+  }
+
+  void _updateFilter(TransactionFilter newFilter) {
+    if (!mounted) return;
+    setState(() {
+      _currentFilter = newFilter;
+    });
+  }
+
   Map<DateTime, List<TransactionModel>> _groupTransactionsByDay(
-      List<TransactionModel> transactions) {
+    List<TransactionModel> transactions,
+  ) {
     Map<DateTime, List<TransactionModel>> data = {};
     for (var transaction in transactions) {
       if (transaction.isDeleted) continue;
       final date = DateTime(
-          transaction.date.year, transaction.date.month, transaction.date.day);
+        transaction.date.year,
+        transaction.date.month,
+        transaction.date.day,
+      );
       if (data[date] != null) {
         data[date]!.add(transaction);
       } else {
@@ -114,22 +159,93 @@ class _TransactionHistoryScreenState
     return data;
   }
 
-  List<TransactionModel> _getFilteredTransactions(
-      List<TransactionModel> allTransactions) {
-    var filtered = allTransactions;
+  List<TransactionModel> _applyFilters(List<TransactionModel> allTransactions) {
+    var filtered = allTransactions.where((t) => !t.isDeleted).toList();
 
-    // Filter by category if provided
-    if (widget.categoryId != null) {
-      filtered =
-          filtered.where((t) => t.categoryId == widget.categoryId).toList();
+    // Category filter
+    if (_currentFilter.categoryIds != null &&
+        _currentFilter.categoryIds!.isNotEmpty) {
+      filtered = filtered
+          .where((t) => _currentFilter.categoryIds!.contains(t.categoryId))
+          .toList();
     }
 
-    // Filter by type
-    if (_filterType != null) {
-      filtered = filtered.where((t) => t.type == _filterType).toList();
+    // Type filter
+    if (_currentFilter.type != null) {
+      filtered = filtered.where((t) => t.type == _currentFilter.type).toList();
     }
+
+    // Date range filter
+    if (_currentFilter.startDate != null) {
+      filtered = filtered
+          .where(
+            (t) =>
+                t.date.isAfter(_currentFilter.startDate!) ||
+                t.date.isAtSameMomentAs(_currentFilter.startDate!),
+          )
+          .toList();
+    }
+    if (_currentFilter.endDate != null) {
+      filtered = filtered
+          .where(
+            (t) =>
+                t.date.isBefore(_currentFilter.endDate!) ||
+                t.date.isAtSameMomentAs(_currentFilter.endDate!),
+          )
+          .toList();
+    }
+
+    // Amount range filter
+    if (_currentFilter.minAmount != null) {
+      filtered = filtered
+          .where((t) => t.amount >= _currentFilter.minAmount!)
+          .toList();
+    }
+    if (_currentFilter.maxAmount != null) {
+      filtered = filtered
+          .where((t) => t.amount <= _currentFilter.maxAmount!)
+          .toList();
+    }
+
+    // Search filter
+    if (_currentFilter.searchQuery != null &&
+        _currentFilter.searchQuery!.isNotEmpty) {
+      final query = _currentFilter.searchQuery!.toLowerCase();
+      filtered = filtered
+          .where((t) => t.note?.toLowerCase().contains(query) ?? false)
+          .toList();
+    }
+
+    // Apply sorting
+    _applySorting(filtered);
 
     return filtered;
+  }
+
+  void _applySorting(List<TransactionModel> transactions) {
+    switch (_currentFilter.sortBy) {
+      case TransactionSortBy.date:
+        transactions.sort(
+          (a, b) => _currentFilter.ascending
+              ? a.date.compareTo(b.date)
+              : b.date.compareTo(a.date),
+        );
+        break;
+      case TransactionSortBy.amount:
+        transactions.sort(
+          (a, b) => _currentFilter.ascending
+              ? a.amount.compareTo(b.amount)
+              : b.amount.compareTo(a.amount),
+        );
+        break;
+      case TransactionSortBy.category:
+        transactions.sort(
+          (a, b) => _currentFilter.ascending
+              ? a.categoryId.compareTo(b.categoryId)
+              : b.categoryId.compareTo(a.categoryId),
+        );
+        break;
+    }
   }
 
   List<TransactionModel> _getTransactionsForDay(
@@ -234,14 +350,14 @@ class _TransactionHistoryScreenState
                   fontWeight: FontWeight.w500,
                 ),
                 labelPadding: const EdgeInsets.symmetric(vertical: 6),
-                tabs: [
+                tabs: const [
                   Tab(
                     height: 20,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.calendar_month, size: 18),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text('Lịch'),
                       ],
                     ),
@@ -252,7 +368,7 @@ class _TransactionHistoryScreenState
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.list, size: 18),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Text('Danh sách'),
                       ],
                     ),
@@ -261,37 +377,83 @@ class _TransactionHistoryScreenState
               ),
             ),
 
+            // Active Filters Bar
+            ActiveFiltersBar(
+              filter: _currentFilter,
+              onFilterChanged: _updateFilter,
+            ),
+
             // Tab Views
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [
-                  _buildCalendarView(),
-                  _buildListView(),
-                ],
+                children: [_buildCalendarView(), _buildListView()],
               ),
             ),
           ],
+        ),
+      ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 80), // Tránh menubar
+        child: FloatingActionButton(
+          onPressed: _showAdvancedFilter,
+          backgroundColor: AppColors.primary,
+          child: Stack(
+            children: [
+              const Center(child: Icon(Icons.filter_list, color: Colors.white)),
+              if (_currentFilter.hasActiveFilters)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '${_currentFilter.activeFilterCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildCalendarView() {
-    // Watch providers for calendar view
     final transactionsAsync = ref.watch(allTransactionsProvider);
+    final allTransactions = transactionsAsync.value ?? [];
+    final filteredTransactions = _applyFilters(allTransactions);
 
     // Get transactions for current month
     final startOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
     final endOfMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
-    final monthRange = DateRange(start: startOfMonth, end: endOfMonth);
-    final monthTransactions =
-        ref.watch(transactionsByDateRangeProvider(monthRange));
+    final monthTransactions = filteredTransactions
+        .where(
+          (t) =>
+              t.date.isAfter(startOfMonth.subtract(const Duration(days: 1))) &&
+              t.date.isBefore(endOfMonth.add(const Duration(days: 1))),
+        )
+        .toList();
 
-    // Group transactions by day
     final transactionsByDay = _groupTransactionsByDay(monthTransactions);
-    final selectedDayTransactions =
-        _getTransactionsForDay(_selectedDay, transactionsByDay);
+    final selectedDayTransactions = _getTransactionsForDay(
+      _selectedDay,
+      transactionsByDay,
+    );
 
     final isLoading = transactionsAsync.isLoading;
 
@@ -333,8 +495,13 @@ class _TransactionHistoryScreenState
                   Expanded(
                     child: HistorySummaryItem(
                       title: 'Thu nhập',
-                      amount: _formatCurrency(_getDayTotal(_selectedDay,
-                          TransactionType.income, transactionsByDay)),
+                      amount: _formatCurrency(
+                        _getDayTotal(
+                          _selectedDay,
+                          TransactionType.income,
+                          transactionsByDay,
+                        ),
+                      ),
                       icon: Icons.trending_up,
                     ),
                   ),
@@ -346,8 +513,13 @@ class _TransactionHistoryScreenState
                   Expanded(
                     child: HistorySummaryItem(
                       title: 'Chi tiêu',
-                      amount: _formatCurrency(_getDayTotal(_selectedDay,
-                          TransactionType.expense, transactionsByDay)),
+                      amount: _formatCurrency(
+                        _getDayTotal(
+                          _selectedDay,
+                          TransactionType.expense,
+                          transactionsByDay,
+                        ),
+                      ),
                       icon: Icons.trending_down,
                     ),
                   ),
@@ -373,85 +545,37 @@ class _TransactionHistoryScreenState
           SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return HistoryTransactionItem(
-                    transaction: selectedDayTransactions[index],
-                    onTap: () => _navigateToTransactionDetail(
-                        selectedDayTransactions[index]),
-                  );
-                },
-                childCount: selectedDayTransactions.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                return HistoryTransactionItem(
+                  transaction: selectedDayTransactions[index],
+                  onTap: () => _navigateToTransactionDetail(
+                    selectedDayTransactions[index],
+                  ),
+                );
+              }, childCount: selectedDayTransactions.length),
             ),
           ),
 
-        // Bottom spacing for calendar view when transactions exist
+        // Bottom spacing
         if (!isLoading && selectedDayTransactions.isNotEmpty)
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 100),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
     );
   }
 
   Widget _buildListView() {
-    // Watch providers for list view
     final transactionsAsync = ref.watch(allTransactionsProvider);
     final allTransactions = transactionsAsync.value ?? [];
-    final filteredTransactions = _getFilteredTransactions(allTransactions);
+    final filteredTransactions = _applyFilters(allTransactions);
     final isLoading = transactionsAsync.isLoading;
 
-    return Column(
-      children: [
-        // Filter Section
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: DropdownButtonFormField<TransactionType?>(
-            initialValue: _filterType,
-            decoration: InputDecoration(
-              labelText: 'Lọc theo loại giao dịch',
-              prefixIcon: Icon(Icons.filter_list, color: AppColors.primary),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              filled: true,
-              fillColor: AppColors.backgroundLight,
-            ),
-            items: const [
-              DropdownMenuItem(
-                value: null,
-                child: Text('Tất cả giao dịch'),
-              ),
-              DropdownMenuItem(
-                value: TransactionType.income,
-                child: Text('Thu nhập'),
-              ),
-              DropdownMenuItem(
-                value: TransactionType.expense,
-                child: Text('Chi tiêu'),
-              ),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _filterType = value;
-              });
-            },
-          ),
-        ),
-
-        // Grouped Transactions List
-        Expanded(
-          child: isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : filteredTransactions.isEmpty
-                  ? const HistoryEmptyState(isListView: true)
-                  : HistoryGroupedTransactionsList(
-                      transactions: filteredTransactions,
-                      onTransactionTap: _navigateToTransactionDetail,
-                    ),
-        ),
-      ],
-    );
+    return isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : filteredTransactions.isEmpty
+        ? const HistoryEmptyState(isListView: true)
+        : HistoryGroupedTransactionsList(
+            transactions: filteredTransactions,
+            onTransactionTap: _navigateToTransactionDetail,
+          );
   }
 }

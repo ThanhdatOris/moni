@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:moni/config/app_config.dart';
 
 import '../../../models/category_model.dart';
+import '../../transaction/widgets/enhanced_category_selector.dart';
 import '../../transaction/widgets/transaction_amount_input.dart';
-import '../../transaction/widgets/transaction_category_selector.dart';
 import '../../transaction/widgets/transaction_date_selector.dart';
 import '../../transaction/widgets/transaction_note_input.dart';
 import '../../transaction/widgets/transaction_type_selector.dart';
 
-class DetailEditForm extends StatelessWidget {
+class DetailEditForm extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController amountController;
   final TextEditingController noteController;
@@ -44,51 +44,83 @@ class DetailEditForm extends StatelessWidget {
   });
 
   @override
+  State<DetailEditForm> createState() => _DetailEditFormState();
+}
+
+class _DetailEditFormState extends State<DetailEditForm> {
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen to note changes để refresh category suggestions
+    widget.noteController.addListener(_onNoteChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.noteController.removeListener(_onNoteChanged);
+    super.dispose();
+  }
+
+  void _onNoteChanged() {
+    // Force rebuild khi note thay đổi để update suggestions
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Form(
-        key: formKey,
+        key: widget.formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Transaction Type Selector
             TransactionTypeSelector(
-              selectedType: selectedType,
-              onTypeChanged: onTypeChanged,
+              selectedType: widget.selectedType,
+              onTypeChanged: widget.onTypeChanged,
             ),
 
             const SizedBox(height: 24),
 
             // Amount Input
             TransactionAmountInput(
-              controller: amountController,
+              controller: widget.amountController,
             ),
 
             const SizedBox(height: 24),
 
-            // Category Selector
-            TransactionCategorySelector(
-              selectedCategory: selectedCategory,
-              categories: categories,
-              isLoading: isCategoriesLoading,
-              onCategoryChanged: onCategoryChanged,
-              onRetry: onRetry,
+            // Category Selector (Enhanced với suggestions)
+            EnhancedCategorySelector(
+              key: ValueKey('${widget.selectedType}_${widget.categories.length}'),
+              selectedCategory: widget.selectedCategory,
+              categories: widget.categories,
+              isLoading: widget.isCategoriesLoading,
+              onCategoryChanged: widget.onCategoryChanged,
+              onRetry: widget.onRetry,
+              transactionType: widget.selectedType,
+              transactionNote: widget.noteController.text.isNotEmpty 
+                  ? widget.noteController.text 
+                  : null,
+              transactionTime: widget.selectedDate,
             ),
 
             const SizedBox(height: 24),
 
             // Date Selector
             TransactionDateSelector(
-              selectedDate: selectedDate,
-              onDateChanged: onDateChanged,
+              selectedDate: widget.selectedDate,
+              onDateChanged: widget.onDateChanged,
             ),
 
             const SizedBox(height: 24),
 
             // Note Input
             TransactionNoteInput(
-              controller: noteController,
+              controller: widget.noteController,
             ),
 
             const SizedBox(height: 32),
@@ -98,7 +130,7 @@ class DetailEditForm extends StatelessWidget {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: isLoading ? null : onSave,
+                onPressed: widget.isLoading ? null : widget.onSave,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -106,7 +138,7 @@ class DetailEditForm extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: isLoading
+                child: widget.isLoading
                     ? const SizedBox(
                         width: 20,
                         height: 20,

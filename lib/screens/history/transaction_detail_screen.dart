@@ -84,6 +84,13 @@ class _TransactionDetailScreenState extends ConsumerState<TransactionDetailScree
     _amountController.text = CurrencyFormatter.formatDisplay(widget.transaction.amount.toInt());
     _noteController.text = widget.transaction.note ?? '';
 
+    // Preselect category sau khi frame được render
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _preselectCategory();
+      }
+    });
+
     // Auth listener
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
       if (mounted && user == null) {

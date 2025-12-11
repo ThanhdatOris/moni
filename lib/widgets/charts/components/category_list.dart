@@ -522,12 +522,9 @@ class _CategoryListState extends State<CategoryList>
 
   // Event handlers
   void _onCategoryItemTap(ChartDataModel item) {
-    // Call parent callback
+    debugPrint('📝 Category List item tapped: ${item.category}');
+    
+    // Call parent callback để navigate với filter
     widget.onCategoryTap?.call(item);
-
-    // Navigate to history with category filter
-    widget.onNavigateToHistory?.call();
-
-    debugPrint('Category item tapped: ${item.category}');
   }
 }

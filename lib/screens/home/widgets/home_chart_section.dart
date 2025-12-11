@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moni/config/app_config.dart';
+import 'package:moni/models/models.dart';
 import 'package:moni/services/services.dart';
 
 import '../../../widgets/charts/components/category_list.dart';
@@ -9,20 +10,25 @@ import '../../../widgets/charts/components/donut_chart.dart';
 import '../../../widgets/charts/components/filter.dart';
 import '../../../widgets/charts/components/trend_bar_chart.dart';
 import '../../../widgets/charts/models/chart_data_model.dart';
+import '../../history/transaction_history_screen.dart';
 
 /// Widget cho expense chart section trong home screen - Cấu trúc mới
 /// Header: Title + Chart type toggle
 /// Body: Filter + Main chart + Top 5 categories + Show more
 class ExpenseChartSection extends StatefulWidget {
-  final VoidCallback? onCategoryTap;
+  final Function(String categoryId)? onChartCategoryTap; // Chart: show % only
+  final Function(String categoryId)? onCategoryListTap;  // List: navigate
   final VoidCallback? onRefresh;
   final VoidCallback? onNavigateToHistory;
+  final Function(TransactionFilter)? onNavigateToHistoryWithFilter;
 
   const ExpenseChartSection({
     super.key,
-    this.onCategoryTap,
+    this.onChartCategoryTap,
+    this.onCategoryListTap,
     this.onRefresh,
     this.onNavigateToHistory,
+    this.onNavigateToHistoryWithFilter,
   });
 
   @override
@@ -607,48 +613,66 @@ class _ExpenseChartSectionState extends State<ExpenseChartSection> {
 
   // Event handlers
   void _onDonutCategoryTap(ChartDataModel item) {
-    // Show category details and navigate to filtered history
+    // Show category details - hiện phần trăm tỷ lệ (KHÔNG navigate)
     debugPrint(
-        'Donut category tapped: ${item.category} - Amount: ${item.amount}');
-    widget.onCategoryTap?.call();
-
-    // Switch to history tab instead of pushing new screen (to keep navbar)
-    widget.onNavigateToHistory?.call();
+        '📊 Donut category tapped: ${item.category} - Amount: ${item.amount}');
     
-    // TODO: Pass filter parameters to history tab if needed
-    // Currently just switches to history tab without filters
+    // Call callback để hiện detail/percentage (NO navigate)
+    if (item.categoryModel != null) {
+      widget.onChartCategoryTap?.call(item.categoryModel!.categoryId);
+    }
   }
 
   void _onCategoryItemTap(ChartDataModel item) {
     // Navigate to history with category filter
-    debugPrint('Category item tapped: ${item.category}');
+    debugPrint('📝 Category list item tapped: ${item.category}');
 
-    // Switch to history tab instead of pushing new screen (to keep navbar)
-    widget.onNavigateToHistory?.call();
-    
-    // TODO: Pass category filter to history tab if needed
+    if (item.categoryModel != null) {
+      final categoryId = item.categoryModel!.categoryId;
+      
+      // Call callback để navigate
+      widget.onCategoryListTap?.call(categoryId);
+      
+      // Use tab system if callback is provided (Option B)
+      if (widget.onNavigateToHistoryWithFilter != null) {
+        widget.onNavigateToHistoryWithFilter!(
+          TransactionFilter.byCategory(categoryId).copyWith(
+            type: _getTransactionType(),
+          ),
+        );
+      } else {
+        // Fallback: Push new screen (Option A)
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => TransactionHistoryScreen(
+              initialFilter: TransactionFilter.byCategory(categoryId).copyWith(
+                type: _getTransactionType(),
+              ),
+              initialTabIndex: 1, // Mở tab List
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _onTrendBarTap(TrendData item) {
-    // Show trend details or navigate to filtered history
+    // Show trend details - hiện thông tin tháng (KHÔNG navigate)
     debugPrint(
         'Trend bar tapped: ${item.label} - Income: ${item.income}, Expense: ${item.expense}');
-
-    // Switch to history tab instead of pushing new screen (to keep navbar)
-    widget.onNavigateToHistory?.call();
     
-    // TODO: Pass date filter to history tab if needed
+    // Có thể thêm dialog/tooltip hiển thị detail nếu cần
   }
 
   void _onCombinedCategoryTap(ChartDataModel item, String type) {
-    // Show category details and navigate to filtered history with type
+    // Show category details - hiện phần trăm tỷ lệ (KHÔNG navigate)
     debugPrint(
-        'Combined category tapped: ${item.category} - Type: $type - Amount: ${item.amount}');
-    widget.onCategoryTap?.call();
-
-    // Switch to history tab instead of pushing new screen (to keep navbar)
-    widget.onNavigateToHistory?.call();
+        '📊 Combined category tapped: ${item.category} - Type: $type - Amount: ${item.amount}');
     
-    // TODO: Pass category and type filters to history tab if needed
+    // Call callback để hiện detail/percentage (NO navigate)
+    if (item.categoryModel != null) {
+      widget.onChartCategoryTap?.call(item.categoryModel!.categoryId);
+    }
   }
 }

@@ -4,13 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moni/config/app_config.dart';
 
 import '../../../models/category_model.dart';
+import '../../../models/transaction_filter_model.dart';
 import '../../../services/providers/providers.dart';
 import '../../../utils/helpers/category_icon_helper.dart';
 import '../../category/category_management_screen.dart';
+import '../../history/transaction_history_screen.dart';
 import '../../transaction/add_transaction_screen.dart';
 
 class CategoryQuickAccess extends ConsumerWidget {
-  const CategoryQuickAccess({super.key});
+  final Function(TransactionFilter)? onNavigateToHistoryWithFilter;
+
+  const CategoryQuickAccess({
+    super.key,
+    this.onNavigateToHistoryWithFilter,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -414,6 +421,36 @@ class CategoryQuickAccess extends ConsumerWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () {
+            debugPrint('🔵 Category card tapped: ${category.name}');
+            debugPrint('🔵 Has callback: ${onNavigateToHistoryWithFilter != null}');
+            
+            // Tap: Xem transactions của category này
+            if (onNavigateToHistoryWithFilter != null) {
+              debugPrint('🔵 Using tab system (Option B)');
+              // Use tab system (Option B)
+              onNavigateToHistoryWithFilter!(
+                TransactionFilter.byCategory(category.categoryId).copyWith(
+                  type: category.type,
+                ),
+              );
+            } else {
+              debugPrint('🔵 Using fallback navigation');
+              // Fallback: Navigate to history với filter (mở tab List)
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TransactionHistoryScreen(
+                    initialFilter: TransactionFilter.byCategory(
+                      category.categoryId,
+                    ),
+                    initialTabIndex: 1, // Mở tab List
+                  ),
+                ),
+              );
+            }
+          },
+          onLongPress: () {
+            // Long press: Add transaction với category này
             Navigator.push(
               context,
               MaterialPageRoute(
