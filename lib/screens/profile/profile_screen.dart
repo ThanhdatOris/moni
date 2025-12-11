@@ -225,15 +225,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onBackgroundImageError: (_, __) {
           // Silent fail - CircleAvatar sẽ hiển thị backgroundColor
         },
-        // Hiển thị first letter nếu image fail
-        child: Text(
-          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        // Không hiển thị child khi có ảnh - tránh chữ cái đè lên ảnh
+        child: null,
       );
     } else {
       return _buildDefaultAvatar(userName);
