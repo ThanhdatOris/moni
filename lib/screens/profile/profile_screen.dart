@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:moni/config/app_config.dart';
-import 'package:moni/services/services.dart';
 import 'package:moni/core/injection_container.dart';
+import 'package:moni/services/services.dart';
 
 import '../../models/user_model.dart';
 import '../../widgets/custom_page_header.dart';
@@ -10,7 +10,6 @@ import 'widgets/about_section.dart';
 import 'widgets/ai_settings_section.dart';
 import 'widgets/appearance_section.dart';
 import 'widgets/help_section.dart';
-import 'widgets/logout_section.dart';
 import 'widgets/notification_section.dart';
 import 'widgets/personal_info_section.dart';
 import 'widgets/security_section.dart';
@@ -42,7 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final authService = getIt<AuthService>();
       final userData = await authService.getUserData();
-      
+
       if (mounted) {
         setState(() {
           _userModel = userData;
@@ -79,9 +78,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         children: [
                           _buildHeader(),
-                          _buildSettingsMenu(context, FirebaseAuth.instance.currentUser),
-                          const LogoutSection(),
-                          const SizedBox(height: 80),
+                          _buildSettingsMenu(
+                            context,
+                            FirebaseAuth.instance.currentUser,
+                          ),
+                          const SizedBox(height: 120),
                         ],
                       ),
                     ),
@@ -142,7 +143,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   // Name
                   Text(
-                    _userModel?.name ?? FirebaseAuth.instance.currentUser?.displayName ?? 'Người dùng',
+                    _userModel?.name ??
+                        FirebaseAuth.instance.currentUser?.displayName ??
+                        'Người dùng',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -161,7 +164,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 4),
                   // Email
                   Text(
-                    _userModel?.email ?? FirebaseAuth.instance.currentUser?.email ?? 'Chưa có email',
+                    _userModel?.email ??
+                        FirebaseAuth.instance.currentUser?.email ??
+                        'Chưa có email',
                     style: const TextStyle(
                       fontSize: 14,
                       color: Colors.white70,
@@ -173,7 +178,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 8),
                   // Membership badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
@@ -208,6 +216,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
+            // Logout button
+            IconButton(
+              onPressed: () => _showLogoutDialog(context),
+              icon: const Icon(
+                Icons.logout_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+              tooltip: 'Đăng xuất',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                padding: const EdgeInsets.all(8),
+              ),
+            ),
           ],
         ),
       ),
@@ -217,7 +239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildAvatar() {
     final user = FirebaseAuth.instance.currentUser;
     final userName = _userModel?.name ?? user?.displayName ?? 'Người dùng';
-    
+
     if (user?.photoURL != null && user!.photoURL!.isNotEmpty) {
       return CircleAvatar(
         radius: 32,
@@ -237,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isGoogleAuth() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return false;
-    
+
     // Check if user signed in with Google
     for (var provider in user.providerData) {
       if (provider.providerId == 'google.com') {
@@ -321,7 +343,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final section = entry.value;
             final isFirst = index == 0;
             final isLast = index == _settingSections.length - 1;
-            
+
             return _buildSettingSection(
               context,
               icon: section['icon'],
@@ -351,9 +373,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          bottom: isLast 
-            ? BorderSide.none 
-            : const BorderSide(color: Color(0xFFF5F5F5), width: 1)
+          bottom: isLast
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFF5F5F5), width: 1),
         ),
       ),
       child: Theme(
@@ -392,10 +414,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           subtitle: Text(
             subtitle,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
           ),
           iconColor: Colors.grey.shade500,
           collapsedIconColor: Colors.grey.shade500,
@@ -407,7 +426,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Container(
               width: double.infinity,
               color: Colors.grey.shade50,
-                padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: child,
             ),
           ],
@@ -427,6 +446,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
           fontSize: 20,
           fontWeight: FontWeight.bold,
         ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Đăng xuất',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
+        content: const Text(
+          'Bạn có chắc chắn muốn đăng xuất không?',
+          style: TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await getIt<AuthService>().logout();
+              if (context.mounted) {
+                Navigator.pushReplacementNamed(context, '/login');
+              }
+            },
+            child: const Text(
+              'Đăng xuất',
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }
