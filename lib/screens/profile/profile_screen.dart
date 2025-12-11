@@ -220,11 +220,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user?.photoURL != null && user!.photoURL!.isNotEmpty) {
       return CircleAvatar(
         radius: 32,
+        backgroundColor: const Color(0xFFFF9800),
         backgroundImage: NetworkImage(user.photoURL!),
         onBackgroundImageError: (_, __) {
-          // Fallback to default avatar if image fails to load
+          // Silent fail - CircleAvatar sẽ hiển thị backgroundColor
         },
-        child: user.photoURL!.isEmpty ? null : null,
+        // Hiển thị first letter nếu image fail
+        child: Text(
+          userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       );
     } else {
       return _buildDefaultAvatar(userName);

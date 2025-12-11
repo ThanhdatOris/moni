@@ -2,9 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
+import 'package:moni/services/services.dart';
 
 import '../screens/assistant/services/real_data_service.dart';
-import 'package:moni/services/services.dart';
 
 final getIt = GetIt.instance;
 
@@ -15,7 +15,7 @@ Future<void> init() async {
   // EXTERNAL DEPENDENCIES
   // ==========================================================================
 
-  // Firebase
+  // Firebase - Persistence đã được enable trong FirebaseService
   getIt.registerLazySingleton<FirebaseAuth>(() => FirebaseAuth.instance);
   getIt.registerLazySingleton<FirebaseFirestore>(
     () => FirebaseFirestore.instance,
@@ -38,12 +38,10 @@ Future<void> init() async {
   getIt.registerLazySingleton<AuthService>(() => AuthService());
   getIt.registerLazySingleton<CategoryService>(() => CategoryService());
 
-  // Transaction service with offline support
-  getIt.registerLazySingleton<TransactionService>(
-    () => TransactionService(offlineService: getIt<OfflineService>()),
-  );
+  // Transaction service - Offline-First với Firestore Persistence
+  getIt.registerLazySingleton<TransactionService>(() => TransactionService());
 
-  // Budget service - set transaction service and category service after registration
+  // Budget service - use TransactionService (V1 for now, V2 later)
   getIt.registerLazySingleton<BudgetService>(() {
     final budgetService = BudgetService();
     budgetService.setTransactionService(getIt<TransactionService>());
@@ -67,7 +65,10 @@ Future<void> init() async {
     () => ReportService(transactionService: getIt<TransactionService>()),
   );
 
-  // Sync service
+  // Sync service V2 - Simple cleanup service
+  getIt.registerLazySingleton<SyncServiceV2>(() => SyncServiceV2());
+
+  // Legacy sync service (deprecated, kept for compatibility)
   getIt.registerLazySingleton<OfflineSyncService>(
     () => OfflineSyncService(
       offlineService: getIt<OfflineService>(),

@@ -14,8 +14,11 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Lấy người dùng hiện tại
+  /// Lấy người dùng hiện tại - SINGLE SOURCE OF TRUTH
   User? get currentUser => _auth.currentUser;
+
+  /// Lấy userId hiện tại (null nếu chưa đăng nhập)
+  String? get currentUserId => _auth.currentUser?.uid;
 
   /// Stream theo dõi trạng thái đăng nhập
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -56,17 +59,21 @@ class AuthService {
         // Tạo danh mục mặc định cho user mới
         await _createDefaultCategories(user.uid);
 
-        // Sử dụng hệ thống log mới
-        logInfo('Đăng ký thành công cho user: ${user.uid}', data: {
-          'email': email,
-          'name': name,
-        });
+        logInfo(
+          'Đăng ký thành công cho user: ${user.uid}',
+          data: {'email': email, 'name': name},
+        );
+
         return userModel;
       }
       return null;
     } catch (e, stackTrace) {
-      logError('Lỗi đăng ký',
-          data: {'email': email}, error: e, stackTrace: stackTrace);
+      logError(
+        'Lỗi đăng ký',
+        data: {'email': email},
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw handleError(e, stackTrace: stackTrace);
     }
   }
@@ -85,20 +92,29 @@ class AuthService {
       final User? user = result.user;
       if (user != null) {
         // Lấy thông tin người dùng từ Firestore
-        final userDoc =
-            await _firestore.collection('users').doc(user.uid).get();
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
 
         if (userDoc.exists) {
           final userModel = UserModel.fromMap(userDoc.data()!, user.uid);
-          logInfo('Đăng nhập thành công cho user: ${user.uid}',
-              data: {'email': email});
+          logInfo(
+            'Đăng nhập thành công cho user: ${user.uid}',
+            data: {'email': email},
+          );
+
           return userModel;
         }
       }
       return null;
     } catch (e, stackTrace) {
-      logError('Lỗi đăng nhập',
-          data: {'email': email}, error: e, stackTrace: stackTrace);
+      logError(
+        'Lỗi đăng nhập',
+        data: {'email': email},
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw handleError(e, stackTrace: stackTrace);
     }
   }
@@ -108,10 +124,10 @@ class AuthService {
     try {
       // GoogleSignIn v7+ API - use singleton instance
       final googleSignIn = GoogleSignIn.instance;
-      
+
       // Initialize with clientId if needed (usually from config files)
       await googleSignIn.initialize();
-      
+
       // Authenticate user - this shows the Google Sign-In UI and returns the account
       final GoogleSignInAccount googleUser;
       if (googleSignIn.supportsAuthenticate()) {
@@ -123,7 +139,7 @@ class AuthService {
 
       // Get authentication tokens (idToken for Firebase)
       final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-      
+
       if (googleAuth.idToken == null) {
         logError('Failed to get ID token from Google authentication');
         return null;
@@ -131,7 +147,9 @@ class AuthService {
 
       // Get authorization for accessing Google services (to get accessToken)
       final scopes = ['email', 'profile'];
-      final auth = await googleUser.authorizationClient.authorizationForScopes(scopes);
+      final auth = await googleUser.authorizationClient.authorizationForScopes(
+        scopes,
+      );
 
       // Create Firebase credential with ID token and optional access token
       final credential = GoogleAuthProvider.credential(
@@ -140,27 +158,32 @@ class AuthService {
       );
 
       // Sign in to Firebase with the Google credential
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      final UserCredential userCredential = await _auth.signInWithCredential(
+        credential,
+      );
       final User? user = userCredential.user;
 
       if (user != null) {
         // Check if user document exists in Firestore
-        final userDoc = await _firestore.collection('users').doc(user.uid).get();
-        
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
+
         final now = DateTime.now();
         UserModel userModel;
 
         if (userDoc.exists) {
           // Update existing user
           userModel = UserModel.fromMap(userDoc.data()!, user.uid);
-          
+
           // Update last login and photo URL if changed
           await _firestore.collection('users').doc(user.uid).update({
             'updated_at': Timestamp.fromDate(now),
             'photo_url': user.photoURL,
             'name': user.displayName ?? userModel.name,
           });
-          
+
           userModel = userModel.copyWith(
             photoUrl: user.photoURL,
             updatedAt: now,
@@ -177,17 +200,20 @@ class AuthService {
             updatedAt: now,
           );
 
-          await _firestore.collection('users').doc(user.uid).set(userModel.toMap());
-          
+          await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .set(userModel.toMap());
+
           // Create default categories for new user
           await _createDefaultCategories(user.uid);
         }
 
-        logInfo('Đăng nhập Google thành công cho user: ${user.uid}', data: {
-          'email': user.email,
-          'name': user.displayName,
-        });
-        
+        logInfo(
+          'Đăng nhập Google thành công cho user: ${user.uid}',
+          data: {'email': user.email, 'name': user.displayName},
+        );
+
         return userModel;
       }
 
@@ -200,22 +226,19 @@ class AuthService {
 
   /// Đăng nhập ẩn danh (Anonymous)
   Future<UserModel?> signInAnonymously() async {
-    return await handleErrorSafelyAsync<UserModel?>(
-      () async {
-        // Kiểm tra kết nối internet
-        final connectivity = await Connectivity().checkConnectivity();
-        final isOnline = !connectivity.contains(ConnectivityResult.none);
+    return await handleErrorSafelyAsync<UserModel?>(() async {
+      // Kiểm tra kết nối internet
+      final connectivity = await Connectivity().checkConnectivity();
+      final isOnline = !connectivity.contains(ConnectivityResult.none);
 
-        if (isOnline) {
-          // Đăng nhập anonymous online
-          return await _signInAnonymouslyOnline();
-        } else {
-          // Đăng nhập anonymous offline
-          return await _signInAnonymouslyOffline();
-        }
-      },
-      context: 'AuthService.signInAnonymously',
-    );
+      if (isOnline) {
+        // Đăng nhập anonymous online
+        return await _signInAnonymouslyOnline();
+      } else {
+        // Đăng nhập anonymous offline
+        return await _signInAnonymouslyOffline();
+      }
+    }, context: 'AuthService.signInAnonymously');
   }
 
   /// Đăng nhập anonymous online
@@ -232,7 +255,8 @@ class AuthService {
         // Anonymous user đã tồn tại - lấy thông tin từ Firestore
         userModel = UserModel.fromMap(userDoc.data()!, user.uid);
         logInfo(
-            'Đăng nhập anonymous thành công cho user hiện tại: ${user.uid}');
+          'Đăng nhập anonymous thành công cho user hiện tại: ${user.uid}',
+        );
       } else {
         // Anonymous user mới - tạo document mới
         final now = DateTime.now();
@@ -255,9 +279,6 @@ class AuthService {
         logInfo('Tạo anonymous user mới thành công: ${user.uid}');
       }
 
-      // Lưu session cho offline
-      await _saveOfflineSession(userModel);
-
       return userModel;
     }
     return null;
@@ -277,25 +298,8 @@ class AuthService {
       updatedAt: now,
     );
 
-    // Lưu session offline
-    await _saveOfflineSession(userModel);
-
     logInfo('Tạo anonymous user offline: $userId');
     return userModel;
-  }
-
-  /// Lưu session offline
-  Future<void> _saveOfflineSession(UserModel user) async {
-    try {
-      final offlineService = OfflineService();
-      await offlineService.saveOfflineUserSession(
-        userId: user.userId,
-        userName: user.name,
-        email: user.email.isNotEmpty ? user.email : null,
-      );
-    } catch (e) {
-      logError('Lỗi lưu session offline', error: e);
-    }
   }
 
   /// Đăng xuất người dùng
@@ -378,12 +382,17 @@ class AuthService {
           updatedAt: now,
         );
 
-        await _firestore.collection('users').doc(user.uid).set(newUserData.toMap());
-        
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .set(newUserData.toMap());
+
         // Tạo danh mục mặc định cho user mới
         await _createDefaultCategories(user.uid);
-        
-        logInfo('Tạo document user mới trong Firestore khi cập nhật profile: ${user.uid}');
+
+        logInfo(
+          'Tạo document user mới trong Firestore khi cập nhật profile: ${user.uid}',
+        );
       }
 
       logInfo('Cập nhật profile thành công cho user: ${user.uid}');
@@ -399,8 +408,11 @@ class AuthService {
       await _auth.sendPasswordResetEmail(email: email);
       logInfo('Đã gửi email reset mật khẩu cho: $email');
     } catch (e, stackTrace) {
-      logError('Lỗi gửi email reset mật khẩu',
-          error: e, stackTrace: stackTrace);
+      logError(
+        'Lỗi gửi email reset mật khẩu',
+        error: e,
+        stackTrace: stackTrace,
+      );
       throw handleError(e, stackTrace: stackTrace);
     }
   }
@@ -461,7 +473,8 @@ class AuthService {
           );
 
           logInfo(
-              'Cập nhật avatar từ Firebase Auth vào Firestore cho user: ${user.uid}');
+            'Cập nhật avatar từ Firebase Auth vào Firestore cho user: ${user.uid}',
+          );
         }
 
         return userModel;
@@ -480,8 +493,11 @@ class AuthService {
       await categoryService.createDefaultCategories();
       logInfo('Tạo danh mục mặc định thành công cho user: $userId');
     } catch (e, stackTrace) {
-      logError('Lỗi tạo danh mục mặc định cho user $userId',
-          error: e, stackTrace: stackTrace);
+      logError(
+        'Lỗi tạo danh mục mặc định cho user $userId',
+        error: e,
+        stackTrace: stackTrace,
+      );
       // Không throw exception vì đây không phải lỗi nghiêm trọng
     }
   }

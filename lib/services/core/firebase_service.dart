@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:logger/logger.dart';
 
@@ -59,6 +60,18 @@ class FirebaseService {
         } else {
           rethrow; // Throw lại nếu là lỗi khác
         }
+      }
+
+      // Enable Firestore Persistence ngay sau khi init
+      try {
+        final firestore = FirebaseFirestore.instance;
+        firestore.settings = const Settings(
+          persistenceEnabled: true,
+          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        );
+        _logger.i('🗄️ Firestore Persistence enabled');
+      } catch (e) {
+        _logger.w('⚠️ Không thể enable Firestore Persistence: $e');
       }
 
       // Khởi tạo Firebase App Check

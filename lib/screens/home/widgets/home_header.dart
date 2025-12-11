@@ -241,6 +241,11 @@ class _HomeHeaderWithCardsState extends ConsumerState<HomeHeaderWithCards> {
                     backgroundImage: _userPhotoUrl != null
                         ? NetworkImage(_userPhotoUrl!)
                         : null,
+                    onBackgroundImageError: _userPhotoUrl != null
+                        ? (exception, stackTrace) {
+                            // Silent fail - hiển thị fallback icon
+                          }
+                        : null,
                     child: _userPhotoUrl == null
                         ? Icon(
                             Icons.person,

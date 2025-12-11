@@ -59,13 +59,52 @@ class TransactionModel {
       'updated_at': Timestamp.fromDate(updatedAt),
       'is_deleted': isDeleted,
     };
-    
+
     // Only include categoryName if it's provided (optional field)
     if (categoryName != null) {
       map['category_name'] = categoryName;
     }
-    
+
     return map;
+  }
+
+  /// Chuyển TransactionModel thành Map JSON-safe (cho SharedPreferences/offline storage)
+  Map<String, dynamic> toJsonMap() {
+    final map = <String, dynamic>{
+      'transaction_id': transactionId,
+      'user_id': userId,
+      'category_id': categoryId,
+      'amount': amount,
+      'date': date.toIso8601String(),
+      'type': type.value,
+      'note': note,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'is_deleted': isDeleted,
+    };
+
+    if (categoryName != null) {
+      map['category_name'] = categoryName;
+    }
+
+    return map;
+  }
+
+  /// Tạo TransactionModel từ JSON Map (từ SharedPreferences/offline storage)
+  factory TransactionModel.fromJsonMap(Map<String, dynamic> map) {
+    return TransactionModel(
+      transactionId: map['transaction_id'] ?? '',
+      userId: map['user_id'] ?? '',
+      categoryId: map['category_id'] ?? '',
+      categoryName: map['category_name'],
+      amount: (map['amount'] as num).toDouble(),
+      date: DateTime.parse(map['date'] as String),
+      type: TransactionType.fromString(map['type'] ?? 'EXPENSE'),
+      note: map['note'],
+      createdAt: DateTime.parse(map['created_at'] as String),
+      updatedAt: DateTime.parse(map['updated_at'] as String),
+      isDeleted: map['is_deleted'] ?? false,
+    );
   }
 
   /// Tạo bản sao TransactionModel với một số trường được cập nhật

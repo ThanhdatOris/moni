@@ -1,101 +1,79 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 import 'package:moni/constants/enums.dart';
 
 import '../../models/transaction_model.dart';
 import '../core/environment_service.dart';
-import '../offline/offline_service.dart';
+import '../offline/connectivity_checker.dart';
 
 /// Service quản lý giao dịch tài chính
 class TransactionService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _logger = Logger();
-  final OfflineService _offlineService;
+  final ConnectivityChecker _connectivityChecker = ConnectivityChecker();
   // Chống spam log
   final Map<String, DateTime> _lastLogTimes = {};
 
-  TransactionService({required OfflineService offlineService})
-    : _offlineService = offlineService;
+  TransactionService();
 
-  /// Tạo giao dịch mới
+  /// Tạo giao dịch mới - OFFLINE-FIRST
   Future<String> createTransaction(TransactionModel transaction) async {
     try {
-      // Kiểm tra kết nối internet
-      final connectivity = await Connectivity().checkConnectivity();
-      final isOnline = !connectivity.contains(ConnectivityResult.none);
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw Exception('Người dùng chưa đăng nhập');
+      }
+
+      final now = DateTime.now();
+      final transactionData = transaction.copyWith(
+        userId: user.uid,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Check connectivity TRƯỚC để tối ưu performance
+      final isOnline = await _connectivityChecker.isOnline();
 
       if (isOnline) {
-        return await _createTransactionOnline(transaction);
+        // ONLINE: Await để lấy real ID từ Firestore
+        final docRef = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('transactions')
+            .add(transactionData.toMap());
+
+        _logger.i('✅ [Online] Tạo giao dịch: ${docRef.id}');
+        return docRef.id;
       } else {
-        return await _createTransactionOffline(transaction);
+        // OFFLINE: Tạo ID local, ghi Firestore ngay (fire-and-forget)
+        final localId = 'local_${now.millisecondsSinceEpoch}';
+        final transactionWithId = transactionData.copyWith(transactionId: localId);
+
+        // Fire-and-forget: Ghi Firestore nhưng KHÔNG await
+        // Firestore Persistence sẽ cache và sync sau
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('transactions')
+            .doc(localId) // Dùng doc() với ID cố định
+            .set(transactionWithId.toMap())
+            .catchError((e) {
+              _logger.w('⚠️ Offline write queued: $e');
+            });
+
+        _logger.i('✅ [Offline] Tạo giao dịch local: $localId');
+        return localId;
       }
     } catch (e) {
-      _logger.e('Lỗi tạo giao dịch: $e');
+      _logger.e('❌ Lỗi tạo giao dịch: $e');
       throw Exception('Không thể tạo giao dịch: $e');
     }
   }
 
-  /// Tạo giao dịch online
-  Future<String> _createTransactionOnline(TransactionModel transaction) async {
-    // ⏱️ PERFORMANCE: Start timing
-    final startTime = DateTime.now();
 
-    final user = _auth.currentUser;
-    if (user == null) {
-      throw Exception('Người dùng chưa đăng nhập');
-    }
-
-    final now = DateTime.now();
-    final transactionData = transaction.copyWith(
-      userId: user.uid,
-      createdAt: now,
-      updatedAt: now,
-    );
-
-    final docRef = await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('transactions')
-        .add(transactionData.toMap());
-
-    // ⏱️ PERFORMANCE: Log creation time
-    final duration = DateTime.now().difference(startTime);
-    _logger.i(
-      '💡 Tạo giao dịch online thành công: ${docRef.id} (${duration.inMilliseconds}ms)',
-    );
-
-    return docRef.id;
-  }
-
-  /// Tạo giao dịch offline
-  Future<String> _createTransactionOffline(TransactionModel transaction) async {
-    final userSession = await _offlineService.getOfflineUserSession();
-    final userId = userSession['userId'];
-
-    if (userId == null) {
-      throw Exception('Không có session offline');
-    }
-
-    final transactionId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
-    final now = DateTime.now();
-
-    final transactionData = transaction.copyWith(
-      transactionId: transactionId,
-      userId: userId,
-      createdAt: now,
-      updatedAt: now,
-    );
-
-    await _offlineService.saveOfflineTransaction(transactionData);
-
-    _logger.i('Tạo giao dịch offline thành công: $transactionId');
-    return transactionId;
-  }
-
-  /// Cập nhật giao dịch
+  /// Cập nhật giao dịch - OFFLINE-FIRST
   Future<void> updateTransaction(TransactionModel transaction) async {
     try {
       final user = _auth.currentUser;
@@ -103,25 +81,39 @@ class TransactionService {
         throw Exception('Người dùng chưa đăng nhập');
       }
 
-      final updatedTransaction = transaction.copyWith(
-        updatedAt: DateTime.now(),
-      );
+      final updatedTransaction = transaction.copyWith(updatedAt: DateTime.now());
+      final isOnline = await _connectivityChecker.isOnline();
 
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('transactions')
-          .doc(transaction.transactionId)
-          .update(updatedTransaction.toMap());
-
-      _logger.i('Cập nhật giao dịch thành công: ${transaction.transactionId}');
+      if (isOnline) {
+        // ONLINE: Await để đảm bảo update thành công
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('transactions')
+            .doc(transaction.transactionId)
+            .update(updatedTransaction.toMap());
+        _logger.i('✅ [Online] Cập nhật giao dịch: ${transaction.transactionId}');
+      } else {
+        // OFFLINE: Fire-and-forget
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('transactions')
+            .doc(transaction.transactionId)
+            .update(updatedTransaction.toMap())
+            .catchError((e) {
+              _logger.w('⚠️ Offline update queued: $e');
+            });
+        _logger.i('✅ [Offline] Update queued: ${transaction.transactionId}');
+      }
     } catch (e) {
-      _logger.e('Lỗi cập nhật giao dịch: $e');
+      _logger.e('❌ Lỗi cập nhật giao dịch: $e');
       throw Exception('Không thể cập nhật giao dịch: $e');
     }
   }
 
-  /// Soft delete giao dịch
+
+  /// Soft delete giao dịch - OFFLINE-FIRST
   Future<void> deleteTransaction(String transactionId) async {
     try {
       final user = _auth.currentUser;
@@ -129,22 +121,42 @@ class TransactionService {
         throw Exception('Người dùng chưa đăng nhập');
       }
 
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('transactions')
-          .doc(transactionId)
-          .update({
-            'is_deleted': true,
-            'updated_at': Timestamp.fromDate(DateTime.now()),
-          });
+      final isOnline = await _connectivityChecker.isOnline();
 
-      _logger.i('Xóa giao dịch thành công: $transactionId');
+      if (isOnline) {
+        // ONLINE: Await để đảm bảo delete thành công
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('transactions')
+            .doc(transactionId)
+            .update({
+              'is_deleted': true,
+              'updated_at': Timestamp.fromDate(DateTime.now()),
+            });
+        _logger.i('✅ [Online] Xóa giao dịch: $transactionId');
+      } else {
+        // OFFLINE: Fire-and-forget
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('transactions')
+            .doc(transactionId)
+            .update({
+              'is_deleted': true,
+              'updated_at': Timestamp.fromDate(DateTime.now()),
+            })
+            .catchError((e) {
+              _logger.w('⚠️ Offline delete queued: $e');
+            });
+        _logger.i('✅ [Offline] Delete queued: $transactionId');
+      }
     } catch (e) {
-      _logger.e('Lỗi xóa giao dịch: $e');
+      _logger.e('❌ Lỗi xóa giao dịch: $e');
       throw Exception('Không thể xóa giao dịch: $e');
     }
   }
+
 
   /// Lấy danh sách giao dịch của người dùng (hỗ trợ nhiều filter + orderBy + pagination)
   Stream<List<TransactionModel>> getTransactions({

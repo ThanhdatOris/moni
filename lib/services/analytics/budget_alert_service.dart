@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:logger/logger.dart';
 
 import '../../models/budget_alert_model.dart';
-import '../offline/offline_service.dart';
 import '../data/transaction_service.dart';
 
 /// Service quản lý cảnh báo ngân sách
@@ -14,7 +13,7 @@ class BudgetAlertService {
   final Logger _logger = Logger();
 
   BudgetAlertService({TransactionService? transactionService})
-      : _transactionService = transactionService ?? TransactionService(offlineService: OfflineService());
+    : _transactionService = transactionService ?? TransactionService();
 
   /// Tạo cảnh báo ngân sách mới
   Future<String> setAlert(BudgetAlertModel alert) async {
@@ -59,9 +58,9 @@ class BudgetAlertService {
           .collection('budget_alerts')
           .doc(alertId)
           .update({
-        'threshold': threshold,
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'threshold': threshold,
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
       _logger.i('Cập nhật ngưỡng cảnh báo thành công: $alertId');
     } catch (e) {
@@ -84,9 +83,9 @@ class BudgetAlertService {
           .collection('budget_alerts')
           .doc(alertId)
           .update({
-        'is_enabled': false,
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'is_enabled': false,
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
       _logger.i('Vô hiệu hóa cảnh báo thành công: $alertId');
     } catch (e) {
@@ -109,10 +108,10 @@ class BudgetAlertService {
           .collection('budget_alerts')
           .doc(alertId)
           .update({
-        'is_enabled': true,
-        'snoozed_until': null,
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'is_enabled': true,
+            'snoozed_until': null,
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
       _logger.i('Bật cảnh báo thành công: $alertId');
     } catch (e) {
@@ -137,12 +136,13 @@ class BudgetAlertService {
           .collection('budget_alerts')
           .doc(alertId)
           .update({
-        'snoozed_until': Timestamp.fromDate(snoozedUntil),
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'snoozed_until': Timestamp.fromDate(snoozedUntil),
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
-      _logger
-          .i('Tạm dừng cảnh báo thành công: $alertId cho $durationHours giờ');
+      _logger.i(
+        'Tạm dừng cảnh báo thành công: $alertId cho $durationHours giờ',
+      );
     } catch (e) {
       _logger.e('Lỗi tạm dừng cảnh báo: $e');
       throw Exception('Không thể tạm dừng cảnh báo: $e');
@@ -186,11 +186,10 @@ class BudgetAlertService {
           .orderBy('created_at', descending: true)
           .snapshots()
           .map((snapshot) {
-        return snapshot.docs.map((doc) {
-          return BudgetAlertModel.fromMap(
-              doc.data(), doc.id);
-        }).toList();
-      });
+            return snapshot.docs.map((doc) {
+              return BudgetAlertModel.fromMap(doc.data(), doc.id);
+            }).toList();
+          });
     } catch (e) {
       _logger.e('Lỗi lấy danh sách cảnh báo: $e');
       return Stream.value([]);
@@ -212,12 +211,11 @@ class BudgetAlertService {
           .where('is_enabled', isEqualTo: true)
           .snapshots()
           .map((snapshot) {
-        return snapshot.docs
-            .map((doc) => BudgetAlertModel.fromMap(
-                doc.data(), doc.id))
-            .where((alert) => alert.isActive)
-            .toList();
-      });
+            return snapshot.docs
+                .map((doc) => BudgetAlertModel.fromMap(doc.data(), doc.id))
+                .where((alert) => alert.isActive)
+                .toList();
+          });
     } catch (e) {
       _logger.e('Lỗi lấy cảnh báo hoạt động: $e');
       return Stream.value([]);
@@ -317,9 +315,9 @@ class BudgetAlertService {
           .collection('budget_alerts')
           .doc(alertId)
           .update({
-        'message': message,
-        'updated_at': Timestamp.fromDate(DateTime.now()),
-      });
+            'message': message,
+            'updated_at': Timestamp.fromDate(DateTime.now()),
+          });
 
       _logger.i('Cập nhật thông điệp cảnh báo thành công: $alertId');
     } catch (e) {

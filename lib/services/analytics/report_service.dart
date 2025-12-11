@@ -5,7 +5,6 @@ import 'package:moni/constants/enums.dart';
 
 import '../../models/report_model.dart';
 import '../../models/transaction_model.dart';
-import '../offline/offline_service.dart';
 import '../data/transaction_service.dart';
 
 /// Service tạo và quản lý báo cáo tài chính
@@ -16,7 +15,7 @@ class ReportService {
   final Logger _logger = Logger();
 
   ReportService({TransactionService? transactionService})
-      : _transactionService = transactionService ?? TransactionService(offlineService: OfflineService());
+    : _transactionService = transactionService ?? TransactionService();
 
   /// Tạo báo cáo mới
   Future<String> generateReport({
@@ -37,11 +36,15 @@ class ReportService {
       // Tạo dữ liệu báo cáo
       Map<String, dynamic> reportData;
       if (type == ReportType.byTime) {
-        reportData =
-            await _generateTimeBasedReport(dateRange.start, dateRange.end);
+        reportData = await _generateTimeBasedReport(
+          dateRange.start,
+          dateRange.end,
+        );
       } else {
-        reportData =
-            await _generateCategoryBasedReport(dateRange.start, dateRange.end);
+        reportData = await _generateCategoryBasedReport(
+          dateRange.start,
+          dateRange.end,
+        );
       }
 
       final now = DateTime.now();
@@ -106,7 +109,8 @@ class ReportService {
       buffer.writeln('=== BÁO CÁO TÀI CHÍNH MONI ===');
       buffer.writeln('Loại báo cáo: ${_getReportTypeText(report.type)}');
       buffer.writeln(
-          'Khoảng thời gian: ${_getTimePeriodText(report.timePeriod)}');
+        'Khoảng thời gian: ${_getTimePeriodText(report.timePeriod)}',
+      );
       buffer.writeln('Ngày tạo: ${report.createdAt}');
       buffer.writeln('');
 
@@ -157,7 +161,9 @@ class ReportService {
       return query.snapshots().map((snapshot) {
         return snapshot.docs.map((doc) {
           return ReportModel.fromMap(
-              doc.data() as Map<String, dynamic>, doc.id);
+            doc.data() as Map<String, dynamic>,
+            doc.id,
+          );
         }).toList();
       });
     } catch (e) {
@@ -190,7 +196,9 @@ class ReportService {
 
   /// Tạo báo cáo theo thời gian
   Future<Map<String, dynamic>> _generateTimeBasedReport(
-      DateTime startDate, DateTime endDate) async {
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
     try {
       final totalIncome = await _transactionService.getTotalIncome(
         startDate: startDate,
@@ -205,8 +213,10 @@ class ReportService {
       final balance = totalIncome - totalExpense;
 
       // Lấy chi tiết giao dịch theo ngày
-      final transactions =
-          await _getTransactionsByDateRange(startDate, endDate);
+      final transactions = await _getTransactionsByDateRange(
+        startDate,
+        endDate,
+      );
       final dailyData = _groupTransactionsByDay(transactions);
 
       return {
@@ -226,10 +236,14 @@ class ReportService {
 
   /// Tạo báo cáo theo danh mục
   Future<Map<String, dynamic>> _generateCategoryBasedReport(
-      DateTime startDate, DateTime endDate) async {
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
     try {
-      final transactions =
-          await _getTransactionsByDateRange(startDate, endDate);
+      final transactions = await _getTransactionsByDateRange(
+        startDate,
+        endDate,
+      );
 
       // Nhóm giao dịch theo danh mục
       final incomeByCategory = <String, double>{};
@@ -239,11 +253,11 @@ class ReportService {
         if (transaction.type == TransactionType.income) {
           incomeByCategory[transaction.categoryId] =
               (incomeByCategory[transaction.categoryId] ?? 0) +
-                  transaction.amount;
+              transaction.amount;
         } else {
           expenseByCategory[transaction.categoryId] =
               (expenseByCategory[transaction.categoryId] ?? 0) +
-                  transaction.amount;
+              transaction.amount;
         }
       }
 
@@ -268,7 +282,9 @@ class ReportService {
 
   /// Lấy giao dịch theo khoảng thời gian
   Future<List<TransactionModel>> _getTransactionsByDateRange(
-      DateTime startDate, DateTime endDate) async {
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
     try {
       final user = _auth.currentUser;
       if (user == null) return [];
@@ -293,7 +309,8 @@ class ReportService {
 
   /// Nhóm giao dịch theo ngày
   Map<String, Map<String, double>> _groupTransactionsByDay(
-      List<TransactionModel> transactions) {
+    List<TransactionModel> transactions,
+  ) {
     final dailyData = <String, Map<String, double>>{};
 
     for (final transaction in transactions) {
@@ -318,7 +335,10 @@ class ReportService {
 
   /// Tính toán khoảng thời gian báo cáo
   DateRange _calculateDateRange(
-      TimePeriod timePeriod, DateTime? startDate, DateTime? endDate) {
+    TimePeriod timePeriod,
+    DateTime? startDate,
+    DateTime? endDate,
+  ) {
     final now = DateTime.now();
 
     if (startDate != null && endDate != null) {
@@ -332,16 +352,19 @@ class ReportService {
           DateTime(now.year, now.month + 1, 0),
         );
       case TimePeriod.quarterly:
-        final quarterStart =
-            DateTime(now.year, ((now.month - 1) ~/ 3) * 3 + 1, 1);
-        final quarterEnd =
-            DateTime(quarterStart.year, quarterStart.month + 3, 0);
+        final quarterStart = DateTime(
+          now.year,
+          ((now.month - 1) ~/ 3) * 3 + 1,
+          1,
+        );
+        final quarterEnd = DateTime(
+          quarterStart.year,
+          quarterStart.month + 3,
+          0,
+        );
         return DateRange(quarterStart, quarterEnd);
       case TimePeriod.yearly:
-        return DateRange(
-          DateTime(now.year, 1, 1),
-          DateTime(now.year, 12, 31),
-        );
+        return DateRange(DateTime(now.year, 1, 1), DateTime(now.year, 12, 31));
     }
   }
 
