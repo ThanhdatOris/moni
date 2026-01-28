@@ -140,38 +140,38 @@ class AIProcessorService {
     String initializedModel = '';
 
     try {
-      // Primary model: gemini-2.0-flash
+      // Primary model: gemini-2.5-flash
       _model = GenerativeModel(
-        model: 'gemini-2.0-flash',
+        model: 'gemini-2.5-flash',
         apiKey: apiKey,
         tools: [Tool(functionDeclarations: functions)],
       );
-      initializedModel = 'gemini-2.0-flash';
-      _logger.i('✅ Primary model: Gemini 2.0 Flash');
+      initializedModel = 'gemini-2.5-flash';
+      _logger.i('✅ Primary model: Gemini 2.5 Flash');
 
-      // Fallback model 1: gemini-pro
+      // Fallback model 1: gemini-2.5-flash-lite
       try {
         _fallbackModel1 = GenerativeModel(
-          model: 'gemini-pro',
+          model: 'gemini-2.5-flash-lite',
           apiKey: apiKey,
           tools: [Tool(functionDeclarations: functions)],
         );
-        _logger.d('✅ Fallback model 1: Gemini Pro');
+        _logger.d('✅ Fallback model 1: Gemini 2.5 Flash Lite');
       } catch (e) {
-        _logger.w('⚠️ Fallback model 1 (gemini-pro) initialization failed: $e');
+        _logger.w('⚠️ Fallback model 1 (gemini-2.5-flash-lite) initialization failed: $e');
       }
 
       // Fallback model 2: gemini-1.5-pro (nếu có)
       try {
         _fallbackModel2 = GenerativeModel(
-          model: 'gemini-1.5-pro',
+          model: 'gemini-3-flash-preview',
           apiKey: apiKey,
           tools: [Tool(functionDeclarations: functions)],
         );
-        _logger.d('✅ Fallback model 2: Gemini 1.5 Pro');
+        _logger.d('✅ Fallback model 2: Gemini 3 Flash Preview');
       } catch (e) {
         _logger.w(
-          '⚠️ Fallback model 2 (gemini-1.5-pro) initialization failed: $e',
+          '⚠️ Fallback model 2 (gemini-3-flash-preview) initialization failed: $e',
         );
       }
     } catch (e) {
@@ -179,8 +179,8 @@ class AIProcessorService {
       // Thử fallback ngay trong constructor
       if (_fallbackModel1 != null) {
         _model = _fallbackModel1!;
-        initializedModel = 'gemini-pro';
-        _logger.w('⚠️ Using fallback model 1 (gemini-pro)');
+        initializedModel = 'gemini-2.5-flash-lite';
+        _logger.w('⚠️ Using fallback model 1 (gemini-2.5-flash-lite)');
       } else {
         throw Exception(
           'Could not initialize any Gemini model. Please check your API key and internet connection.',

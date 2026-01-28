@@ -16,7 +16,8 @@ class CategoryIconPickerDialog extends StatefulWidget {
   });
 
   @override
-  State<CategoryIconPickerDialog> createState() => _CategoryIconPickerDialogState();
+  State<CategoryIconPickerDialog> createState() =>
+      _CategoryIconPickerDialogState();
 }
 
 class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
@@ -27,16 +28,106 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
 
   // Predefined emojis for categories
   final List<String> _emojis = [
-    '🍕', '🛒', '🚗', '⛽', '🎬', '🧾', '🏥', '🏠', '🎓', '⚽',
-    '✈️', '🏨', '🛍️', '💪', '🐕', '👶', '🎉', '☕', '🍺', '💼',
-    '🎁', '📈', '💰', '🏦', '💴', '🏢', '💵', '💲', '📁', '🏷️',
-    '🍔', '🍜', '🍳', '🥗', '🍎', '🍌', '🍓', '🥤', '🧃', '🍹',
-    '🏋️', '🎮', '📱', '💻', '📚', '✏️', '🎨', '🎵', '📷', '🎯',
-    '🚌', '🚇', '🚲', '🛴', '⛵', '🏊', '🎿', '🧗', '🏃', '🚶',
-    '👕', '👖', '👗', '👠', '👜', '💍', '⌚', '🕶️', '🧢', '🧤',
-    '🏪', '🏬', '🎪', '🎭', '🎨', '🎼', '🎤', '🎸', '🎹', '🥁',
-    '💊', '🩺', '🧴', '🧼', '🧽', '🧹', '🔧', '🔨', '⚡', '🔥',
-    '🌟', '⭐', '💫', '🌙', '☀️', '🌈', '🍀', '🌺', '🌸', '🌼'
+    '🍕',
+    '🛒',
+    '🚗',
+    '⛽',
+    '🎬',
+    '🧾',
+    '🏥',
+    '🏠',
+    '🎓',
+    '⚽',
+    '✈️',
+    '🏨',
+    '🛍️',
+    '💪',
+    '🐕',
+    '👶',
+    '🎉',
+    '☕',
+    '🍺',
+    '💼',
+    '🎁',
+    '📈',
+    '💰',
+    '🏦',
+    '💴',
+    '🏢',
+    '💵',
+    '💲',
+    '📁',
+    '🏷️',
+    '🍔',
+    '🍜',
+    '🍳',
+    '🥗',
+    '🍎',
+    '🍌',
+    '🍓',
+    '🥤',
+    '🧃',
+    '🍹',
+    '🏋️',
+    '🎮',
+    '📱',
+    '💻',
+    '📚',
+    '✏️',
+    '🎨',
+    '🎵',
+    '📷',
+    '🎯',
+    '🚌',
+    '🚇',
+    '🚲',
+    '🛴',
+    '⛵',
+    '🏊',
+    '🎿',
+    '🧗',
+    '🏃',
+    '🚶',
+    '👕',
+    '👖',
+    '👗',
+    '👠',
+    '👜',
+    '💍',
+    '⌚',
+    '🕶️',
+    '🧢',
+    '🧤',
+    '🏪',
+    '🏬',
+    '🎪',
+    '🎭',
+    '🎨',
+    '🎼',
+    '🎤',
+    '🎸',
+    '🎹',
+    '🥁',
+    '💊',
+    '🩺',
+    '🧴',
+    '🧼',
+    '🧽',
+    '🧹',
+    '🔧',
+    '🔨',
+    '⚡',
+    '🔥',
+    '🌟',
+    '⭐',
+    '💫',
+    '🌙',
+    '☀️',
+    '🌈',
+    '🍀',
+    '🌺',
+    '🌸',
+    '🌼',
   ];
 
   // Material icons for categories
@@ -79,7 +170,7 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
     _tabController = TabController(length: 2, vsync: this);
     _currentIconType = widget.selectedIconType;
     _selectedIcon = widget.selectedIcon;
-    
+
     // Set initial tab based on icon type
     if (_currentIconType == CategoryIconType.material) {
       _tabController.index = 1;
@@ -94,7 +185,7 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
 
   void _showEmojiKeyboard() async {
     final TextEditingController controller = TextEditingController();
-    
+
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -126,7 +217,7 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
         ],
       ),
     );
-    
+
     if (result != null && result.isNotEmpty) {
       setState(() {
         _selectedIcon = result;
@@ -164,9 +255,9 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Tab Bar
             Container(
               padding: const EdgeInsets.all(4),
@@ -178,8 +269,8 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
                 controller: _tabController,
                 onTap: (index) {
                   setState(() {
-                    _currentIconType = index == 0 
-                        ? CategoryIconType.emoji 
+                    _currentIconType = index == 0
+                        ? CategoryIconType.emoji
                         : CategoryIconType.material;
                     _selectedIcon = null; // Reset selection when switching
                   });
@@ -201,36 +292,30 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
-                labelPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                labelPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 indicatorSize: TabBarIndicatorSize.tab,
                 tabs: const [
-                  Tab(
-                    height: 20,
-                    text: 'Emoji',
-                  ),
-                  Tab(
-                    height: 20,
-                    text: 'Material',
-                  ),
+                  Tab(height: 20, text: 'Emoji'),
+                  Tab(height: 20, text: 'Material'),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Content
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: [
-                  _buildEmojiGrid(),
-                  _buildMaterialIconGrid(),
-                ],
+                children: [_buildEmojiGrid(), _buildMaterialIconGrid()],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Actions
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -243,9 +328,9 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
                 ElevatedButton(
                   onPressed: _selectedIcon != null
                       ? () => Navigator.pop(context, {
-                            'icon': _selectedIcon,
-                            'iconType': _currentIconType,
-                          })
+                          'icon': _selectedIcon,
+                          'iconType': _currentIconType,
+                        })
                       : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -280,7 +365,7 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
             ),
           ),
         ),
-        
+
         // Predefined emojis grid
         Expanded(
           child: GridView.builder(
@@ -293,8 +378,10 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
             itemCount: _emojis.length,
             itemBuilder: (context, index) {
               final emoji = _emojis[index];
-              final isSelected = _selectedIcon == emoji && _currentIconType == CategoryIconType.emoji;
-              
+              final isSelected =
+                  _selectedIcon == emoji &&
+                  _currentIconType == CategoryIconType.emoji;
+
               return GestureDetector(
                 onTap: () {
                   setState(() {
@@ -304,22 +391,19 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
                 },
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected 
+                    color: isSelected
                         ? widget.selectedColor.withValues(alpha: 0.2)
                         : AppColors.backgroundLight,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected 
-                          ? widget.selectedColor 
+                      color: isSelected
+                          ? widget.selectedColor
                           : Colors.transparent,
                       width: 2,
                     ),
                   ),
                   child: Center(
-                    child: Text(
-                      emoji,
-                      style: const TextStyle(fontSize: 24),
-                    ),
+                    child: Text(emoji, style: const TextStyle(fontSize: 24)),
                   ),
                 ),
               );
@@ -334,7 +418,7 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
-        childAspectRatio: 1,
+        childAspectRatio: 0.9, // Tăng chiều cao để tránh overflow text
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
@@ -342,8 +426,10 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
       itemBuilder: (context, index) {
         final iconData = _materialIcons[index];
         final iconName = iconData['name']!;
-        final isSelected = _selectedIcon == iconName && _currentIconType == CategoryIconType.material;
-        
+        final isSelected =
+            _selectedIcon == iconName &&
+            _currentIconType == CategoryIconType.material;
+
         return GestureDetector(
           onTap: () {
             setState(() {
@@ -352,16 +438,14 @@ class _CategoryIconPickerDialogState extends State<CategoryIconPickerDialog>
             });
           },
           child: Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(4), // Giảm padding
             decoration: BoxDecoration(
-              color: isSelected 
+              color: isSelected
                   ? widget.selectedColor.withValues(alpha: 0.2)
                   : AppColors.backgroundLight,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isSelected 
-                    ? widget.selectedColor 
-                    : Colors.transparent,
+                color: isSelected ? widget.selectedColor : Colors.transparent,
                 width: 2,
               ),
             ),

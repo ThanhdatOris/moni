@@ -4,8 +4,8 @@ import 'package:logger/logger.dart';
 import 'package:moni/constants/enums.dart';
 
 import '../../models/transaction_model.dart';
+import '../core/connectivity_checker.dart';
 import '../core/environment_service.dart';
-import '../offline/connectivity_checker.dart';
 
 /// Service quản lý giao dịch tài chính
 class TransactionService {
@@ -49,7 +49,9 @@ class TransactionService {
       } else {
         // OFFLINE: Tạo ID local, ghi Firestore ngay (fire-and-forget)
         final localId = 'local_${now.millisecondsSinceEpoch}';
-        final transactionWithId = transactionData.copyWith(transactionId: localId);
+        final transactionWithId = transactionData.copyWith(
+          transactionId: localId,
+        );
 
         // Fire-and-forget: Ghi Firestore nhưng KHÔNG await
         // Firestore Persistence sẽ cache và sync sau
@@ -72,7 +74,6 @@ class TransactionService {
     }
   }
 
-
   /// Cập nhật giao dịch - OFFLINE-FIRST
   Future<void> updateTransaction(TransactionModel transaction) async {
     try {
@@ -81,7 +82,9 @@ class TransactionService {
         throw Exception('Người dùng chưa đăng nhập');
       }
 
-      final updatedTransaction = transaction.copyWith(updatedAt: DateTime.now());
+      final updatedTransaction = transaction.copyWith(
+        updatedAt: DateTime.now(),
+      );
       final isOnline = await _connectivityChecker.isOnline();
 
       if (isOnline) {
@@ -92,7 +95,9 @@ class TransactionService {
             .collection('transactions')
             .doc(transaction.transactionId)
             .update(updatedTransaction.toMap());
-        _logger.i('✅ [Online] Cập nhật giao dịch: ${transaction.transactionId}');
+        _logger.i(
+          '✅ [Online] Cập nhật giao dịch: ${transaction.transactionId}',
+        );
       } else {
         // OFFLINE: Fire-and-forget
         _firestore
@@ -111,7 +116,6 @@ class TransactionService {
       throw Exception('Không thể cập nhật giao dịch: $e');
     }
   }
-
 
   /// Soft delete giao dịch - OFFLINE-FIRST
   Future<void> deleteTransaction(String transactionId) async {
@@ -156,7 +160,6 @@ class TransactionService {
       throw Exception('Không thể xóa giao dịch: $e');
     }
   }
-
 
   /// Lấy danh sách giao dịch của người dùng (hỗ trợ nhiều filter + orderBy + pagination)
   Stream<List<TransactionModel>> getTransactions({

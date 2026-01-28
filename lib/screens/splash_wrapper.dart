@@ -1,9 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:get_it/get_it.dart';
-
 import 'package:moni/services/services.dart';
+
 import '../utils/logging/logging_utils.dart';
 import 'auth_screen.dart';
 import 'home/home_screen.dart';
@@ -43,8 +42,9 @@ class _SplashWrapperState extends State<SplashWrapper> {
 
   Future<void> _waitMinimumTime() async {
     // Bắt đầu timer cho thời gian hiển thị tối thiểu
-    final minimumDisplayTime =
-        Future.delayed(const Duration(milliseconds: 2500));
+    final minimumDisplayTime = Future.delayed(
+      const Duration(milliseconds: 2500),
+    );
 
     // Chờ minimum time
     await minimumDisplayTime;
@@ -73,13 +73,16 @@ class _SplashWrapperState extends State<SplashWrapper> {
 
         // Debug logging để track auth state
         if (kDebugMode && EnvironmentService.isDevelopment) {
-          logAuth('Auth state loaded', data: {
-            'hasData': snapshot.hasData,
-            'userId': snapshot.data?.uid,
-            'isAnonymous': snapshot.data?.isAnonymous,
-            'email': snapshot.data?.email,
-            'displayName': snapshot.data?.displayName,
-          });
+          logAuth(
+            'Auth state loaded',
+            data: {
+              'hasData': snapshot.hasData,
+              'userId': snapshot.data?.uid,
+              'isAnonymous': snapshot.data?.isAnonymous,
+              'email': snapshot.data?.email,
+              'displayName': snapshot.data?.displayName,
+            },
+          );
         }
 
         // Chuyển đến màn hình phù hợp
@@ -89,7 +92,8 @@ class _SplashWrapperState extends State<SplashWrapper> {
           // Có Firebase user (cả anonymous và registered) -> vào HomeScreen
           // HomeScreen sẽ tự xử lý hiển thị UI phù hợp cho từng loại user
           if (kDebugMode && EnvironmentService.isDevelopment) {
-            logNavigation('HomeScreen',
+            logNavigation(
+              'HomeScreen',
               from: 'SplashWrapper',
               params: {
                 'userType': user.isAnonymous ? "Anonymous" : "Registered",
@@ -99,37 +103,15 @@ class _SplashWrapperState extends State<SplashWrapper> {
           }
           return const HomeScreen();
         } else {
-          // Không có Firebase user - kiểm tra offline sessions
-          return FutureBuilder<bool>(
-            future: GetIt.instance<OfflineService>().hasOfflineSession(),
-            builder: (context, offlineSnapshot) {
-              if (offlineSnapshot.connectionState == ConnectionState.waiting) {
-                return const SplashScreen();
-              }
-
-              final hasOfflineSession = offlineSnapshot.data ?? false;
-
-              if (hasOfflineSession) {
-                // Có offline session -> vào HomeScreen
-                if (kDebugMode && EnvironmentService.isDevelopment) {
-                  logNavigation('HomeScreen',
-                    from: 'SplashWrapper',
-                    params: {'userType': 'OfflineAnonymous'},
-                  );
-                }
-                return const HomeScreen();
-              } else {
-                // Không có user nào (cả Firebase và offline) -> vào AuthScreen
-                if (kDebugMode && EnvironmentService.isDevelopment) {
-                  logNavigation('AuthScreen',
-                    from: 'SplashWrapper',
-                    params: {'reason': 'NoUserFound'},
-                  );
-                }
-                return const AuthScreen();
-              }
-            },
-          );
+          // Không có user nào -> vào AuthScreen
+          if (kDebugMode && EnvironmentService.isDevelopment) {
+            logNavigation(
+              'AuthScreen',
+              from: 'SplashWrapper',
+              params: {'reason': 'NoUserFound'},
+            );
+          }
+          return const AuthScreen();
         }
       },
     );

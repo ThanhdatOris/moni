@@ -55,14 +55,6 @@ void main() async {
   // Setup dependency injection
   await di.init();
 
-  // Start SyncServiceV2 monitoring
-  try {
-    final syncService = di.getIt<SyncServiceV2>();
-    syncService.startMonitoring();
-  } catch (e) {
-    // Ignore if service not available
-  }
-
   runApp(
     // Riverpod for state management
     ProviderScope(

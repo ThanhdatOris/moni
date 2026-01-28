@@ -22,11 +22,9 @@ class AITransactionProcessor {
   final Logger _logger = Logger();
   final GetIt _getIt; // ✅ Use GetIt to create OCRService per-request
 
-  AITransactionProcessor({
-    required GenerativeModel model,
-    required GetIt getIt,
-  }) : _model = model,
-       _getIt = getIt;
+  AITransactionProcessor({required GenerativeModel model, required GetIt getIt})
+    : _model = model,
+      _getIt = getIt;
 
   /// Extract transaction from image using OCR + AI verification
   Future<Map<String, dynamic>> extractTransactionFromImage(
@@ -125,9 +123,9 @@ class AITransactionProcessor {
     try {
       final prompt =
           '''
-Phân tích văn bản hóa đơn sau và trích xuất thông tin giao dịch. Văn bản này đã được OCR từ ảnh hóa đơn.
+Phân tích văn bản sau và trích xuất thông tin giao dịch. Văn bản này đã được OCR từ ảnh (có thể là hóa đơn hoặc thông báo ngân hàng).
 
-Văn bản hóa đơn:
+Văn bản:
 """
 $text
 """
@@ -138,21 +136,58 @@ Kết quả ban đầu từ OCR:
 - Loại giao dịch: ${ocrAnalysis['transactionType']}
 - Danh mục gợi ý: ${ocrAnalysis['categoryHint']}
 
-Hãy xác minh và cải thiện thông tin, trả về JSON với format:
+QUAN TRỌNG - Xác định loại văn bản và xử lý phù hợp:
+
+📱 NẾU LÀ THÔNG BÁO NGÂN HÀNG (SMS/App notification):
+- Tìm các từ khóa: "GD", "Giao dich", "Chuyen tien", "Nhan tien", "Thanh toan", "Rut tien", "Nap tien"
+- LẤY SỐ TIỀN GIAO DỊCH (transaction amount), KHÔNG LẤY SỐ DƯ (balance/so du)
+- Ví dụ: "GD: -50,000 VND. So du: 1,500,000 VND" → Lấy 50000, không lấy 1500000
+- Số tiền thường có dấu +/- phía trước
+- Số dư thường có từ "so du", "balance", "SD" kèm theo
+
+🧾 NẾU LÀ HÓA ĐƠN MUA BÁN (Receipt/Invoice):
+- Ưu tiên tìm THEO THỨ TỰ (từ quan trọng nhất → ít quan trọng):
+  1. "Tổng cộng", "Thành tiền", "Total", "Grand Total", "Amount Due", "Tổng thanh toán"
+  2. Nếu có nhiều mục, tìm số tiền cuối cùng SAU KHI đã:
+     - Cộng thuế (VAT, Tax, Thuế)
+     - Trừ giảm giá (Discount, Giảm giá, Khuyến mại)
+     - Cộng phí dịch vụ (Service charge)
+  3. TRÁNH lấy: "Tạm tính", "Subtotal", số tiền từng món riêng lẻ
+
+QUY TẮC CHUNG:
+- Nếu có cả "Tạm tính: 100k" và "Tổng cộng: 110k" → Lấy 110k
+- Nếu có cả "Subtotal: 100k", "Tax: 10k", "Total: 110k" → Lấy 110k
+- Với nhiều số tiền, ưu tiên số có nhãn "Total", "Tổng", "Thành tiền"
+- Số tiền thường ở cuối hóa đơn, sau các dòng chi tiết
+
+Trả về JSON với format:
 {
-  "verified_amount": số_tiền_chính_xác (số, không có dấu phẩy),
-  "description": "mô tả ngắn gọn về giao dịch", 
+  "verified_amount": số_tiền_chính_xác (số nguyên, không dấu phẩy),
+  "description": "mô tả ngắn gọn về giao dịch",
   "category_suggestion": "danh mục phù hợp bằng tiếng Việt",
   "transaction_type": "expense" hoặc "income",
   "confidence_score": số từ 0-100,
-  "notes": "ghi chú bổ sung nếu có"
+  "notes": "ghi chú bổ sung (ví dụ: đã tính thuế 10%, giảm giá 5k)",
+  "document_type": "bank_notification" hoặc "receipt"
 }
 
-Lưu ý:
-- Ưu tiên số tiền lớn nhất thường là tổng tiền
-- Danh mục: Ăn uống, Di chuyển, Mua sắm, Giải trí, Y tế, Học tập, Hóa đơn, v.v.
-- Hầu hết hóa đơn là "expense"
-- Mô tả nên bao gồm thông tin về giao dịch, không cần tách riêng tên cửa hàng
+Danh mục gợi ý: Ăn uống, Di chuyển, Mua sắm, Giải trí, Y tế, Học tập, Hóa đơn, Chuyển tiền, Thu nhập, Lương, Khác
+
+VÍ DỤ PHÂN TÍCH:
+
+Ví dụ 1 - Thông báo ngân hàng:
+"TK 9704229304857264 GD -18,000 VND luc 11:30 20/01. So du 2,456,789 VND"
+→ verified_amount: 18000 (không lấy 2456789)
+→ document_type: "bank_notification"
+
+Ví dụ 2 - Hóa đơn nhiều mục:
+"Com tam: 35,000
+Nuoc ngot: 15,000
+Tam tinh: 50,000
+Thue VAT 10%: 5,000
+Tong cong: 55,000"
+→ verified_amount: 55000 (không lấy 50000 tạm tính)
+→ document_type: "receipt"
 ''';
 
       final response = await _model.generateContent([Content.text(prompt)]);
@@ -210,6 +245,8 @@ Lưu ý:
         return 0;
       })();
       final String notes = (data['notes'] ?? data['note'] ?? '').toString();
+      final String documentType = (data['document_type'] ?? 'receipt')
+          .toString();
 
       return {
         'verified_amount': verifiedAmount,
@@ -218,6 +255,7 @@ Lưu ý:
         'transaction_type': transactionType == 'income' ? 'income' : 'expense',
         'confidence_score': confidenceScore.clamp(0, 100),
         'notes': notes,
+        'document_type': documentType,
       };
     } catch (e) {
       _logger.e('❌ Error parsing AI analysis response: $e');
@@ -255,6 +293,14 @@ Lưu ý:
         ? ((ocrConfidence + aiConfidence) / 2).round()
         : ocrConfidence;
 
+    final notes = useAI && aiAnalysis.isNotEmpty
+        ? (aiAnalysis['notes'] ?? '')
+        : '';
+
+    final documentType = useAI && aiAnalysis.isNotEmpty
+        ? (aiAnalysis['document_type'] ?? 'receipt')
+        : 'receipt';
+
     return {
       'success': true,
       'amount': amount,
@@ -265,8 +311,9 @@ Lưu ý:
       'confidence': combinedConfidence,
       'raw_text': extractedText,
       'processing_method': useAI ? 'OCR + AI' : 'OCR only',
-      'note': description,
+      'note': notes.isNotEmpty ? notes : description,
       'category_name': category,
+      'document_type': documentType,
     };
   }
 }

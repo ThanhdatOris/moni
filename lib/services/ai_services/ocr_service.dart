@@ -33,10 +33,12 @@ class OCRService {
 
   /// Trích xuất văn bản có cấu trúc với thông tin vị trí
   Future<Map<String, dynamic>> extractStructuredTextFromImage(
-      File imageFile) async {
+    File imageFile,
+  ) async {
     try {
       _logger.i(
-          'Starting structured text recognition for image: ${imageFile.path}');
+        'Starting structured text recognition for image: ${imageFile.path}',
+      );
 
       final inputImage = InputImage.fromFile(imageFile);
       final recognizedText = await _textRecognizer.processImage(inputImage);
@@ -80,7 +82,8 @@ class OCRService {
       };
 
       _logger.i(
-          'Structured text extraction completed with ${textBlocks.length} blocks');
+        'Structured text extraction completed with ${textBlocks.length} blocks',
+      );
       return result;
     } catch (e) {
       _logger.e('Error extracting structured text from image: $e');
@@ -116,8 +119,9 @@ class OCRService {
 
       final result = {
         'amounts': amounts,
-        'suggestedAmount':
-            amounts.isNotEmpty ? amounts.reduce((a, b) => a > b ? a : b) : 0.0,
+        'suggestedAmount': amounts.isNotEmpty
+            ? amounts.reduce((a, b) => a > b ? a : b)
+            : 0.0,
         'date': date,
         'merchantName': merchantName,
         'transactionType': transactionType,
@@ -146,17 +150,36 @@ class OCRService {
   /// Tìm và trích xuất số tiền từ text
   List<double> _extractAmounts(List<String> lines) {
     final amounts = <double>[];
+    final String fullText = lines.join('\n').toLowerCase();
 
-    // Regex patterns cho số tiền Việt Nam
+    // Kiểm tra xem có phải thông báo ngân hàng không
+    final isBankNotification = _isBankNotification(fullText);
+
+    if (isBankNotification) {
+      // Xử lý thông báo ngân hàng - chỉ lấy transaction amount, bỏ qua số dư
+      return _extractBankTransactionAmount(lines);
+    }
+
+    // Xử lý hóa đơn thông thường - ưu tiên tổng tiền cuối cùng
+    final priorityAmounts = _extractPriorityAmounts(lines);
+    if (priorityAmounts.isNotEmpty) {
+      return priorityAmounts;
+    }
+
+    // Fallback: extract tất cả số tiền
     final patterns = [
-      RegExp(r'(\d{1,3}(?:[,\.]\d{3})*(?:[,\.]\d{2})?)\s*(?:VND|vnđ|đ|VNĐ)',
-          caseSensitive: false),
-      RegExp(r'(\d{1,3}(?:[,\.]\d{3})*)\s*(?:k|K)',
-          caseSensitive: false), // 50k format
-      RegExp(r'(\d{1,3}(?:[,\.]\d{3})*)\s*(?:tr|TR|triệu)',
-          caseSensitive: false), // 1tr format
-      RegExp(r'(?:total|tổng|cộng|thành tiền).*?(\d{1,3}(?:[,\.]\d{3})*)',
-          caseSensitive: false),
+      RegExp(
+        r'(\d{1,3}(?:[,\.]\d{3})*(?:[,\.]\d{2})?)\s*(?:VND|vnđ|đ|VNĐ)',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'(\d{1,3}(?:[,\.]\d{3})*)\s*(?:k|K)',
+        caseSensitive: false,
+      ), // 50k format
+      RegExp(
+        r'(\d{1,3}(?:[,\.]\d{3})*)\s*(?:tr|TR|triệu)',
+        caseSensitive: false,
+      ), // 1tr format
       RegExp(r'(\d{1,3}(?:[,\.]\d{3})*(?:[,\.]\d{2})?)\s*$'), // Số ở cuối dòng
     ];
 
@@ -182,19 +205,156 @@ class OCRService {
     return uniqueAmounts;
   }
 
+  /// Kiểm tra xem có phải thông báo ngân hàng không
+  bool _isBankNotification(String text) {
+    final bankKeywords = [
+      'giao dich',
+      'chuyen tien',
+      'nhan tien',
+      'thanh toan',
+      'so du',
+      'balance',
+      'tk ',
+      'tai khoan',
+      'ngan hang',
+      'rut tien',
+      'nap tien',
+      RegExp(r'\bGD\b'),
+      RegExp(r'\bSD\b'),
+    ];
+
+    for (final keyword in bankKeywords) {
+      if (keyword is RegExp) {
+        if (keyword.hasMatch(text)) return true;
+      } else if (text.contains(keyword)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Trích xuất số tiền giao dịch từ thông báo ngân hàng (không lấy số dư)
+  List<double> _extractBankTransactionAmount(List<String> lines) {
+    final amounts = <double>[];
+
+    for (final line in lines) {
+      final lowerLine = line.toLowerCase();
+
+      // Bỏ qua dòng có chứa "số dư" hoặc "balance"
+      if (lowerLine.contains('so du') ||
+          lowerLine.contains('balance') ||
+          lowerLine.contains(RegExp(r'\bsd\b'))) {
+        continue;
+      }
+
+      // Tìm số tiền có dấu +/- (transaction amount)
+      final transactionPattern = RegExp(
+        r'[+\-]\s*(\d{1,3}(?:[,\.]\d{3})*(?:[,\.]\d{2})?)',
+        caseSensitive: false,
+      );
+
+      final match = transactionPattern.firstMatch(line);
+      if (match != null) {
+        final amountStr = match.group(1);
+        if (amountStr != null) {
+          final amount = _parseVietnameseAmount(amountStr, line);
+          if (amount != null && amount > 0) {
+            amounts.add(amount);
+          }
+        }
+      }
+
+      // Nếu không có dấu +/-, tìm số tiền có "GD" hoặc "giao dich"
+      if (amounts.isEmpty &&
+          (lowerLine.contains('gd') || lowerLine.contains('giao dich'))) {
+        final amountPattern = RegExp(
+          r'(\d{1,3}(?:[,\.]\d{3})*(?:[,\.]\d{2})?)',
+          caseSensitive: false,
+        );
+        final matches = amountPattern.allMatches(line);
+
+        // Lấy số tiền đầu tiên tìm được (thường là transaction amount)
+        if (matches.isNotEmpty) {
+          final firstMatch = matches.first;
+          final amountStr = firstMatch.group(1);
+          if (amountStr != null) {
+            final amount = _parseVietnameseAmount(amountStr, line);
+            if (amount != null && amount > 0) {
+              amounts.add(amount);
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return amounts.isNotEmpty ? amounts : [];
+  }
+
+  /// Trích xuất số tiền ưu tiên từ hóa đơn (Total, Tổng cộng, Thành tiền)
+  List<double> _extractPriorityAmounts(List<String> lines) {
+    final priorityKeywords = [
+      'tong cong',
+      'tổng cộng',
+      'thanh tien',
+      'thành tiền',
+      'total',
+      'grand total',
+      'amount due',
+      'tong thanh toan',
+      'tổng thanh toán',
+      'can thanh toan',
+      'cần thanh toán',
+    ];
+
+    // Tìm từ cuối lên đầu (tổng tiền thường ở cuối hóa đơn)
+    for (int i = lines.length - 1; i >= 0; i--) {
+      final line = lines[i];
+      final lowerLine = line.toLowerCase();
+
+      // Kiểm tra xem dòng có chứa keyword ưu tiên không
+      for (final keyword in priorityKeywords) {
+        if (lowerLine.contains(keyword)) {
+          // Trích xuất số tiền từ dòng này
+          final amountPattern = RegExp(
+            r'(\d{1,3}(?:[,\.]\d{3})*(?:[,\.]\d{2})?)',
+            caseSensitive: false,
+          );
+
+          final matches = amountPattern.allMatches(line);
+          if (matches.isNotEmpty) {
+            // Lấy số tiền cuối cùng trong dòng (thường là số tiền chính)
+            final lastMatch = matches.last;
+            final amountStr = lastMatch.group(1);
+            if (amountStr != null) {
+              final amount = _parseVietnameseAmount(amountStr, line);
+              if (amount != null && amount > 0) {
+                return [amount];
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return [];
+  }
+
   /// Parse số tiền theo format Việt Nam
   double? _parseVietnameseAmount(String amountStr, String fullLine) {
     try {
       // Xử lý format k, tr
       if (fullLine.toLowerCase().contains(RegExp(r'\b\d+k\b'))) {
-        final number =
-            double.tryParse(amountStr.replaceAll(RegExp(r'[,\.]'), ''));
+        final number = double.tryParse(
+          amountStr.replaceAll(RegExp(r'[,\.]'), ''),
+        );
         return number != null ? number * 1000 : null;
       }
 
       if (fullLine.toLowerCase().contains(RegExp(r'\b\d+tr\b'))) {
-        final number =
-            double.tryParse(amountStr.replaceAll(RegExp(r'[,\.]'), ''));
+        final number = double.tryParse(
+          amountStr.replaceAll(RegExp(r'[,\.]'), ''),
+        );
         return number != null ? number * 1000000 : null;
       }
 
@@ -234,8 +394,9 @@ class OCRService {
       final line = lines[i];
       // Bỏ qua dòng chỉ có số hoặc ký tự đặc biệt
       if (line.length >= 3 &&
-          RegExp(r'[a-zA-Zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]')
-              .hasMatch(line)) {
+          RegExp(
+            r'[a-zA-Zàáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđ]',
+          ).hasMatch(line)) {
         return line;
       }
     }
@@ -252,7 +413,7 @@ class OCRService {
       'thưởng',
       'income',
       'salary',
-      'bonus'
+      'bonus',
     ];
 
     final lowerText = text.toLowerCase();
@@ -272,32 +433,39 @@ class OCRService {
     final lowerText = text.toLowerCase();
 
     // Ăn uống
-    if (lowerText.contains(RegExp(
-        r'(cơm|phở|bún|bánh|cafe|coffee|restaurant|food|ăn|uống|nước)'))) {
+    if (lowerText.contains(
+      RegExp(r'(cơm|phở|bún|bánh|cafe|coffee|restaurant|food|ăn|uống|nước)'),
+    )) {
       return 'Ăn uống';
     }
 
     // Di chuyển
-    if (lowerText
-        .contains(RegExp(r'(grab|taxi|uber|xăng|petrol|gas|xe|bus)'))) {
+    if (lowerText.contains(
+      RegExp(r'(grab|taxi|uber|xăng|petrol|gas|xe|bus)'),
+    )) {
       return 'Di chuyển';
     }
 
     // Mua sắm
     if (lowerText.contains(
-        RegExp(r'(shop|mall|market|siêu thị|cửa hàng|mua|shopping)'))) {
+      RegExp(r'(shop|mall|market|siêu thị|cửa hàng|mua|shopping)'),
+    )) {
       return 'Mua sắm';
     }
 
     // Y tế
-    if (lowerText.contains(RegExp(
-        r'(hospital|clinic|pharmacy|nhà thuốc|bệnh viện|phòng khám|thuốc)'))) {
+    if (lowerText.contains(
+      RegExp(
+        r'(hospital|clinic|pharmacy|nhà thuốc|bệnh viện|phòng khám|thuốc)',
+      ),
+    )) {
       return 'Y tế';
     }
 
     // Giải trí
     if (lowerText.contains(
-        RegExp(r'(cinema|movie|game|entertainment|karaoke|massage)'))) {
+      RegExp(r'(cinema|movie|game|entertainment|karaoke|massage)'),
+    )) {
       return 'Giải trí';
     }
 
@@ -318,9 +486,11 @@ class OCRService {
       // Đếm ký tự hợp lệ (chữ, số, dấu câu phổ biến)
       validChars += text
           .split('')
-          .where((char) => RegExp(
-                  r'[a-zA-Z0-9àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđĐ\s\-\.,/()%]')
-              .hasMatch(char))
+          .where(
+            (char) => RegExp(
+              r'[a-zA-Z0-9àáảãạăắằẳẵặâấầẩẫậèéẻẽẹêếềểễệìíỉĩịòóỏõọôốồổỗộơớờởỡợùúủũụưứừửữựỳýỷỹỵđĐ\s\-\.,/()%]',
+            ).hasMatch(char),
+          )
           .length;
     }
 

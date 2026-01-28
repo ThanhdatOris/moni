@@ -4,8 +4,9 @@ import 'package:logger/logger.dart';
 import 'package:moni/constants/enums.dart';
 
 import '../../models/category_model.dart';
-import 'category_cache_service.dart';
+import '../core/connectivity_checker.dart';
 import '../core/environment_service.dart';
+import 'category_cache_service.dart';
 
 /// Service quản lý danh mục giao dịch
 class CategoryService {
@@ -16,6 +17,7 @@ class CategoryService {
   // ✅ Cache để tránh log spam
   final Map<String, DateTime> _lastLogTimes = {};
   final CategoryCacheService _cacheService = CategoryCacheService();
+  final ConnectivityChecker _connectivityChecker = ConnectivityChecker();
 
   /// Tạo danh mục mới
   Future<String> createCategory(CategoryModel category) async {
@@ -32,17 +34,46 @@ class CategoryService {
         updatedAt: now,
       );
 
-      final docRef = await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('categories')
-          .add(categoryData.toMap());
+      // Check connectivity TRƯỚC để tối ưu performance
+      final isOnline = await _connectivityChecker.isOnline();
 
-      // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
-        _logger.d('📁 Category created: ${category.name} (${docRef.id})');
+      if (isOnline) {
+        // ONLINE: Await để lấy real ID từ Firestore
+        final docRef = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('categories')
+            .add(categoryData.toMap());
+
+        // ✅ IMPROVED: Only log in debug mode with essential info
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
+          _logger.d(
+            '📁 Category created [Online]: ${category.name} (${docRef.id})',
+          );
+        }
+        return docRef.id;
+      } else {
+        // OFFLINE: Tạo ID local, ghi Firestore ngay (fire-and-forget)
+        final localId = 'local_${now.millisecondsSinceEpoch}';
+        final categoryWithId = categoryData.copyWith(categoryId: localId);
+
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('categories')
+            .doc(localId)
+            .set(categoryWithId.toMap())
+            .catchError((e) {
+              _logger.w('⚠️ Offline category create queued: $e');
+            });
+
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
+          _logger.d(
+            '📁 Category created [Offline]: ${category.name} ($localId)',
+          );
+        }
+        return localId;
       }
-      return docRef.id;
     } catch (e) {
       _logger.e('❌ Error creating category: $e');
       throw Exception('Không thể tạo danh mục: $e');
@@ -58,19 +89,35 @@ class CategoryService {
       }
 
       final updatedCategory = category.copyWith(updatedAt: DateTime.now());
+      final isOnline = await _connectivityChecker.isOnline();
 
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('categories')
-          .doc(category.categoryId)
-          .update(updatedCategory.toMap());
+      if (isOnline) {
+        // ONLINE
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('categories')
+            .doc(category.categoryId)
+            .update(updatedCategory.toMap());
 
-      // ✅ IMPROVED: Only log in debug mode with essential info
-      if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
-        _logger.d(
-          '📝 Category updated: ${category.name} (${category.categoryId})',
-        );
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
+          _logger.d('📝 Category updated [Online]: ${category.name}');
+        }
+      } else {
+        // OFFLINE
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('categories')
+            .doc(category.categoryId)
+            .update(updatedCategory.toMap())
+            .catchError((e) {
+              _logger.w('⚠️ Offline category update queued: $e');
+            });
+
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
+          _logger.d('📝 Category updated [Offline]: ${category.name}');
+        }
       }
     } catch (e) {
       _logger.e('❌ Lỗi cập nhật danh mục: $e');
@@ -96,12 +143,34 @@ class CategoryService {
       await _deleteChildCategories(categoryId);
 
       // Xóa danh mục chính
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('categories')
-          .doc(categoryId)
-          .delete();
+      final isOnline = await _connectivityChecker.isOnline();
+
+      if (isOnline) {
+        await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('categories')
+            .doc(categoryId)
+            .delete();
+
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
+          _logger.d('🗑️ Category deleted [Online]: $categoryId');
+        }
+      } else {
+        _firestore
+            .collection('users')
+            .doc(user.uid)
+            .collection('categories')
+            .doc(categoryId)
+            .delete()
+            .catchError((e) {
+              _logger.w('⚠️ Offline category delete queued: $e');
+            });
+
+        if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {
+          _logger.d('🗑️ Category deleted [Offline]: $categoryId');
+        }
+      }
 
       // ✅ IMPROVED: Only log in debug mode with essential info
       if (EnvironmentService.debugMode && EnvironmentService.loggingEnabled) {

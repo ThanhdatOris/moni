@@ -34,7 +34,7 @@ Future<void> init() async {
   // ==========================================================================
 
   // Core services first
-  getIt.registerLazySingleton<OfflineService>(() => OfflineService());
+
   getIt.registerLazySingleton<AuthService>(() => AuthService());
   getIt.registerLazySingleton<CategoryService>(() => CategoryService());
 
@@ -66,23 +66,10 @@ Future<void> init() async {
   );
 
   // Sync service V2 - Simple cleanup service
-  getIt.registerLazySingleton<SyncServiceV2>(() => SyncServiceV2());
-
-  // Legacy sync service (deprecated, kept for compatibility)
-  getIt.registerLazySingleton<OfflineSyncService>(
-    () => OfflineSyncService(
-      offlineService: getIt<OfflineService>(),
-      transactionService: getIt<TransactionService>(),
-      categoryService: getIt<CategoryService>(),
-    ),
-  );
 
   // Anonymous conversion service
   getIt.registerLazySingleton<AnonymousConversionService>(
-    () => AnonymousConversionService(
-      offlineService: getIt<OfflineService>(),
-      syncService: getIt<OfflineSyncService>(),
-    ),
+    () => AnonymousConversionService(),
   );
 
   // ==========================================================================

@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -7,7 +6,6 @@ import '../../models/user_model.dart';
 import '../core/error_handler.dart';
 import '../core/logging_service.dart';
 import '../data/category_service.dart';
-import '../offline/offline_service.dart';
 
 /// Service xử lý xác thực người dùng
 class AuthService {
@@ -227,17 +225,10 @@ class AuthService {
   /// Đăng nhập ẩn danh (Anonymous)
   Future<UserModel?> signInAnonymously() async {
     return await handleErrorSafelyAsync<UserModel?>(() async {
-      // Kiểm tra kết nối internet
-      final connectivity = await Connectivity().checkConnectivity();
-      final isOnline = !connectivity.contains(ConnectivityResult.none);
-
-      if (isOnline) {
-        // Đăng nhập anonymous online
-        return await _signInAnonymouslyOnline();
-      } else {
-        // Đăng nhập anonymous offline
-        return await _signInAnonymouslyOffline();
-      }
+      // Đăng nhập anonymous
+      // Lưu ý: Cần kết nối mạng lần đầu để lấy ID từ Firebase
+      // Sau đó Firebase Persistence sẽ handle offline
+      return await _signInAnonymouslyOnline();
     }, context: 'AuthService.signInAnonymously');
   }
 
@@ -284,24 +275,6 @@ class AuthService {
     return null;
   }
 
-  /// Đăng nhập anonymous offline
-  Future<UserModel?> _signInAnonymouslyOffline() async {
-    // Tạo user ID offline tạm thời
-    final userId = 'offline_${DateTime.now().millisecondsSinceEpoch}';
-    final now = DateTime.now();
-
-    final userModel = UserModel(
-      userId: userId,
-      name: 'Khách (Offline)',
-      email: '',
-      createdAt: now,
-      updatedAt: now,
-    );
-
-    logInfo('Tạo anonymous user offline: $userId');
-    return userModel;
-  }
-
   /// Đăng xuất người dùng
   Future<void> logout() async {
     try {
@@ -316,15 +289,6 @@ class AuthService {
 
       // Đăng xuất từ Firebase Auth
       await _auth.signOut();
-
-      // Clear offline session nếu có
-      try {
-        final offlineService = OfflineService();
-        await offlineService.clearAllOfflineData();
-      } catch (e) {
-        // Ignore offline service errors during logout
-        logError('Lỗi xóa dữ liệu offline khi đăng xuất', error: e);
-      }
 
       logInfo('Đăng xuất thành công');
     } catch (e, stackTrace) {

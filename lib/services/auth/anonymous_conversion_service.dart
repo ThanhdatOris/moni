@@ -4,36 +4,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/user_model.dart';
 import '../core/error_handler.dart';
 import '../core/logging_service.dart';
-import '../offline/offline_service.dart';
-import '../offline/offline_sync_service.dart';
 
 /// Service xử lý chuyển đổi anonymous user thành registered user
 class AnonymousConversionService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final OfflineService _offlineService;
-  final OfflineSyncService? _syncService;
-
-  AnonymousConversionService({
-    required OfflineService offlineService,
-    OfflineSyncService? syncService,
-  })  : _offlineService = offlineService,
-        _syncService = syncService;
+  AnonymousConversionService();
 
   /// Kiểm tra xem user hiện tại có phải anonymous không
   bool get isAnonymousUser {
     final user = _auth.currentUser;
     return user?.isAnonymous ?? false;
-  }
-
-  /// Kiểm tra xem có phải offline anonymous user không
-  Future<bool> get isOfflineAnonymousUser async {
-    if (!await _offlineService.hasOfflineSession()) return false;
-
-    final session = await _offlineService.getOfflineUserSession();
-    final userId = session['userId'];
-
-    return userId != null && _offlineService.isOfflineUserId(userId);
   }
 
   /// Lấy thông tin anonymous user hiện tại
@@ -48,139 +29,114 @@ class AnonymousConversionService {
     required String password,
     required String name,
   }) async {
-    return await handleErrorSafelyAsync<UserModel?>(
-      () async {
-        // Kiểm tra kết nối internet
-        if (!await _offlineService.isOnline) {
-          throwAppError(
-            'Cần kết nối internet để chuyển đổi tài khoản',
-            context: 'convertToEmailPassword - check internet',
-          );
-        }
+    return await handleErrorSafelyAsync<UserModel?>(() async {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throwAppError(
+          'Không có user để chuyển đổi',
+          context: 'convertToEmailPassword - check current user',
+        );
+      }
 
-        final user = _auth.currentUser;
-        if (user == null) {
-          throwAppError(
-            'Không có user để chuyển đổi',
-            context: 'convertToEmailPassword - check current user',
-          );
-        }
+      if (!user.isAnonymous) {
+        throwAppError(
+          'User hiện tại không phải anonymous user',
+          context: 'convertToEmailPassword - check anonymous user',
+          data: {'userId': user.uid, 'isAnonymous': user.isAnonymous},
+        );
+      }
 
-        if (!user.isAnonymous) {
-          throwAppError(
-            'User hiện tại không phải anonymous user',
-            context: 'convertToEmailPassword - check anonymous user',
-            data: {'userId': user.uid, 'isAnonymous': user.isAnonymous},
-          );
-        }
+      logInfo('Bắt đầu chuyển đổi anonymous user: ${user.uid}');
 
-        logInfo('Bắt đầu chuyển đổi anonymous user: ${user.uid}');
+      // Tạo credential cho email/password
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
 
-        // Sync dữ liệu offline trước khi convert (nếu có)
-        if (_syncService != null && await _syncService.hasOfflineDataToSync()) {
-          logInfo('Đồng bộ dữ liệu offline trước khi convert');
-          final result = await _syncService.syncAllOfflineData();
+      // Link anonymous account với email/password
+      final userCredential = await user.linkWithCredential(credential);
+      final linkedUser = userCredential.user;
 
-          if (result.hasError) {
-            logWarning('Một số dữ liệu offline không sync được', data: {
-              'errors': result.errors,
-              'failedCount': result.failedCount,
-            });
-          } else {
-            logInfo('Đồng bộ dữ liệu offline thành công');
-          }
-        }
+      if (linkedUser != null) {
+        // Cập nhật display name
+        await linkedUser.updateDisplayName(name);
 
-        // Tạo credential cho email/password
-        final credential = EmailAuthProvider.credential(
+        // Tạo hoặc cập nhật user document trong Firestore
+        final now = DateTime.now();
+        final userModel = UserModel(
+          userId: linkedUser.uid,
+          name: name,
           email: email,
-          password: password,
+          createdAt: now,
+          updatedAt: now,
         );
 
-        // Link anonymous account với email/password
-        final userCredential = await user.linkWithCredential(credential);
-        final linkedUser = userCredential.user;
+        // Kiểm tra xem user document đã tồn tại chưa
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(linkedUser.uid)
+            .get();
 
-        if (linkedUser != null) {
-          // Cập nhật display name
-          await linkedUser.updateDisplayName(name);
-
-          // Tạo hoặc cập nhật user document trong Firestore
-          final now = DateTime.now();
-          final userModel = UserModel(
-            userId: linkedUser.uid,
-            name: name,
-            email: email,
-            createdAt: now,
-            updatedAt: now,
-          );
-
-          // Kiểm tra xem user document đã tồn tại chưa
-          final userDoc =
-              await _firestore.collection('users').doc(linkedUser.uid).get();
-
-          if (userDoc.exists) {
-            // Cập nhật thông tin user
-            await _firestore.collection('users').doc(linkedUser.uid).update({
-              'name': name,
-              'email': email,
-              'updated_at': Timestamp.fromDate(now),
-              'is_anonymous': false, // Đánh dấu không còn anonymous
-            });
-          } else {
-            // Tạo user document mới
-            await _firestore
-                .collection('users')
-                .doc(linkedUser.uid)
-                .set(userModel.toMap());
-          }
-
-          logInfo('Chuyển đổi anonymous user thành công: ${linkedUser.uid}',
-              data: {
-                'email': email,
-                'name': name,
-                'preservedData': 'Tất cả dữ liệu anonymous được giữ nguyên',
-              });
-
-          return userModel;
+        if (userDoc.exists) {
+          // Cập nhật thông tin user
+          await _firestore.collection('users').doc(linkedUser.uid).update({
+            'name': name,
+            'email': email,
+            'updated_at': Timestamp.fromDate(now),
+            'is_anonymous': false, // Đánh dấu không còn anonymous
+          });
+        } else {
+          // Tạo user document mới
+          await _firestore
+              .collection('users')
+              .doc(linkedUser.uid)
+              .set(userModel.toMap());
         }
 
-        return null;
-      },
-      context: 'AnonymousConversionService.convertToEmailPassword',
-    );
+        logInfo(
+          'Chuyển đổi anonymous user thành công: ${linkedUser.uid}',
+          data: {
+            'email': email,
+            'name': name,
+            'preservedData': 'Tất cả dữ liệu anonymous được giữ nguyên',
+          },
+        );
+
+        return userModel;
+      }
+
+      return null;
+    }, context: 'AnonymousConversionService.convertToEmailPassword');
   }
 
   /// Chuyển đổi anonymous user thành Google user
   Future<UserModel?> convertToGoogle() async {
-    return await handleErrorSafelyAsync<UserModel?>(
-      () async {
-        final user = _auth.currentUser;
-        if (user == null) {
-          throwAppError(
-            'Không có user để chuyển đổi',
-            context: 'convertToGoogle - check current user',
-          );
-        }
-
-        if (!user.isAnonymous) {
-          throwAppError(
-            'User hiện tại không phải anonymous user',
-            context: 'convertToGoogle - check anonymous user',
-            data: {'userId': user.uid, 'isAnonymous': user.isAnonymous},
-          );
-        }
-
-        logInfo('Bắt đầu chuyển đổi anonymous user sang Google: ${user.uid}');
-
-        // Google conversion chưa được implement
+    return await handleErrorSafelyAsync<UserModel?>(() async {
+      final user = _auth.currentUser;
+      if (user == null) {
         throwAppError(
-          'Google conversion chưa được implement',
-          context: 'convertToGoogle - feature not implemented',
+          'Không có user để chuyển đổi',
+          context: 'convertToGoogle - check current user',
         );
-      },
-      context: 'AnonymousConversionService.convertToGoogle',
-    );
+      }
+
+      if (!user.isAnonymous) {
+        throwAppError(
+          'User hiện tại không phải anonymous user',
+          context: 'convertToGoogle - check anonymous user',
+          data: {'userId': user.uid, 'isAnonymous': user.isAnonymous},
+        );
+      }
+
+      logInfo('Bắt đầu chuyển đổi anonymous user sang Google: ${user.uid}');
+
+      // Google conversion chưa được implement
+      throwAppError(
+        'Google conversion chưa được implement',
+        context: 'convertToGoogle - feature not implemented',
+      );
+    }, context: 'AnonymousConversionService.convertToGoogle');
   }
 
   /// Lấy thống kê dữ liệu của anonymous user

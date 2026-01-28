@@ -8,8 +8,9 @@
 // COMMON ERROR HANDLING HELPERS
 // =============================================================================
 
-import 'core/error_handler.dart';
 import 'package:moni/constants/enums.dart';
+
+import 'core/error_handler.dart';
 
 // AI-Powered Services
 export 'ai_services/ai_services.dart';
@@ -24,7 +25,7 @@ export 'data/data_services.dart';
 // Notification Services
 export 'notification/notification_services.dart';
 // Offline & Sync Services
-export 'offline/offline_services.dart';
+
 // Validation & Quality Services
 export 'validation/validation_services.dart';
 
