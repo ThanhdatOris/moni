@@ -19,9 +19,11 @@ class ChatConversationTab extends StatefulWidget {
 }
 
 class _ChatConversationTabState extends State<ChatConversationTab>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   @override
   bool get wantKeepAlive => true;
+
+  bool _isKeyboardVisible = false;
 
   final AIProcessorService _aiService = GetIt.instance<AIProcessorService>();
   final ConversationService _conversationService = ConversationService();
@@ -56,6 +58,13 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
     // Listen for focus changes
     _focusNode.addListener(_onFocusChange);
+
+    WidgetsBinding.instance.addObserver(this);
+
+    // FIX: Ensure keyboard is closed on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) FocusScope.of(context).unfocus();
+    });
   }
 
   void _onFocusChange() {
@@ -68,9 +77,8 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     // Generate initial quick actions với GenUI
     _updateDynamicQuickActions();
 
-    if (_conversationService.currentConversationId == null) {
-      await _conversationService.startNewConversation();
-    }
+    // Do NOT auto-create conversation here!
+    // Let the user explicitly choose to start new or select from history
 
     setState(() {
       _messages = List.from(_conversationService.currentMessages);
@@ -82,7 +90,8 @@ class _ChatConversationTabState extends State<ChatConversationTab>
       setState(() {
         _messages = List.from(_conversationService.currentMessages);
       });
-      _scrollToBottom();
+      // Use delayed scroll to ensure ListView has rendered
+      _scrollToBottom(delayed: true);
     }
   }
 
@@ -93,7 +102,20 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     _scrollController.dispose();
     _focusNode.removeListener(_onFocusChange);
     _focusNode.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    super.didChangeMetrics();
+    final bottomInset = WidgetsBinding.instance.window.viewInsets.bottom;
+    final newValue = bottomInset > 0.0;
+    if (newValue != _isKeyboardVisible) {
+      setState(() {
+        _isKeyboardVisible = newValue;
+      });
+    }
   }
 
   Future<void> _sendMessage(String text) async {
@@ -244,10 +266,38 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     }
 
     _scrollToBottom();
+    _scrollToBottom();
   }
 
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  void _deleteMessage(ChatMessage message) async {
+    // Show confirmation dialog
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xóa tin nhắn?'),
+        content: const Text('Bạn có chắc chắn muốn xóa tin nhắn này không?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Hủy'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Xóa', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _conversationService.deleteMessage(message);
+      // Update UI explicitly if needed, but listener should handle it
+      // _onConversationChanged will trigger setState
+    }
+  }
+
+  void _scrollToBottom({bool delayed = false}) {
+    void doScroll() {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -255,7 +305,18 @@ class _ChatConversationTabState extends State<ChatConversationTab>
           curve: Curves.easeOut,
         );
       }
-    });
+    }
+
+    if (delayed) {
+      // For conversation loading, wait a bit longer for ListView to render
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => doScroll());
+        }
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => doScroll());
+    }
   }
 
   @override
@@ -294,38 +355,105 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
   Widget _buildEmptyState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline_rounded,
+                size: 56,
+                color: AppColors.primary,
+              ),
             ),
-            child: Icon(
-              Icons.smart_toy_rounded,
-              size: 48,
-              color: AppColors.primary,
+            const SizedBox(height: 24),
+            Text(
+              'Chưa có cuộc trò chuyện nào',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[800],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Bắt đầu cuộc trò chuyện',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[700],
+            const SizedBox(height: 12),
+            Text(
+              'Bắt đầu cuộc trò chuyện mới hoặc\nchọn từ lịch sử để tiếp tục',
+              style: TextStyle(
+                fontSize: 15,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Hỏi tôi về tài chính, đầu tư, hay ngân sách',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-          ),
-        ],
+            const SizedBox(height: 32),
+            // Button to create new conversation
+            ElevatedButton.icon(
+              onPressed: _startNewConversation,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Tạo cuộc trò chuyện mới'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Hint to go to history tab
+            TextButton.icon(
+              onPressed: () {
+                // Find ChatbotScreen's TabController and switch to History tab
+                // Using a simple approach - this will be handled by parent
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      '💡 Chuyển sang tab "Lịch sử" để xem các cuộc trò chuyện trước',
+                    ),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: Icon(Icons.history, size: 18, color: Colors.grey[600]),
+              label: Text(
+                'Xem lịch sử trò chuyện',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  /// Start a new conversation explicitly
+  Future<void> _startNewConversation() async {
+    try {
+      await _conversationService.startNewConversation();
+      setState(() {
+        _messages = List.from(_conversationService.currentMessages);
+      });
+      _updateDynamicQuickActions();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi tạo cuộc trò chuyện: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMessagesList() {
@@ -340,7 +468,11 @@ class _ChatConversationTabState extends State<ChatConversationTab>
 
         final message = _messages[index];
         final isLast = index == _messages.length - 1;
-        return ChatMessageWidget(message: message, isLast: isLast);
+        return ChatMessageWidget(
+          message: message,
+          isLast: isLast,
+          onDelete: () => _deleteMessage(message),
+        );
       },
     );
   }
@@ -513,101 +645,100 @@ class _ChatConversationTabState extends State<ChatConversationTab>
     return Consumer<ConnectivityProvider>(
       builder: (context, connectivity, _) {
         final isOffline = connectivity.isOffline;
-        
         return AnimatedBuilder(
           animation: _uiOptimization,
           builder: (context, child) {
             return Container(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            12,
-            16,
-            // Sử dụng getBottomSpacing nhưng giới hạn tối thiểu là 12 (padding mặc định)
-            // Khi menubar hiện (120), padding sẽ là 120 (để tránh menubar)
-            // Khi menubar ẩn (20), padding sẽ là 20 (để cách keyboard/bottom một chút)
-            _uiOptimization.getBottomSpacing(),
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            // Giảm/loại bỏ hiệu ứng đổ bóng hướng lên gây cảm giác "vệt xám" che nội dung phía trên
-            boxShadow: const [],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Opacity(
-                  opacity: isOffline ? 0.5 : 1.0,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: isOffline ? Colors.grey[200] : Colors.grey[50],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey[200]!),
-                    ),
-                    child: TextField(
-                      focusNode: _focusNode,
-                      controller: _messageController,
-                      enabled: !isOffline,
-                      decoration: InputDecoration(
-                        hintText: isOffline 
-                            ? 'Cần internet để chat...' 
-                            : 'Nhập tin nhắn...',
-                        hintStyle: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 14,
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                // FIX: Sử dụng _isKeyboardVisible từ WidgetsBindingObserver để đảm bảo chính xác
+                _isKeyboardVisible ? 12.0 : 120.0,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                // Giảm/loại bỏ hiệu ứng đổ bóng hướng lên gây cảm giác "vệt xám" che nội dung phía trên
+                boxShadow: const [],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Opacity(
+                      opacity: isOffline ? 0.5 : 1.0,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isOffline ? Colors.grey[200] : Colors.grey[50],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.grey[200]!),
                         ),
-                        prefixIcon: isOffline
-                            ? Icon(
-                                Icons.wifi_off_rounded,
-                                size: 18,
-                                color: Colors.orange.shade600,
-                              )
-                            : null,
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: isOffline ? 8 : 16,
-                          vertical: 10,
+                        child: TextField(
+                          focusNode: _focusNode,
+                          controller: _messageController,
+                          enabled: !isOffline,
+                          decoration: InputDecoration(
+                            hintText: isOffline
+                                ? 'Cần internet để chat...'
+                                : 'Nhập tin nhắn...',
+                            hintStyle: TextStyle(
+                              color: Colors.grey[500],
+                              fontSize: 14,
+                            ),
+                            prefixIcon: isOffline
+                                ? Icon(
+                                    Icons.wifi_off_rounded,
+                                    size: 18,
+                                    color: Colors.orange.shade600,
+                                  )
+                                : null,
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: isOffline ? 8 : 16,
+                              vertical: 10,
+                            ),
+                          ),
+                          maxLines: null,
+                          textCapitalization: TextCapitalization.sentences,
+                          onSubmitted: _sendMessage,
                         ),
                       ),
-                      maxLines: null,
-                      textCapitalization: TextCapitalization.sentences,
-                      onSubmitted: _sendMessage,
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: isOffline ? null : () => _sendMessage(_messageController.text),
-                child: Opacity(
-                  opacity: isOffline ? 0.5 : 1.0,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      gradient: isOffline
-                          ? LinearGradient(
-                              colors: [Colors.grey, Colors.grey.shade400],
-                            )
-                          : LinearGradient(
-                              colors: [
-                                AppColors.primary,
-                                AppColors.primary.withValues(alpha: 0.8),
-                              ],
-                            ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.send_rounded,
-                      color: Colors.white,
-                      size: 20,
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: isOffline
+                        ? null
+                        : () => _sendMessage(_messageController.text),
+                    child: Opacity(
+                      opacity: isOffline ? 0.5 : 1.0,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          gradient: isOffline
+                              ? LinearGradient(
+                                  colors: [Colors.grey, Colors.grey.shade400],
+                                )
+                              : LinearGradient(
+                                  colors: [
+                                    AppColors.primary,
+                                    AppColors.primary.withValues(alpha: 0.8),
+                                  ],
+                                ),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.send_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-        );
-      },
+            );
+          },
         );
       },
     );

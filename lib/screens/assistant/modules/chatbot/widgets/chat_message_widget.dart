@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moni/config/app_config.dart';
 
@@ -6,17 +7,20 @@ import '../../../../../../utils/helpers/category_icon_helper.dart';
 import '../../../../../models/assistant/chat_message_model.dart';
 import '../../../../../services/providers/providers.dart';
 import '../../../../history/transaction_detail_screen.dart';
+import 'typing_dots.dart';
 
 /// Widget hiển thị một tin nhắn trong cuộc hội thoại
 class ChatMessageWidget extends ConsumerWidget {
   final ChatMessage message;
   final VoidCallback? onEditTransaction;
+  final VoidCallback? onDelete;
   final bool isLast;
 
   const ChatMessageWidget({
     super.key,
     required this.message,
     this.onEditTransaction,
+    this.onDelete,
     this.isLast = false,
   });
 
@@ -26,8 +30,9 @@ class ChatMessageWidget extends ConsumerWidget {
       margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment:
-            message.isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: message.isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         children: [
           if (!message.isUser) ...[
             Container(
@@ -47,101 +52,113 @@ class ChatMessageWidget extends ConsumerWidget {
             const SizedBox(width: 12),
           ],
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: message.isUser ? const Color(0xFFFF6B35) : Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(20),
-                  topRight: const Radius.circular(20),
-                  bottomLeft: message.isUser
-                      ? const Radius.circular(20)
-                      : const Radius.circular(4),
-                  bottomRight: message.isUser
-                      ? const Radius.circular(4)
-                      : const Radius.circular(20),
+            child: GestureDetector(
+              onLongPress: () => _showOptions(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-                border: message.isUser
-                    ? null
-                    : Border.all(
-                        color: AppColors.grey200,
-                        width: 1,
-                      ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                decoration: BoxDecoration(
+                  color: message.isUser
+                      ? const Color(0xFFFF6B35)
+                      : Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(20),
+                    topRight: const Radius.circular(20),
+                    bottomLeft: message.isUser
+                        ? const Radius.circular(20)
+                        : const Radius.circular(4),
+                    bottomRight: message.isUser
+                        ? const Radius.circular(4)
+                        : const Radius.circular(20),
                   ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!message.isUser && message.transactionId != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: _buildTransactionCategoryBadge(
-                          ref, message.transactionId!),
+                  border: message.isUser
+                      ? null
+                      : Border.all(color: AppColors.grey200, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                  // Render content với markdown support
-                  if (message.isUser)
-                    Text(
-                      message.text,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        height: 1.4,
-                      ),
-                    )
-                  else
-                    _buildAIMessage(message),
-
-                  const SizedBox(height: 8),
-
-                  // Time and edit button row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _formatTime(message.timestamp),
-                        style: TextStyle(
-                          color: message.isUser
-                              ? Colors.white.withValues(alpha: 0.8)
-                              : AppColors.textLight,
-                          fontSize: 11,
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!message.isUser && message.transactionId != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _buildTransactionCategoryBadge(
+                          ref,
+                          message.transactionId!,
                         ),
                       ),
+                    // Render content với markdown support
+                    if (message.isUser)
+                      Text(
+                        message.text,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          height: 1.4,
+                        ),
+                      )
+                    else
+                      _buildAIMessage(message),
 
-                      // Edit button for AI messages with transaction info
-                      // Hiển thị khi có transactionId (không cần check [EDIT_BUTTON] marker vì đã được extract)
-                      if (!message.isUser && message.transactionId != null)
-                        TextButton.icon(
-                          onPressed: () {
-                            _editTransaction(
-                                context, ref, message.transactionId!);
-                          },
-                          icon: const Icon(Icons.edit, size: 16),
-                          label: const Text('Chỉnh sửa'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    const SizedBox(height: 8),
+
+                    // Time and edit button row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _formatTime(message.timestamp),
+                          style: TextStyle(
+                            color: message.isUser
+                                ? Colors.white.withValues(alpha: 0.8)
+                                : AppColors.textLight,
+                            fontSize: 11,
                           ),
                         ),
 
-                      if (message.isUser) ...[
-                        Icon(
-                          Icons.done_all_rounded,
-                          size: 14,
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
+                        // Edit button for AI messages with transaction info
+                        // Hiển thị khi có transactionId (không cần check [EDIT_BUTTON] marker vì đã được extract)
+                        if (!message.isUser && message.transactionId != null)
+                          TextButton.icon(
+                            onPressed: () {
+                              _editTransaction(
+                                context,
+                                ref,
+                                message.transactionId!,
+                              );
+                            },
+                            icon: const Icon(Icons.edit, size: 16),
+                            label: const Text('Chỉnh sửa'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
+
+                        if (message.isUser) ...[
+                          Icon(
+                            Icons.done_all_rounded,
+                            size: 14,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -166,6 +183,28 @@ class ChatMessageWidget extends ConsumerWidget {
   }
 
   Widget _buildAIMessage(ChatMessage msg) {
+    // Show typing dots if text is empty (loading state)
+    if (msg.text.trim().isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Moni đang suy nghĩ',
+              style: TextStyle(
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(width: 8),
+            TypingDots(color: AppColors.primary, size: 5),
+          ],
+        ),
+      );
+    }
+
     // Clean up the text and separate edit button markers
     String cleanText = msg.text
         .replaceAll('[EDIT_BUTTON]', '')
@@ -246,21 +285,20 @@ class ChatMessageWidget extends ConsumerWidget {
 
       if (line.startsWith('**') && line.endsWith('**') && line.length > 4) {
         // Bold text
-        spans.add(TextSpan(
-          text: line.substring(2, line.length - 2),
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 16,
+        spans.add(
+          TextSpan(
+            text: line.substring(2, line.length - 2),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
-        ));
+        );
       } else if (line.startsWith('• ')) {
         // Bullet points
-        spans.add(TextSpan(
-          text: line,
-          style: TextStyle(
-            color: AppColors.textSecondary,
+        spans.add(
+          TextSpan(
+            text: line,
+            style: TextStyle(color: AppColors.textSecondary),
           ),
-        ));
+        );
       } else if (line.contains('**')) {
         // Inline bold text
         spans.add(_parseInlineBold(line));
@@ -289,10 +327,12 @@ class ChatMessageWidget extends ConsumerWidget {
       }
 
       // Add bold text
-      spans.add(TextSpan(
-        text: match.group(1),
-        style: const TextStyle(fontWeight: FontWeight.w600),
-      ));
+      spans.add(
+        TextSpan(
+          text: match.group(1),
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+      );
 
       lastEnd = match.end;
     }
@@ -306,7 +346,10 @@ class ChatMessageWidget extends ConsumerWidget {
   }
 
   void _editTransaction(
-      BuildContext context, WidgetRef ref, String transactionId) async {
+    BuildContext context,
+    WidgetRef ref,
+    String transactionId,
+  ) async {
     try {
       // Sử dụng Riverpod provider để lấy transaction
       // transactionByIdProvider là Provider.family, trả về TransactionModel? trực tiếp
@@ -331,7 +374,11 @@ class ChatMessageWidget extends ConsumerWidget {
               backgroundColor: AppColors.error,
               behavior: SnackBarBehavior.floating, // ← Floating behavior
               margin: const EdgeInsets.fromLTRB(
-                  16, 0, 16, 100), // ← Margin to avoid input area
+                16,
+                0,
+                16,
+                100,
+              ), // ← Margin to avoid input area
               duration: const Duration(seconds: 2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -375,7 +422,11 @@ class ChatMessageWidget extends ConsumerWidget {
               backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating, // ← Floating behavior
               margin: const EdgeInsets.fromLTRB(
-                  16, 0, 16, 100), // ← Margin to avoid input area
+                16,
+                0,
+                16,
+                100,
+              ), // ← Margin to avoid input area
               duration: const Duration(seconds: 2), // ← Shorter duration
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -403,7 +454,11 @@ class ChatMessageWidget extends ConsumerWidget {
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating, // ← Floating behavior
             margin: const EdgeInsets.fromLTRB(
-                16, 0, 16, 100), // ← Margin to avoid input area
+              16,
+              0,
+              16,
+              100,
+            ), // ← Margin to avoid input area
             duration: const Duration(seconds: 3), // ← Slightly longer for error
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -416,5 +471,60 @@ class ChatMessageWidget extends ConsumerWidget {
 
   String _formatTime(DateTime time) {
     return "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+  }
+
+  void _showOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.copy_rounded),
+              title: const Text('Sao chép nội dung'),
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: message.text));
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Đã sao chép vào bộ nhớ tạm'),
+                    behavior: SnackBarBehavior.floating,
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_rounded, color: Colors.red),
+              title: const Text(
+                'Xóa tin nhắn',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                if (onDelete != null) {
+                  onDelete!();
+                }
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 }

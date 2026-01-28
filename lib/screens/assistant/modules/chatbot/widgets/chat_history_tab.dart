@@ -29,6 +29,7 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
   }
 
   Future<void> _loadConversationHistory() async {
+    debugPrint('[ChatHistoryTab] _loadConversationHistory called');
     setState(() => _isLoading = true);
 
     try {
@@ -163,26 +164,15 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
       child: InkWell(
         onTap: onPressed,
         borderRadius: BorderRadius.circular(12),
-        child: const SizedBox.expand(),
+        child: Center(child: Icon(icon, color: AppColors.textWhite, size: 22)),
       ),
     );
 
-    final stack = Stack(
-      children: [
-        Positioned.fill(child: button),
-        const Positioned.fill(child: IgnorePointer(child: SizedBox())),
-        Positioned.fill(
-          child: Center(
-            child: Icon(icon, color: AppColors.textWhite, size: 22),
-          ),
-        ),
-      ],
-    );
-
-    return tooltip == null ? stack : Tooltip(message: tooltip, child: stack);
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
   }
 
   Future<void> _createNewConversation() async {
+    debugPrint('[ChatHistoryTab] _createNewConversation called');
     try {
       await _conversationService.startNewConversation();
 
@@ -369,89 +359,84 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
   Widget _buildConversationCard(ConversationSummary conversation) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        elevation: 2,
+        shadowColor: Colors.black.withValues(alpha: 0.2),
         child: InkWell(
           onTap: () => _openConversation(conversation),
           onLongPress: () => _showConversationOptions(conversation),
           borderRadius: BorderRadius.circular(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      conversation.title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '${conversation.messageCount} tin nhắn',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w500,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        conversation.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                conversation.lastMessage,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                  height: 1.3,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${conversation.messageCount} tin nhắn',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatRelativeTime(conversation.lastUpdate),
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                const SizedBox(height: 8),
+                Text(
+                  conversation.lastMessage,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    height: 1.3,
                   ),
-                  const Spacer(),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 14,
-                    color: Colors.grey[400],
-                  ),
-                ],
-              ),
-            ],
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatRelativeTime(conversation.lastUpdate),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      size: 14,
+                      color: Colors.grey[400],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -493,6 +478,9 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
   Future<void> _showConversationOptions(
     ConversationSummary conversation,
   ) async {
+    debugPrint(
+      '[ChatHistoryTab] _showConversationOptions called for: ${conversation.title}',
+    );
     // Đảm bảo không có TextField nào đang focus trước khi mở sheet
     FocusScope.of(context).unfocus();
 
@@ -583,6 +571,9 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
   }
 
   void _showDeleteDialog(ConversationSummary conversation) {
+    debugPrint(
+      '[ChatHistoryTab] _showDeleteDialog called for: ${conversation.title}',
+    );
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -597,14 +588,44 @@ class _ChatHistoryTabState extends State<ChatHistoryTab>
           ),
           ElevatedButton(
             onPressed: () async {
-              // Cache Navigator before async gap
+              debugPrint(
+                '[ChatHistoryTab] Delete button pressed, starting delete...',
+              );
+              // Cache Navigator and ScaffoldMessenger before async gap
               final navigator = Navigator.of(dialogContext);
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
 
-              await _conversationService.deleteConversation(conversation.id);
-              await _loadConversationHistory();
+              try {
+                await _conversationService.deleteConversation(conversation.id);
+                debugPrint(
+                  '[ChatHistoryTab] Delete completed, refreshing list...',
+                );
+                await _loadConversationHistory();
+                debugPrint(
+                  '[ChatHistoryTab] List refreshed, closing dialog...',
+                );
 
-              // Use cached navigator instead of context
-              navigator.pop();
+                // Use cached navigator instead of context
+                navigator.pop();
+
+                // Show success message
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('✅ Đã xóa cuộc trò chuyện!'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              } catch (e) {
+                debugPrint('[ChatHistoryTab] Error during delete: $e');
+                navigator.pop();
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('❌ Lỗi xóa: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Xóa', style: TextStyle(color: Colors.white)),

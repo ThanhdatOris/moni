@@ -17,6 +17,7 @@ class ConversationService extends ChangeNotifier {
 
   static const String _conversationsKey = 'chatbot_conversations';
   static const String _currentConversationKey = 'current_conversation_id';
+  static const String _deletedConversationsKey = 'deleted_conversation_ids';
 
   // Cloud services
   final cloud.ConversationService _cloudConversationService =
@@ -33,6 +34,7 @@ class ConversationService extends ChangeNotifier {
   List<ChatMessage> get currentMessages => List.unmodifiable(_currentMessages);
 
   /// Initialize the conversation service
+  /// Note: Does NOT auto-create new conversation. Call startNewConversation() explicitly if needed.
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     _currentConversationId = prefs.getString(_currentConversationKey);
@@ -41,12 +43,12 @@ class ConversationService extends ChangeNotifier {
     // Sync history from cloud in background
     _syncHistoryFromCloud();
 
-    // Load existing conversation if available, otherwise start new one
+    // Only load existing conversation if available
+    // Do NOT auto-create new conversation to avoid redundant conversations
     if (_currentConversationId != null) {
       await _loadCurrentConversation();
-    } else {
-      await startNewConversation();
     }
+    // If no conversation, leave it empty - UI should show "select or create" prompt
   }
 
   /// Sync conversation history from Cloud to Local
@@ -61,6 +63,10 @@ class ConversationService extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final localJsonList = prefs.getStringList(_conversationsKey) ?? [];
 
+      // Get list of deleted conversation IDs to skip
+      final deletedIds = prefs.getStringList(_deletedConversationsKey) ?? [];
+      final deletedIdsSet = deletedIds.toSet();
+
       // Convert local JSONs to map for easier merging
       final Map<String, ConversationSummary> localMap = {};
       for (final json in localJsonList) {
@@ -69,9 +75,14 @@ class ConversationService extends ChangeNotifier {
         localMap[summary.id] = summary;
       }
 
-      // Merge cloud data
+      // Merge cloud data (skip deleted ones)
       bool hasChanges = false;
       for (final cloudConv in cloudConversations) {
+        // Skip if this conversation was deleted locally
+        if (deletedIdsSet.contains(cloudConv.conversationId)) {
+          continue;
+        }
+
         // If cloud conversation is newer or doesn't exist locally
         if (!localMap.containsKey(cloudConv.conversationId) ||
             cloudConv.updatedAt.isAfter(
@@ -96,7 +107,7 @@ class ConversationService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      // print('Error syncing from cloud: $e');
+      debugPrint('[ConversationService] Error syncing from cloud: $e');
     }
   }
 
@@ -201,6 +212,13 @@ class ConversationService extends ChangeNotifier {
     }
 
     notifyListeners(); // Notify UI about changes
+  }
+
+  /// Delete a specific message
+  Future<void> deleteMessage(ChatMessage message) async {
+    _currentMessages.remove(message);
+    await _saveCurrentConversation();
+    notifyListeners();
   }
 
   /// Load specific conversation by ID
@@ -452,30 +470,67 @@ class ConversationService extends ChangeNotifier {
 
   /// Delete specific conversation
   Future<void> deleteConversation(String conversationId) async {
+    debugPrint(
+      '[ConversationService] deleteConversation called for: $conversationId',
+    );
     try {
       final prefs = await SharedPreferences.getInstance();
       final conversations = prefs.getStringList(_conversationsKey) ?? [];
+      debugPrint(
+        '[ConversationService] Current conversations count: ${conversations.length}',
+      );
 
-      // Remove conversation from list
+      // Remove conversation from local list
+      final beforeCount = conversations.length;
       conversations.removeWhere((json) {
         final data = jsonDecode(json) as Map<String, dynamic>;
         return data['id'] == conversationId;
       });
+      debugPrint(
+        '[ConversationService] Removed ${beforeCount - conversations.length} conversations',
+      );
 
-      // Remove conversation messages
+      // Remove conversation messages locally
       await prefs.remove('conversation_messages_$conversationId');
 
-      // Update list
+      // Update local list
       await prefs.setStringList(_conversationsKey, conversations);
 
-      // If this was current conversation, start new one
-      if (_currentConversationId == conversationId) {
-        await startNewConversation();
+      // Add to deleted IDs list to prevent re-sync from cloud
+      final deletedIds = prefs.getStringList(_deletedConversationsKey) ?? [];
+      if (!deletedIds.contains(conversationId)) {
+        deletedIds.add(conversationId);
+        await prefs.setStringList(_deletedConversationsKey, deletedIds);
+        debugPrint('[ConversationService] Added to deleted IDs list');
       }
 
+      debugPrint(
+        '[ConversationService] Updated conversations list, new count: ${conversations.length}',
+      );
+
+      // If this was current conversation, clear it (don't auto-create new)
+      if (_currentConversationId == conversationId) {
+        debugPrint(
+          '[ConversationService] Deleted current conversation, clearing state',
+        );
+        _currentConversationId = null;
+        _currentMessages.clear();
+        await prefs.remove(_currentConversationKey);
+      }
+
+      // Also delete from cloud (fire and forget, don't wait)
+      _cloudConversationService.deleteConversation(conversationId).catchError((
+        e,
+      ) {
+        debugPrint('[ConversationService] Error deleting from cloud: $e');
+      });
+
       notifyListeners();
+      debugPrint(
+        '[ConversationService] deleteConversation completed successfully',
+      );
     } catch (e) {
-      // print('Error deleting conversation: $e');
+      debugPrint('[ConversationService] Error deleting conversation: $e');
     }
   }
 

@@ -108,7 +108,15 @@ TOOL USAGE INSTRUCTIONS:
 
 3. When you call "getMonthlyReport", the tool returns a pre-formatted report. Just display it to the user and add a helpful comment.
 
-4. When you call "updateTransaction", the tool returns the updated transaction. Confirm to user:
+4. REPORT TOOL USAGE:
+- "thống kê ngày..." -> call getDailyReport
+- "thống kê tuần...", "tuần này", "tuần trước" -> call getWeeklyReport (pass a date within that week)
+- "thống kê năm...", "năm 2024" -> call getYearlyReport
+- "thống kê tháng..." -> call getMonthlyReport
+
+5. When you call "getDailyReport", "getWeeklyReport", or "getYearlyReport", the tool returns a pre-formatted report. Just display it to the user.
+
+6. When you call "updateTransaction", the tool returns the updated transaction. Confirm to user:
 
 ✅ **Đã cập nhật giao dịch!**
 
@@ -119,7 +127,7 @@ TOOL USAGE INSTRUCTIONS:
 
 [EDIT_BUTTON:<transactionId>]
 
-5. SMART CONTEXT RECOVERY:
+6. SMART CONTEXT RECOVERY:
 - If user says "sửa lại", "update it", "nhầm rồi", "sửa thành...", or asks to modify the last transaction:
 - AUTOMATICALLY find the transactionId from the last `[EDIT_BUTTON:<id>]` in the chat history.
 - Call `updateTransaction` with that ID immediately.
@@ -212,6 +220,15 @@ User input: "$input"
           result = await _handleAddTransaction(fn.args);
         } else if (fn.name == 'getMonthlyReport') {
           final reportStr = await _handleGetMonthlyReport(fn.args);
+          result = {'report': reportStr};
+        } else if (fn.name == 'getDailyReport') {
+          final reportStr = await _handleGetDailyReport(fn.args);
+          result = {'report': reportStr};
+        } else if (fn.name == 'getWeeklyReport') {
+          final reportStr = await _handleGetWeeklyReport(fn.args);
+          result = {'report': reportStr};
+        } else if (fn.name == 'getYearlyReport') {
+          final reportStr = await _handleGetYearlyReport(fn.args);
           result = {'report': reportStr};
         } else if (fn.name == 'updateTransaction') {
           result = await _handleUpdateTransaction(fn.args);
@@ -646,5 +663,228 @@ Hãy nói với tôi về một giao dịch bất kỳ, ví dụ: "Hôm nay ăn 
       _logger.e('Error getting monthly report: $e');
       return '❌ Có lỗi xảy ra khi lấy báo cáo: $e';
     }
+  }
+
+  /// Handle get daily report function call
+  Future<String> _handleGetDailyReport(Map<String, dynamic> args) async {
+    try {
+      final transactionService = _getIt<TransactionService>();
+
+      DateTime date = DateTime.now();
+      if (args['date'] != null) {
+        try {
+          date = DateTime.parse(args['date'].toString());
+        } catch (_) {}
+      }
+
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+      final transactions = await transactionService.getTransactionsByDateRange(
+        startOfDay,
+        endOfDay,
+      );
+
+      final dateStr = DateFormat('dd/MM/yyyy').format(date);
+
+      if (transactions.isEmpty) {
+        return 'Không có dữ liệu giao dịch nào được ghi nhận trong ngày $dateStr.';
+      }
+
+      double totalIncome = 0;
+      double totalExpense = 0;
+
+      for (var t in transactions) {
+        if (t.type == TransactionType.income) {
+          totalIncome += t.amount;
+        } else {
+          totalExpense += t.amount;
+        }
+      }
+
+      final balance = totalIncome - totalExpense;
+
+      final incomeStr = CurrencyFormatter.formatAmountWithCurrency(totalIncome);
+      final expenseStr = CurrencyFormatter.formatAmountWithCurrency(
+        totalExpense,
+      );
+      final balanceStr = CurrencyFormatter.formatAmountWithCurrency(balance);
+
+      String report =
+          '''📊 **Báo cáo tài chính Ngày $dateStr**
+
+💰 **Tổng thu nhập:** $incomeStr
+💸 **Tổng chi tiêu:** $expenseStr
+⚖️ **Số dư trong ngày:** $balanceStr
+
+📝 **Chi tiết giao dịch:**
+''';
+
+      // Sắp xếp theo thời gian mới nhất (đảo ngược vì thường list có thể đã sort)
+      // TransactionService thường trả về mới nhất trước hoặc tùy logic.
+      // Chúng ta sẽ giả sử nó đã sort hoặc list nguyên bản.
+
+      for (var t in transactions) {
+        // final time = DateFormat('HH:mm').format(t.date); // Nếu có lưu giờ
+        // Vì hiện tại App đang lưu Date có thể chỉ là start of day hoặc có giờ
+        // Ta cứ display format nếu cần. Nếu date ko có giờ thì thôi.
+        final amount = CurrencyFormatter.formatAmountWithCurrency(t.amount);
+        final icon = t.type == TransactionType.income ? '➕' : '➖';
+
+        // Ở đây để tối ưu performance ta hiển thị note là chính.
+        final note = (t.note?.isEmpty ?? true) ? 'Giao dịch' : t.note!;
+
+        report += '$icon **$note**: $amount\n';
+      }
+
+      return report;
+    } catch (e) {
+      _logger.e('Error getting daily report: $e');
+      return '❌ Có lỗi xảy ra khi lấy báo cáo ngày: $e';
+    }
+  }
+
+  /// Handle get weekly report
+  Future<String> _handleGetWeeklyReport(Map<String, dynamic> args) async {
+    try {
+      final transactionService = _getIt<TransactionService>();
+
+      DateTime date = DateTime.now();
+      if (args['date'] != null) {
+        try {
+          date = DateTime.parse(args['date'].toString());
+        } catch (_) {}
+      }
+
+      // Calculate start and end of week (Monday to Sunday)
+      final startOfWeek = date.subtract(Duration(days: date.weekday - 1));
+      final startOfDay = DateTime(
+        startOfWeek.year,
+        startOfWeek.month,
+        startOfWeek.day,
+      );
+
+      final endOfWeek = date.add(Duration(days: 7 - date.weekday));
+      final endOfDay = DateTime(
+        endOfWeek.year,
+        endOfWeek.month,
+        endOfWeek.day,
+        23,
+        59,
+        59,
+      );
+
+      final transactions = await transactionService.getTransactionsByDateRange(
+        startOfDay,
+        endOfDay,
+      );
+
+      final startStr = DateFormat('dd/MM').format(startOfDay);
+      final endStr = DateFormat('dd/MM').format(endOfDay);
+
+      if (transactions.isEmpty) {
+        return 'Không có giao dịch nào từ $startStr đến $endStr.';
+      }
+
+      return _generateReportString(
+        transactions,
+        'Tuần ($startStr - $endStr)',
+        showDetails: true,
+      );
+    } catch (e) {
+      _logger.e('Error getting weekly report: $e');
+      return '❌ Lỗi lấy báo cáo tuần: $e';
+    }
+  }
+
+  /// Handle get yearly report
+  Future<String> _handleGetYearlyReport(Map<String, dynamic> args) async {
+    try {
+      final transactionService = _getIt<TransactionService>();
+
+      int year = DateTime.now().year;
+      if (args['year'] != null) {
+        year = int.tryParse(args['year'].toString()) ?? year;
+      }
+
+      final startOfYear = DateTime(year, 1, 1);
+      final endOfYear = DateTime(year, 12, 31, 23, 59, 59);
+
+      final transactions = await transactionService.getTransactionsByDateRange(
+        startOfYear,
+        endOfYear,
+      );
+
+      if (transactions.isEmpty) {
+        return 'Không có giao dịch nào trong năm $year.';
+      }
+
+      return _generateReportString(
+        transactions,
+        'Năm $year',
+        showDetails:
+            false, // Năm thì không show hết list vì quá dài, chỉ show top 5
+      );
+    } catch (e) {
+      _logger.e('Error getting yearly report: $e');
+      return '❌ Lỗi lấy báo cáo năm: $e';
+    }
+  }
+
+  /// Helper to generate report string to avoid duplication
+  String _generateReportString(
+    List<TransactionModel> transactions,
+    String title, {
+    bool showDetails = true,
+  }) {
+    double totalIncome = 0;
+    double totalExpense = 0;
+
+    for (var t in transactions) {
+      if (t.type == TransactionType.income) {
+        totalIncome += t.amount;
+      } else {
+        totalExpense += t.amount;
+      }
+    }
+
+    final balance = totalIncome - totalExpense;
+    final incomeStr = CurrencyFormatter.formatAmountWithCurrency(totalIncome);
+    final expenseStr = CurrencyFormatter.formatAmountWithCurrency(totalExpense);
+    final balanceStr = CurrencyFormatter.formatAmountWithCurrency(balance);
+
+    String report =
+        '''📊 **Báo cáo tài chính $title**
+
+💰 **Tổng thu nhập:** $incomeStr
+💸 **Tổng chi tiêu:** $expenseStr
+⚖️ **Số dư:** $balanceStr
+''';
+
+    if (showDetails) {
+      report += '\n📝 **Chi tiết giao dịch:**\n';
+      for (var t in transactions) {
+        final date = DateFormat('dd/MM').format(t.date);
+        final amount = CurrencyFormatter.formatAmountWithCurrency(t.amount);
+        final icon = t.type == TransactionType.income ? '➕' : '➖';
+        final note = (t.note?.isEmpty ?? true) ? 'Giao dịch' : t.note!;
+        report += '$icon **$date**: $note ($amount)\n';
+      }
+    } else {
+      report += '\n📝 **5 Giao dịch lớn nhất:**\n';
+      // Sort by amount desc
+      final sorted = List<TransactionModel>.from(transactions)
+        ..sort((a, b) => b.amount.compareTo(a.amount));
+
+      for (var t in sorted.take(5)) {
+        final date = DateFormat('dd/MM').format(t.date);
+        final amount = CurrencyFormatter.formatAmountWithCurrency(t.amount);
+        final note = (t.note?.isEmpty ?? true) ? 'Giao dịch' : t.note!;
+        report += '- **$date**: $note ($amount)\n';
+      }
+      report += '\n💡 *Xem chi tiết trong tab Báo cáo*';
+    }
+
+    return report;
   }
 }

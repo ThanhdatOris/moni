@@ -104,6 +104,49 @@ class AIProcessorService {
                   'Year (e.g. 2024). Defaults to current year if not specified.',
             ),
           },
+        ),
+      ),
+      FunctionDeclaration(
+        'getDailyReport',
+        'Get financial report for a specific day to analyze daily spending/income',
+        Schema(
+          SchemaType.object,
+          properties: {
+            'date': Schema(
+              SchemaType.string,
+              description:
+                  'Date (YYYY-MM-DD). Defaults to today if not specified.',
+            ),
+          },
+          requiredProperties: [],
+        ),
+      ),
+      FunctionDeclaration(
+        'getWeeklyReport',
+        'Get financial report for a specific week based on a date in that week',
+        Schema(
+          SchemaType.object,
+          properties: {
+            'date': Schema(
+              SchemaType.string,
+              description:
+                  'Any date within the target week (YYYY-MM-DD). Defaults to today.',
+            ),
+          },
+          requiredProperties: [],
+        ),
+      ),
+      FunctionDeclaration(
+        'getYearlyReport',
+        'Get financial report for a specific year',
+        Schema(
+          SchemaType.object,
+          properties: {
+            'year': Schema(
+              SchemaType.integer,
+              description: 'Year (e.g. 2024). Defaults to current year.',
+            ),
+          },
           requiredProperties: [],
         ),
       ),
