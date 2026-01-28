@@ -6,12 +6,15 @@ import 'package:logger/logger.dart';
 
 import '../../models/assistant/chat_message_model.dart';
 import '../core/environment_service.dart';
+import '../core/remote_config_service.dart';
 import 'ai_services.dart';
 
 /// AI Processor Service - Facade Pattern
 ///
 /// This is the main entry point for all AI operations.
 /// Delegates to specialized modules for specific tasks.
+///
+/// Configurable via Firebase Remote Config for model updates.
 ///
 /// Modules:
 /// - AIResponseCache: Smart persistent caching
@@ -22,6 +25,7 @@ import 'ai_services.dart';
 class AIProcessorService {
   final Logger _logger = Logger();
   final GetIt _getIt = GetIt.instance;
+  RemoteConfigService? _remoteConfig;
 
   // Specialized modules
   late final AIResponseCache _cache;
@@ -41,6 +45,11 @@ class AIProcessorService {
 
     if (apiKey.isEmpty) {
       throw Exception('Gemini API key not found in environment variables');
+    }
+
+    // Try to get Remote Config service (may not be available in tests/early init)
+    if (_getIt.isRegistered<RemoteConfigService>()) {
+      _remoteConfig = _getIt<RemoteConfigService>();
     }
 
     // Define function declarations for chatbot
@@ -140,14 +149,19 @@ class AIProcessorService {
     String initializedModel = '';
 
     try {
-      // Primary model: gemini-2.5-flash
+      // Dynamic Model Name from Remote Config
+      final String modelName = _remoteConfig?.aiModelName ?? 'gemini-2.5-flash';
+
+      // Primary model
       _model = GenerativeModel(
-        model: 'gemini-2.5-flash',
+        model: modelName,
         apiKey: apiKey,
         tools: [Tool(functionDeclarations: functions)],
       );
-      initializedModel = 'gemini-2.5-flash';
-      _logger.i('✅ Primary model: Gemini 2.5 Flash');
+      initializedModel = modelName;
+      _logger.i(
+        '✅ Primary model: $modelName (Remote Config: ${_remoteConfig != null})',
+      );
 
       // Fallback model 1: gemini-2.5-flash-lite
       try {
@@ -158,7 +172,9 @@ class AIProcessorService {
         );
         _logger.d('✅ Fallback model 1: Gemini 2.5 Flash Lite');
       } catch (e) {
-        _logger.w('⚠️ Fallback model 1 (gemini-2.5-flash-lite) initialization failed: $e');
+        _logger.w(
+          '⚠️ Fallback model 1 (gemini-2.5-flash-lite) initialization failed: $e',
+        );
       }
 
       // Fallback model 2: gemini-1.5-pro (nếu có)
@@ -192,10 +208,7 @@ class AIProcessorService {
     _cache = AIResponseCache();
     _cache.loadFromDisk();
 
-    _categoryService = AICategoryService(
-      model: _model,
-      cache: _cache,
-    );
+    _categoryService = AICategoryService(model: _model, cache: _cache);
 
     _textGenerator = AITextGenerator(
       model: _model,

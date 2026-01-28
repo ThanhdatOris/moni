@@ -1,0 +1,35 @@
+{
+  "parameters": {
+    "ai_model_name": {
+      "defaultValue": {
+        "value": "gemini-2.5-flash"
+      },
+      "description": "Tên Model AI sử dụng (ví dụ: gemini-2.5-flash, gemini-1.5-pro, gemini-1.5-flash). Thay đổi giá trị này để chuyển đổi model ngay lập tức."
+    },
+    "ai_custom_api_key": {
+      "defaultValue": {
+        "value": ""
+      },
+      "description": "API Key dự phòng cho AI. Nếu để trống, App sẽ dùng API Key mặc định trong file môi trường."
+    },
+    "ai_prompt_template": {
+      "defaultValue": {
+        "value": "Bạn là chuyên gia tài chính cá nhân thông minh, thân thiện và hài hước. Nhiệm vụ chính: Phân tích chi tiêu, gợi ý tiết kiệm và cảnh báo vung tay quá trán. Hãy trả lời ngắn gọn, sử dụng emoji phù hợp. Dữ liệu đầu vào sẽ là danh sách giao dịch hoặc câu hỏi của người dùng."
+      },
+      "description": "System Prompt định hình tính cách và nhiệm vụ của AI Assistant."
+    },
+    "maintenance_mode": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "valueType": "BOOLEAN",
+      "description": "Trạng thái bảo trì hệ thống. Nếu true, App sẽ hiển thị màn hình bảo trì và chặn thao tác."
+    },
+    "min_app_version": {
+      "defaultValue": {
+        "value": "1.0.0"
+      },
+      "description": "Phiên bản App tối thiểu được phép sử dụng. Dùng để ép buộc người dùng cập nhật phiên bản mới."
+    }
+  }
+}

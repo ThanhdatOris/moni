@@ -100,6 +100,7 @@ dependencies:
   # Dependency injection
   get_it: ^8.2.0
   firebase_ai: ^3.5.0
+  firebase_remote_config: ^6.1.4
 
 dev_dependencies:
   flutter_test:

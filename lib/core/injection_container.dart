@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get_it/get_it.dart';
+import 'package:moni/services/core/remote_config_service.dart';
 import 'package:moni/services/services.dart';
 
 import '../screens/assistant/services/real_data_service.dart';
@@ -25,6 +26,8 @@ Future<void> init() async {
   // ==========================================================================
   // CORE SERVICES
   // ==========================================================================
+
+  getIt.registerLazySingleton<RemoteConfigService>(() => RemoteConfigService());
 
   getIt.registerLazySingleton<EnvironmentService>(() => EnvironmentService());
   getIt.registerLazySingleton<FirebaseService>(() => FirebaseService());
@@ -98,7 +101,15 @@ Future<void> init() async {
   getIt.registerLazySingleton<RealDataService>(() => RealDataService());
 
   // Initialize AI services after registration
+  // Initialize AI services after registration
   await getIt<RealDataService>().initialize();
+
+  // Initialize Remote Config (try-catch để không chặn app startup nếu lỗi mạng)
+  try {
+    await getIt<RemoteConfigService>().initialize();
+  } catch (e) {
+    // Ignore initialization error
+  }
 
   // Validation Services
   getIt.registerLazySingleton<AdvancedValidationService>(
@@ -141,6 +152,7 @@ OCRService get ocrService => getIt<OCRService>();
 AIProcessorService get aiProcessorService => getIt<AIProcessorService>();
 ChatLogService get chatLogService => getIt<ChatLogService>();
 ConversationService get conversationService => getIt<ConversationService>();
+RemoteConfigService get remoteConfigService => getIt<RemoteConfigService>();
 
 // Validation Services
 AdvancedValidationService get advancedValidationService =>
