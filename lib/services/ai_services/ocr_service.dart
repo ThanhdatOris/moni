@@ -371,6 +371,7 @@ class OCRService {
     final datePatterns = [
       RegExp(r'(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})'),
       RegExp(r'(\d{2,4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})'),
+      RegExp(r'(\d{1,2}\s+(?:Thg|thg|Tháng|tháng)\s+\d{1,2})'), // 15 Thg 1
     ];
 
     for (final line in lines) {

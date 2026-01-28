@@ -160,16 +160,20 @@ QUY TẮC CHUNG:
 - Với nhiều số tiền, ưu tiên số có nhãn "Total", "Tổng", "Thành tiền"
 - Số tiền thường ở cuối hóa đơn, sau các dòng chi tiết
 
-Trả về JSON với format:
+Trả về JSON với format bên dưới (chỉ JSON, không giải thích):
 {
   "verified_amount": số_tiền_chính_xác (số nguyên, không dấu phẩy),
-  "description": "mô tả ngắn gọn về giao dịch",
-  "category_suggestion": "danh mục phù hợp bằng tiếng Việt",
+  "description": "Tên giao dịch ngắn gọn (ví dụ: 'Highlands Coffee', 'Grab', 'Siêu thị')",
+  "category_suggestion": "danh mục phù hợp",
   "transaction_type": "expense" hoặc "income",
   "confidence_score": số từ 0-100,
-  "notes": "ghi chú bổ sung (ví dụ: đã tính thuế 10%, giảm giá 5k)",
-  "document_type": "bank_notification" hoặc "receipt"
+  "notes": "Chi tiết phụ (nếu thiết yếu)",
+  "document_type": "bank_notification" hoặc "receipt",
+  "date": "YYYY-MM-DD"
 }
+
+Ví dụ:
+{"verified_amount": 55000, "description": "Cơm tấm", "category": "Ăn uống", "type": "expense", "confidence": 95}
 
 Danh mục gợi ý: Ăn uống, Di chuyển, Mua sắm, Giải trí, Y tế, Học tập, Hóa đơn, Chuyển tiền, Thu nhập, Lương, Khác
 
@@ -256,6 +260,7 @@ Tong cong: 55,000"
         'confidence_score': confidenceScore.clamp(0, 100),
         'notes': notes,
         'document_type': documentType,
+        'date': data['date'],
       };
     } catch (e) {
       _logger.e('❌ Error parsing AI analysis response: $e');
@@ -307,7 +312,10 @@ Tong cong: 55,000"
       'description': description,
       'type': type,
       'category_suggestion': category,
-      'date': DateTime.now().toIso8601String().split('T')[0],
+      'date': (useAI && aiAnalysis.isNotEmpty && aiAnalysis['date'] != null)
+          ? aiAnalysis['date']
+          : (ocrAnalysis['date'] ??
+                DateTime.now().toIso8601String().split('T')[0]),
       'confidence': combinedConfidence,
       'raw_text': extractedText,
       'processing_method': useAI ? 'OCR + AI' : 'OCR only',

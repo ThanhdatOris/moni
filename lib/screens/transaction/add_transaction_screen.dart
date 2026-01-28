@@ -794,6 +794,32 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen>
         }
       }
 
+      // Try DD-MM-YYYY format (e.g. 15-01-2026)
+      if (RegExp(r'^\d{1,2}-\d{1,2}-\d{4}').hasMatch(cleanDate)) {
+        final parts = cleanDate.split('-');
+        if (parts.length >= 3) {
+          return DateTime(
+            int.parse(parts[2]), // year
+            int.parse(parts[1]), // month
+            int.parse(parts[0]), // day
+          );
+        }
+      }
+
+      // Try "15 Thg 1" or "15 tháng 1" format
+      final textMonthRegex = RegExp(
+        r'^(\d{1,2})\s+(?:Thg|thg|Tháng|tháng)\s+(\d{1,2})',
+      );
+      final textMonthMatch = textMonthRegex.firstMatch(cleanDate);
+      if (textMonthMatch != null) {
+        final day = int.parse(textMonthMatch.group(1)!);
+        final month = int.parse(textMonthMatch.group(2)!);
+        final now = DateTime.now();
+        // Assume current year unless future date, then use last year? Or just current year.
+        // Simple logic: Use current year.
+        return DateTime(now.year, month, day);
+      }
+
       // Try other common formats...
       return DateTime.tryParse(cleanDate);
     } catch (e) {

@@ -23,9 +23,7 @@ class AIChatHandler {
   final Logger _logger = Logger();
   final GetIt _getIt = GetIt.instance;
 
-  AIChatHandler({
-    required GenerativeModel model,
-  }) : _model = model;
+  AIChatHandler({required GenerativeModel model}) : _model = model;
 
   /// Process chat input with streaming response
   /// Returns a stream of text chunks as they arrive
@@ -73,7 +71,13 @@ EXPENSE examples:
 - "mua áo 300k" → amount: "300k", category: "Mua sắm", type: "expense"
 - "xem phim 120k" → amount: "120k", category: "Giải trí", type: "expense"
 - "thuốc cảm 80k" → amount: "80k", category: "Y tế", type: "expense"
+- "thuốc cảm 80k" → amount: "80k", category: "Y tế", type: "expense"
 - "học phí 2tr" → amount: "2tr", category: "Học tập", type: "expense"
+
+DATE HANDLING EXAMPLES:
+- "nạp điện thoại 50k hôm qua" → amount="50k", date="YYYY-MM-DD" (yesterday's date)
+- "vá xe 1/1/26" → amount="...", date="2026-01-01"
+- "cơm chiên 25k ngày 16 tháng 1" → amount="25k", date="2026-01-16" (infer current year)
 
 SMART CATEGORIZATION:
 - Food/Dining: "Ăn uống" (🍽️) - cơm, phở, ăn, uống, food, eat, restaurant
