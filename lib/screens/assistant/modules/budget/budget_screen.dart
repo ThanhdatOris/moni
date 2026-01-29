@@ -1,21 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moni/config/app_config.dart';
-import 'package:moni/services/ai_services/ai_services.dart';
 import 'package:moni/services/data/budget_allocation_service.dart';
 import 'package:moni/services/data/budget_service.dart';
 import 'package:moni/services/data/category_service.dart';
 import 'package:moni/utils/formatting/currency_formatter.dart';
 import 'package:moni/utils/helpers/category_icon_helper.dart';
-import 'package:provider/provider.dart';
 
 import '../../../../models/category_model.dart';
-import '../../../../providers/connectivity_provider.dart';
 import '../../../assistant/services/real_data_service.dart' as real_data;
 import '../../widgets/assistant_module_tab_bar.dart';
 import 'widgets/budget_input_form.dart';
 import 'widgets/budget_progress_indicator.dart';
-import 'widgets/budget_recommendation_card.dart';
+import 'widgets/budget_settings_tab.dart';
 
 /// Simple budget category model
 class BudgetCategory {
@@ -42,7 +39,6 @@ class BudgetScreen extends StatefulWidget {
 
 class _BudgetScreenState extends State<BudgetScreen>
     with TickerProviderStateMixin {
-  final AIProcessorService _aiService = GetIt.instance<AIProcessorService>();
   final real_data.RealDataService _realDataService =
       GetIt.instance<real_data.RealDataService>();
   final BudgetService _budgetService = BudgetService();
@@ -54,9 +50,7 @@ class _BudgetScreenState extends State<BudgetScreen>
 
   // Real budget data
   real_data.BudgetData? _budgetData;
-  List<BudgetTip> _budgetTips = [];
   List<real_data.CategoryBudgetProgress> _categoryProgress = [];
-  String? _aiRecommendationText;
 
   @override
   void initState() {
@@ -78,13 +72,11 @@ class _BudgetScreenState extends State<BudgetScreen>
 
       setState(() {
         _categoryProgress = _budgetData?.categoryProgress ?? [];
-        _budgetTips = _generateBudgetTips();
       });
     } catch (e) {
       // Keep empty state on error
       setState(() {
         _categoryProgress = [];
-        _budgetTips = [];
       });
     } finally {
       setState(() => _isLoading = false);
@@ -180,30 +172,6 @@ class _BudgetScreenState extends State<BudgetScreen>
     }
   }
 
-  List<BudgetTip> _generateBudgetTips() {
-    return [
-      BudgetTip(
-        title: 'Áp dụng quy tắc 50/30/20',
-        description:
-            '50% cho chi phí thiết yếu, 30% cho giải trí, 20% để tiết kiệm',
-        category: BudgetTipCategory.general,
-        priority: 5,
-      ),
-      BudgetTip(
-        title: 'Giảm chi tiêu ăn ngoài',
-        description: 'Nấu ăn tại nhà có thể tiết kiệm đến 60% chi phí ăn uống',
-        category: BudgetTipCategory.spending,
-        priority: 4,
-      ),
-      BudgetTip(
-        title: 'Thiết lập quỹ khẩn cấp',
-        description: 'Dành ít nhất 3-6 tháng chi tiêu cho quỹ khẩn cấp',
-        category: BudgetTipCategory.saving,
-        priority: 5,
-      ),
-    ];
-  }
-
   /// Convert real data CategoryBudgetProgress to widget CategoryBudgetProgress
   List<CategoryBudgetProgress> _convertCategoryProgress() {
     return _categoryProgress
@@ -269,9 +237,9 @@ class _BudgetScreenState extends State<BudgetScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.psychology, size: 14),
+                    Icon(Icons.settings_outlined, size: 14),
                     SizedBox(width: 4),
-                    Text('Gợi ý AI'),
+                    Text('Cài đặt'),
                   ],
                 ),
               ),
@@ -286,7 +254,7 @@ class _BudgetScreenState extends State<BudgetScreen>
             children: [
               _buildCreateBudgetTab(),
               _buildTrackBudgetTab(),
-              _buildRecommendationTab(),
+              const BudgetSettingsTab(),
             ],
           ),
         ),
@@ -333,84 +301,6 @@ class _BudgetScreenState extends State<BudgetScreen>
         ),
       ),
     );
-  }
-
-  Widget _buildRecommendationTab() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            BudgetRecommendationCard(
-              recommendation:
-                  _aiRecommendationText ??
-                  (_budgetData?.recommendations ?? const []).join('\n• '),
-              tips: _budgetTips,
-              isLoading: _isLoading,
-              onRegenerateRecommendation: _generateNewRecommendation,
-            ),
-            // Bottom spacing for menubar
-            const SizedBox(height: 120),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _generateNewRecommendation() async {
-    // ✅ CHECK OFFLINE
-    final connectivity = context.read<ConnectivityProvider>();
-    if (connectivity.isOffline) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
-              const SizedBox(width: 12),
-              Text('Cần kết nối internet để tạo gợi ý AI'),
-            ],
-          ),
-          backgroundColor: Colors.orange.shade700,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      // Direct AI call without wrapper layers
-      final prompt =
-          'Tạo gợi ý ngân sách chi tiết mới. Bao gồm: phân bổ theo danh mục, '
-          'mục tiêu tiết kiệm, và lời khuyên thực tế cho việc quản lý tài chính.';
-
-      final response = await _aiService.generateText(prompt);
-
-      if (mounted) {
-        if (response.isNotEmpty) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Đã tạo gợi ý mới!')));
-          setState(() {
-            _aiRecommendationText = response;
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Lỗi: Không thể tạo gợi ý')),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
   }
 
   void _showAdjustBudgetDialog() {
